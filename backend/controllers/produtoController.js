@@ -1,6 +1,6 @@
 // backend/controllers/produtoController.js
 
-const pool = require('../config/db'); // Corrigindo o caminho para o arquivo de configuração do DB
+const pool = require('../db'); // Corrigindo o caminho para o arquivo de configuração do DB
 
 /**
  * @desc    Obter todos os produtos

@@ -2,25 +2,25 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App.tsx'; // Seu componente principal da aplicação
 import { ChakraProvider } from '@chakra-ui/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter } from 'react-router-dom'; // Essencial para as rotas
+import { BrowserRouter } from 'react-router-dom'; // Importe o BrowserRouter aqui
 
-// Cria uma instância do QueryClient
+import App from './App.tsx';
+import { AuthProvider } from './hooks/useAuth';
+
 const queryClient = new QueryClient();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    {/* O BrowserRouter deve envolver o App para o roteamento funcionar */}
-    <BrowserRouter>
-      {/* O QueryClientProvider habilita o React Query em toda a aplicação */}
+    <ChakraProvider>
       <QueryClientProvider client={queryClient}>
-        {/* O ChakraProvider habilita o uso de componentes Chakra UI */}
-        <ChakraProvider>
-          <App />
-        </ChakraProvider>
+        <BrowserRouter> {/* <-- O ÚNICO ROUTER DEVE ESTAR AQUI */}
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </BrowserRouter>
       </QueryClientProvider>
-    </BrowserRouter>
-  </React.StrictMode>,
+    </ChakraProvider>
+  </React.StrictMode>
 );
