@@ -1,0 +1,18 @@
+# Arquivos de dependências do Node.js
+/backend/node_modules
+/frontend/node_modules
+/frontend/dist
+
+# Arquivos de log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Arquivo de variáveis de ambiente (NUNCA ENVIE SENHAS!)
+.env
+/backend/.env
+/frontend/.env
+
+# Arquivos de sistema operacional
+.DS_Store
+Thumbs.db
