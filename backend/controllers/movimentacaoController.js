@@ -2,98 +2,136 @@
 
 const pool = require('../db');
 
-// Listar todas as movimentações do tipo 'ENTRADA' (Vendas)
-exports.listarMovimentacoes = async (req, res) => {
+// Função para registrar uma nova VENDA (ENTRADA)
+const createVenda = async (req, res) => {
+  const { cliente_id, produtos } = req.body; // produtos é um array de { produto_id, quantidade, preco_unitario }
+  const usuario_id = req.user.id; // ID do usuário logado (vendedor)
+
+  if (!cliente_id || !produtos || !Array.isArray(produtos) || produtos.length === 0) {
+    return res.status(400).json({ error: 'Dados da venda inválidos.' });
+  }
+
+  const client = await pool.connect();
+
   try {
-    const query = `
-      SELECT 
-        m.id, 
-        m.tipo, 
-        m.data, 
-        m.valor_total, 
-        c.nome AS cliente_nome, 
-        u.nome AS usuario_nome,
-        m.produtos
-      FROM movimentacoes m
-      JOIN clientes c ON m.cliente_id = c.id
-      JOIN utilizadores u ON m.utilizador_id = u.id
-      WHERE m.tipo = 'ENTRADA'
-      ORDER BY m.data DESC;
-    `;
-    const { rows } = await pool.query(query);
-    res.json(rows);
+    await client.query('BEGIN');
+
+    let valor_total_venda = 0;
+    for (const item of produtos) {
+        valor_total_venda += item.quantidade * item.preco_unitario;
+    }
+
+    // 1. Inserir a movimentação principal (a venda)
+    const movimentacaoResult = await client.query(
+      `INSERT INTO movimentacoes (tipo, valor_total, cliente_id, usuario_id)
+       VALUES ('ENTRADA', $1, $2, $3)
+       RETURNING id`,
+      [valor_total_venda, cliente_id, usuario_id]
+    );
+    const movimentacao_id = movimentacaoResult.rows[0].id;
+
+    // 2. Inserir os itens da movimentação
+    const itemQueries = produtos.map(item => {
+      return client.query(
+        `INSERT INTO itens_movimentacao (movimentacao_id, produto_id, quantidade, preco_unitario)
+         VALUES ($1, $2, $3, $4)`,
+        [movimentacao_id, item.produto_id, item.quantidade, item.preco_unitario]
+      );
+    });
+
+    await Promise.all(itemQueries);
+
+    await client.query('COMMIT');
+    res.status(201).json({ id: movimentacao_id, message: 'Venda registrada com sucesso!' });
+
   } catch (error) {
-    console.error('Erro ao buscar movimentações:', error);
-    res.status(500).json({ message: 'Erro no servidor ao buscar movimentações.' });
+    await client.query('ROLLBACK');
+    console.error('Erro ao registrar venda:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  } finally {
+    client.release();
   }
 };
 
-// Criar uma nova movimentação (Venda)
-exports.criarMovimentacao = async (req, res) => {
-  const { cliente_id, valor_total, produtos } = req.body;
-  const utilizador_id = req.user.id; // ID do usuário logado, vindo do middleware verifyToken
-
-  if (!cliente_id || !valor_total || !produtos || !Array.isArray(produtos)) {
-    return res.status(400).json({ message: 'Campos obrigatórios: cliente_id, valor_total e um array de produtos.' });
-  }
-
-  try {
-    const query = `
-      INSERT INTO movimentacoes (tipo, cliente_id, utilizador_id, valor_total, produtos, data)
-      VALUES ('ENTRADA', $1, $2, $3, $4, NOW())
-      RETURNING *;
-    `;
-    // Armazenamos o array de produtos como uma string JSON no banco de dados
-    const { rows } = await pool.query(query, [cliente_id, utilizador_id, valor_total, JSON.stringify(produtos)]);
-    res.status(201).json(rows[0]);
-  } catch (error) {
-    console.error('Erro ao criar movimentação:', error);
-    res.status(500).json({ message: 'Erro no servidor ao criar movimentação.' });
-  }
-};
-
-// Buscar uma movimentação específica por ID
-exports.buscarMovimentacaoPorId = async (req, res) => {
-    const { id } = req.params;
+// Função para listar todas as VENDAS (ENTRADAS)
+const getVendas = async (req, res) => {
     try {
-        const query = `
+        const result = await pool.query(`
             SELECT 
                 m.id, 
-                m.tipo, 
-                m.data, 
+                m.data_movimentacao, 
                 m.valor_total, 
-                m.cliente_id,
                 c.nome AS cliente_nome, 
-                m.utilizador_id,
-                u.nome AS usuario_nome,
-                m.produtos
+                u.nome AS usuario_nome
             FROM movimentacoes m
             JOIN clientes c ON m.cliente_id = c.id
-            JOIN utilizadores u ON m.utilizador_id = u.id
-            WHERE m.id = $1 AND m.tipo = 'ENTRADA';
-        `;
-        const { rows } = await pool.query(query, [id]);
-        if (rows.length === 0) {
-            return res.status(404).json({ message: 'Movimentação não encontrada.' });
-        }
-        res.json(rows[0]);
+            JOIN utilizadores u ON m.usuario_id = u.id
+            WHERE m.tipo = 'ENTRADA'
+            ORDER BY m.data_movimentacao DESC
+        `);
+        res.status(200).json(result.rows);
     } catch (error) {
-        console.error('Erro ao buscar movimentação por ID:', error);
-        res.status(500).json({ message: 'Erro no servidor.' });
+        console.error('Erro ao buscar vendas:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
     }
 };
 
-// Deletar uma movimentação
-exports.deletarMovimentacao = async (req, res) => {
-  const { id } = req.params;
-  try {
-    const result = await pool.query('DELETE FROM movimentacoes WHERE id = $1 RETURNING *', [id]);
-    if (result.rowCount === 0) {
-      return res.status(404).json({ message: 'Movimentação não encontrada.' });
+// --- NOVAS FUNÇÕES PARA DESPESAS ---
+
+/**
+ * @description Registra uma nova despesa (movimentação do tipo 'SAÍDA').
+ * Acesso restrito a ADMIN.
+ */
+const createDespesa = async (req, res) => {
+    const { descricao, valor_total } = req.body;
+    const usuario_id = req.user.id; // ID do admin que está registrando
+
+    if (!descricao || !valor_total || valor_total <= 0) {
+        return res.status(400).json({ error: 'Descrição e valor total são obrigatórios.' });
     }
-    res.status(200).json({ message: 'Movimentação deletada com sucesso.' });
-  } catch (error) {
-    console.error('Erro ao deletar movimentação:', error);
-    res.status(500).json({ message: 'Erro no servidor ao deletar movimentação.' });
-  }
+
+    try {
+        const result = await pool.query(
+            `INSERT INTO movimentacoes (tipo, descricao, valor_total, usuario_id)
+             VALUES ('SAIDA', $1, $2, $3)
+             RETURNING id, tipo, descricao, valor_total, data_movimentacao`,
+            [descricao, valor_total, usuario_id]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (error) {
+        console.error('Erro ao registrar despesa:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+};
+
+/**
+ * @description Lista todas as despesas (movimentações do tipo 'SAÍDA').
+ */
+const getDespesas = async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT 
+                m.id,
+                m.descricao,
+                m.valor_total,
+                m.data_movimentacao,
+                u.nome as usuario_nome
+            FROM movimentacoes m
+            JOIN utilizadores u ON m.usuario_id = u.id
+            WHERE m.tipo = 'SAIDA'
+            ORDER BY m.data_movimentacao DESC
+        `);
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error('Erro ao buscar despesas:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+};
+
+
+module.exports = {
+  createVenda,
+  getVendas,
+  createDespesa, // Exportando a nova função
+  getDespesas    // Exportando a nova função
 };

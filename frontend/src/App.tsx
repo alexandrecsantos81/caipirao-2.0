@@ -1,113 +1,104 @@
 // frontend/src/App.tsx
 
-import { Routes, Route, Link, Navigate } from 'react-router-dom';
-import {
-  Box,
-  Flex,
-  Button,
-  Heading,
-  Spacer,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  Avatar,
-  Spinner,
-  Center
-} from '@chakra-ui/react';
-import { useAuth } from './hooks/useAuth';
+import { Routes, Route, Link as RouterLink, Navigate, Outlet } from 'react-router-dom';
+import { Box, Flex, Button, Heading } from '@chakra-ui/react';
 
-import Login from './pages/Login';
-import Clientes from './pages/Clientes';
-import Produtos from './pages/Produtos';
-import Vendas from './pages/Vendas';
+// Importe suas páginas
+import LoginPage from './pages/Login';
+import ClientesPage from './pages/Clientes';
+import ProdutosPage from './pages/Produtos';
+import MovimentacoesPage from './pages/Movimentacoes';
+import DashboardPage from './pages/Dashboard';
 
-const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
-  const { isAuthenticated, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <Center h="100vh">
-        <Spinner size="xl" />
-      </Center>
-    );
-  }
-
-  if (!isAuthenticated) {
+// --- Componente de Proteção de Rota ---
+const ProtectedRoute = () => {
+  const token = localStorage.getItem('authToken');
+  // Se não houver token, redireciona para a página de login
+  if (!token) {
     return <Navigate to="/login" replace />;
   }
-  return children;
+  // Se houver token, renderiza o layout principal que contém as rotas filhas
+  return <Layout />;
 };
 
-function App() {
-  const { user, isAuthenticated, logout, loading } = useAuth();
-
-  // Não renderiza a barra de navegação durante o carregamento inicial
-  if (loading) {
-    return (
-      <Center h="100vh">
-        <Spinner size="xl" />
-      </Center>
-    );
-  }
+// --- Componente de Navegação (Navbar) ---
+const Navbar = () => {
+  const handleLogout = () => {
+    localStorage.removeItem('authToken');
+    window.location.href = '/login';
+  };
 
   return (
-    // O <Router> foi REMOVIDO daqui
-    <Box>
-      {isAuthenticated && (
-        <Flex
-          as="nav"
-          align="center"
-          justify="space-between"
-          wrap="wrap"
-          padding="1.5rem"
-          bg="teal.500"
-          color="white"
-        >
-          <Flex align="center" mr={5}>
-            <Heading as="h1" size="lg" letterSpacing={'-.1rem'}>
-              Caipirão 3.0
-            </Heading>
-          </Flex>
-
-          <Box>
-            <Button as={Link} to="/clientes" variant="ghost" _hover={{ bg: 'teal.700' }} mr={2}>
-              Clientes
-            </Button>
-            <Button as={Link} to="/produtos" variant="ghost" _hover={{ bg: 'teal.700' }} mr={2}>
-              Produtos
-            </Button>
-            <Button as={Link} to="/vendas" variant="ghost" _hover={{ bg: 'teal.700' }}>
-              Vendas
-            </Button>
-          </Box>
-
-          <Spacer />
-
-          <Menu>
-            <MenuButton as={Button} rounded="full" variant="link" cursor="pointer" minW={0}>
-              <Avatar size="sm" name={user?.nome || 'Usuário'} />
-            </MenuButton>
-            <MenuList bg="white" color="black">
-              <MenuItem>Olá, {user?.nome}</MenuItem>
-              <MenuItem onClick={logout} color="red.500">
-                Sair (Logout)
-              </MenuItem>
-            </MenuList>
-          </Menu>
-        </Flex>
-      )}
-
-      <Box p={4}>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/clientes" element={<ProtectedRoute><Clientes /></ProtectedRoute>} />
-          <Route path="/produtos" element={<ProtectedRoute><Produtos /></ProtectedRoute>} />
-          <Route path="/vendas" element={<ProtectedRoute><Vendas /></ProtectedRoute>} />
-          <Route path="/" element={isAuthenticated ? <Navigate to="/clientes" /> : <Navigate to="/login" />} />
-        </Routes>
+    <Flex
+      as="nav"
+      align="center"
+      justify="space-between"
+      wrap="wrap"
+      padding="1.5rem"
+      bg="teal.500"
+      color="white"
+    >
+      <Flex align="center" mr={5}>
+        <Heading as="h1" size="lg" letterSpacing={'-.1rem'}>
+          Caipirão 3.0
+        </Heading>
+      </Flex>
+      <Box>
+        <Button as={RouterLink} to="/dashboard" variant="ghost" mr={2}>
+          Dashboard
+        </Button>
+        <Button as={RouterLink} to="/movimentacoes" variant="ghost" mr={2}>
+          Movimentações
+        </Button>
+        <Button as={RouterLink} to="/clientes" variant="ghost" mr={2}>
+          Clientes
+        </Button>
+        <Button as={RouterLink} to="/produtos" variant="ghost" mr={4}>
+          Produtos
+        </Button>
+        <Button onClick={handleLogout} colorScheme="red">
+          Sair
+        </Button>
       </Box>
+    </Flex>
+  );
+};
+
+// --- Componente de Layout Principal ---
+// Este componente inclui a Navbar e um espaço para o conteúdo da página (Outlet)
+const Layout = () => {
+  return (
+    <Box>
+      <Navbar />
+      <main>
+        {/* Outlet é o marcador de posição onde o React Router irá renderizar a página da rota correspondente */}
+        <Outlet />
+      </main>
     </Box>
+  );
+};
+
+// --- Componente Principal da Aplicação ---
+function App() {
+  return (
+    <Routes>
+      {/* 1. Rota Pública */}
+      <Route path="/login" element={<LoginPage />} />
+
+      {/* 2. Agrupamento de Rotas Protegidas */}
+      <Route element={<ProtectedRoute />}>
+        {/* Todas as rotas aqui dentro usarão o Layout e exigirão login */}
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/movimentacoes" element={<MovimentacoesPage />} />
+        <Route path="/clientes" element={<ClientesPage />} />
+        <Route path="/produtos" element={<ProdutosPage />} />
+        {/* Rota padrão para redirecionar para o dashboard */}
+        <Route path="/" element={<Navigate to="/dashboard" />} />
+      </Route>
+
+      {/* Opcional: Uma rota para "Não Encontrado" */}
+      <Route path="*" element={<Heading p={10}>404: Página Não Encontrada</Heading>} />
+    </Routes>
   );
 }
 

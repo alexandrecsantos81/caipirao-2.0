@@ -2,22 +2,27 @@
 
 const express = require('express');
 const router = express.Router();
-const movimentacaoController = require('../controllers/movimentacaoController');
-const { verifyToken } = require('../middleware/authMiddleware');
+const { createVenda, getVendas, createDespesa, getDespesas } = require('../controllers/movimentacaoController');
+const { verifyToken, checkAdmin } = require('../middleware/authMiddleware');
 
-// Todas as rotas aqui são protegidas e exigem um token válido.
-router.use(verifyToken);
+// --- ROTAS DE VENDAS (ENTRADAS) ---
+// Qualquer usuário logado pode criar e ver as vendas.
+router.post('/vendas', verifyToken, createVenda);
+router.get('/vendas', verifyToken, getVendas);
 
-// GET /api/movimentacoes - Listar todas as vendas
-router.get('/', movimentacaoController.listarMovimentacoes);
+// --- ROTAS DE DESPESAS (SAÍDAS) ---
+// Acesso para CRIAR despesas é restrito a ADMINS.
+router.post('/despesas', verifyToken, checkAdmin, createDespesa);
 
-// POST /api/movimentacoes - Criar uma nova venda
-router.post('/', movimentacaoController.criarMovimentacao);
+// Qualquer usuário logado pode VER as despesas.
+// (Poderíamos restringir a ADMIN se necessário, mas por enquanto deixamos aberto para usuários logados)
+router.get('/despesas', verifyToken, getDespesas);
 
-// GET /api/movimentacoes/:id - Obter uma venda específica
-router.get('/:id', movimentacaoController.buscarMovimentacaoPorId);
 
-// DELETE /api/movimentacoes/:id - Deletar uma venda
-router.delete('/:id', movimentacaoController.deletarMovimentacao);
+// Futuramente, podemos adicionar rotas de PUT e DELETE para despesas aqui, também protegidas por checkAdmin.
+// Exemplo:
+// router.put('/despesas/:id', verifyToken, checkAdmin, updateDespesa);
+// router.delete('/despesas/:id', verifyToken, checkAdmin, deleteDespesa);
+
 
 module.exports = router;

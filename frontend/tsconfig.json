@@ -12,7 +12,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx", // <-- ESSA LINHA É CRUCIAL!
+    "jsx": "react-jsx",
 
     /* Linting */
     "strict": true,
@@ -20,6 +20,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"], // <-- DIZ PARA O TS OLHAR APENAS A PASTA 'src'
+  "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

@@ -2,47 +2,34 @@
 
 const express = require('express');
 const cors = require('cors');
-const pool = require('./db'); // Importa a configuração do banco de dados
-
-// Importação das rotas
 const authRoutes = require('./routes/auth');
-const clientesRoutes = require('./routes/clientes');
-const produtosRoutes = require('./routes/produtos');
-const movimentacoesRoutes = require('./routes/movimentacoes'); // <-- NOVA ROTA
+const clienteRoutes = require('./routes/clientes');
+const produtoRoutes = require('./routes/produtos');
+const movimentacaoRoutes = require('./routes/movimentacoes');
+const reportRoutes = require('./routes/reports'); // 1. IMPORTAR A NOVA ROTA
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const port = process.env.PORT || 3001;
 
-// Middlewares
-app.use(cors()); // Habilita o CORS para todas as origens
-app.use(express.json()); // Habilita o parsing de JSON no corpo das requisições
+// Middleware
+app.use(cors());
+app.use(express.json());
 
-// Rota de teste da API
+// Rotas Públicas
 app.get('/', (req, res) => {
-  res.send('API do Caipirão 3.0 está no ar!');
+  res.send('API Caipirão 3.0 no ar!');
 });
 
-// Registro das rotas da aplicação
+// Rotas de Autenticação
 app.use('/api/auth', authRoutes);
-app.use('/api/clientes', clientesRoutes);
-app.use('/api/produtos', produtosRoutes);
-app.use('/api/movimentacoes', movimentacoesRoutes); // <-- REGISTRO DA NOVA ROTA
 
-// Middleware para tratamento de erros (exemplo simples)
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send('Algo deu errado no servidor!');
-});
+// Rotas Protegidas
+app.use('/api/clientes', clienteRoutes);
+app.use('/api/produtos', produtoRoutes);
+app.use('/api/movimentacoes', movimentacaoRoutes);
+app.use('/api/reports', reportRoutes); // 2. REGISTRAR A NOVA ROTA
 
-// Inicia o servidor
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
-  // Testa a conexão com o banco de dados ao iniciar
-  pool.query('SELECT NOW()', (err, res) => {
-    if (err) {
-      console.error('Erro ao conectar com o PostgreSQL', err);
-    } else {
-      console.log('Conexão com o PostgreSQL bem-sucedida:', res.rows[0].now);
-    }
-  });
+// Iniciar o servidor
+app.listen(port, () => {
+  console.log(`Servidor rodando na porta ${port}`);
 });

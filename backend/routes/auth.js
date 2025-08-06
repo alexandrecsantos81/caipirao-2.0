@@ -1,82 +1,87 @@
 // backend/routes/auth.js
 
 const express = require('express');
+const router = express.Router();
+const pool = require('../db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const db = require('../db'); // Importa a conexão com o banco
-const router = express.Router(); // Cria um roteador do Express
 
-// --- ROTAS DE AUTENTICAÇÃO ---
-
-// Rota para registrar um novo usuário: POST /api/auth/register
+// --- ROTA DE REGISTRO DE NOVO USUÁRIO ---
 router.post('/register', async (req, res) => {
+  try {
     const { nome, email, senha, perfil = 'USER' } = req.body;
 
-    if (!nome || !email || !senha) {
-        return res.status(400).json({ error: 'Nome, email e senha são obrigatórios.' });
+    // 1. Verificar se o usuário já existe
+    const userExists = await pool.query('SELECT * FROM utilizadores WHERE email = $1', [email]);
+    if (userExists.rows.length > 0) {
+      return res.status(400).json({ error: 'Este email já está em uso.' });
     }
 
-    try {
-        const salt = await bcrypt.genSalt(10);
-        const senha_hash = await bcrypt.hash(senha, salt);
+    // 2. Criptografar a senha
+    const salt = await bcrypt.genSalt(10);
+    // CORREÇÃO: O resultado da criptografia será inserido na coluna 'senha'.
+    const senhaCriptografada = await bcrypt.hash(senha, salt);
 
-        const newUser = await db.query(
-            'INSERT INTO utilizadores (nome, email, senha_hash, perfil) VALUES ($1, $2, $3, $4) RETURNING id, nome, email, perfil',
-            [nome, email, senha_hash, perfil.toUpperCase()]
-        );
+    // 3. Inserir o novo usuário no banco de dados
+    // CORREÇÃO: Usando a coluna 'senha' em vez de 'senha_hash'.
+    const newUser = await pool.query(
+      'INSERT INTO utilizadores (nome, email, senha, perfil) VALUES ($1, $2, $3, $4) RETURNING id, nome, email, perfil',
+      [nome, email, senhaCriptografada, perfil]
+    );
 
-        res.status(201).json(newUser.rows[0]);
-    } catch (error) {
-        console.error('Erro no registro:', error);
-        if (error.code === '23505') {
-            return res.status(409).json({ error: 'Este email já está em uso.' });
-        }
-        res.status(500).json({ error: 'Erro interno do servidor ao registrar usuário.' });
-    }
+    res.status(201).json(newUser.rows[0]);
+
+  } catch (err) {
+    console.error("Erro no registro:", err.message);
+    res.status(500).send('Erro no servidor');
+  }
 });
 
-// Rota para login de usuário: POST /api/auth/login
+
+// --- ROTA DE LOGIN ---
 router.post('/login', async (req, res) => {
+  try {
     const { email, senha } = req.body;
 
+    // 1. Verificar se o email e a senha foram fornecidos
     if (!email || !senha) {
         return res.status(400).json({ error: 'Email e senha são obrigatórios.' });
     }
 
-    try {
-        const result = await db.query('SELECT * FROM utilizadores WHERE email = $1', [email]);
-        const user = result.rows[0];
-
-        if (!user) {
-            return res.status(401).json({ error: 'Credenciais inválidas.' });
-        }
-
-        const isMatch = await bcrypt.compare(senha, user.senha_hash);
-
-        if (!isMatch) {
-            return res.status(401).json({ error: 'Credenciais inválidas.' });
-        }
-
-        const token = jwt.sign(
-            { userId: user.id, perfil: user.perfil },
-            process.env.JWT_SECRET || 'seu_segredo_jwt_padrao',
-            { expiresIn: '1h' }
-        );
-
-        res.json({
-            token,
-            user: {
-                id: user.id,
-                nome: user.nome,
-                email: user.email,
-                perfil: user.perfil
-            }
-        });
-
-    } catch (error) {
-        console.error('Erro no login:', error);
-        res.status(500).json({ error: 'Erro interno do servidor.' });
+    // 2. Encontrar o usuário no banco de dados pelo email
+    const result = await pool.query('SELECT * FROM utilizadores WHERE email = $1', [email]);
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'Credenciais inválidas' }); // Usar msg genérica por segurança
     }
+
+    const user = result.rows[0];
+
+    // 3. Comparar a senha fornecida com a senha criptografada do banco
+    // CORREÇÃO: Acessando a propriedade 'user.senha' em vez de 'user.senha_hash'.
+    // Esta era a linha que causava o erro "Illegal arguments: string, undefined".
+    const senhaValida = await bcrypt.compare(senha, user.senha);
+
+    if (!senhaValida) {
+      return res.status(401).json({ error: 'Credenciais inválidas' });
+    }
+
+    // 4. Se a senha for válida, gerar o token JWT
+    const payload = {
+      id: user.id,
+      nome: user.nome,
+      perfil: user.perfil,
+    };
+
+    // Use uma chave secreta forte e guarde-a em variáveis de ambiente (.env) em um projeto real
+    const token = jwt.sign(payload, 'seuSuperSegredoJWT', { expiresIn: '8h' });
+
+    res.json({ token });
+
+  } catch (err) {
+    // Adicionamos um log de erro mais específico aqui
+    console.error("Erro no login:", err);
+    res.status(500).send('Erro no servidor');
+  }
 });
 
-module.exports = router; // Exporta o roteador para ser usado no server.js
+module.exports = router;
