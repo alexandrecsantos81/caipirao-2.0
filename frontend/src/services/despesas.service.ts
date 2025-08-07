@@ -29,7 +29,7 @@ export interface ICreateDespesa {
 // Função auxiliar para obter o token diretamente do localStorage
 const getAuthToken = (): string | null => {
   // IMPORTANTE: Verifique se a chave do token no seu localStorage é 'authToken'
-  return localStorage.getItem('authToken'); 
+  return localStorage.getItem('token'); 
 };
 
 /**

@@ -12,12 +12,10 @@ import DashboardPage from './pages/Dashboard';
 
 // --- Componente de Proteção de Rota ---
 const ProtectedRoute = () => {
-  const token = localStorage.getItem('authToken');
-  // Se não houver token, redireciona para a página de login
+  const token = localStorage.getItem('token');
   if (!token) {
     return <Navigate to="/login" replace />;
   }
-  // Se houver token, renderiza o layout principal que contém as rotas filhas
   return <Layout />;
 };
 

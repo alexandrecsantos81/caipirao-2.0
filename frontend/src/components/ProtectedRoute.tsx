@@ -2,7 +2,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
 
 const ProtectedRoute = () => {
-  const token = localStorage.getItem('authToken'); // Ou a sua lógica para verificar a autenticação
+  const token = localStorage.getItem('token'); // Ou a sua lógica para verificar a autenticação
 
   // Se não houver token, redireciona para a página de login
   if (!token) {

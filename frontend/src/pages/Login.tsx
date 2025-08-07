@@ -38,6 +38,7 @@ const Login = () => {
       });
       window.location.href = '/'; 
     },
+    
     onError: (error) => {
       toast({
         title: 'Erro no login',
