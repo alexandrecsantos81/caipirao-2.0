@@ -2,7 +2,9 @@
 
 const express = require('express');
 const router = express.Router();
-const { getFinancialSummary } = require('../controllers/reportController');
+
+// 1. Importe as duas funções do controller
+const { getFinancialSummary, getProdutosMaisVendidos } = require('../controllers/reportController');
 const { verifyToken, checkAdmin } = require('../middleware/authMiddleware');
 
 /**
@@ -11,5 +13,13 @@ const { verifyToken, checkAdmin } = require('../middleware/authMiddleware');
  * @access Privado - Apenas ADMINS podem ver os relatórios financeiros.
  */
 router.get('/summary', verifyToken, checkAdmin, getFinancialSummary);
+
+/**
+ * @route GET /api/reports/produtos-mais-vendidos
+ * @description Retorna os 10 produtos mais vendidos.
+ * @access Privado - Apenas ADMINS.
+ */
+router.get('/produtos-mais-vendidos', verifyToken, checkAdmin, getProdutosMaisVendidos);
+
 
 module.exports = router;

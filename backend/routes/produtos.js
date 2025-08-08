@@ -1,5 +1,3 @@
-// backend/routes/produtos.js
-
 const express = require('express');
 const router = express.Router();
 const produtoController = require('../controllers/produtoController');
@@ -32,5 +30,13 @@ router.put('/:id', verifyToken, checkAdmin, produtoController.updateProduto);
  * @access  Restrito (somente ADMIN)
  */
 router.delete('/:id', verifyToken, checkAdmin, produtoController.deleteProduto);
+
+/**
+ * @route   POST /api/produtos/:id/adicionar-estoque
+ * @desc    Adiciona uma quantidade ao estoque de um produto existente.
+ * @access  Restrito (somente ADMIN)
+ */
+router.post('/:id/adicionar-estoque', verifyToken, checkAdmin, produtoController.addEstoque);
+
 
 module.exports = router;

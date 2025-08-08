@@ -1,17 +1,25 @@
-// frontend/src/services/despesas.service.ts
-
-// 1. Importar o Axios diretamente da biblioteca
 import axios from 'axios';
+import { IPaginatedResponse } from './cliente.service'; // Reutilizando a interface
 
-// 2. Configurar a instância do Axios AQUI MESMO
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/movimentacoes';
+
 const api = axios.create({
-  baseURL: 'http://localhost:3001/api', // Verifique se esta é a URL base correta da sua API
+  baseURL: API_URL,
 } );
 
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
-// --- O RESTANTE DO CÓDIGO PERMANECE O MESMO ---
+// --- INTERFACES ---
 
-// Interface para definir a estrutura de uma Despesa
 export interface IDespesa {
   id: number;
   descricao: string;
@@ -20,50 +28,21 @@ export interface IDespesa {
   usuario_nome?: string;
 }
 
-// Interface para os dados de criação de uma nova despesa
 export interface ICreateDespesa {
   descricao: string;
   valor_total: number;
 }
 
-// Função auxiliar para obter o token diretamente do localStorage
-const getAuthToken = (): string | null => {
-  // IMPORTANTE: Verifique se a chave do token no seu localStorage é 'authToken'
-  return localStorage.getItem('token'); 
-};
+// --- FUNÇÕES DO SERVIÇO ---
 
-/**
- * @description Busca a lista de todas as despesas no backend.
- */
-export const getDespesas = async (): Promise<IDespesa[]> => {
-  const token = getAuthToken();
-  if (!token) {
-    throw new Error('Token de autenticação não encontrado no localStorage.');
-  }
-
-  const response = await api.get('/movimentacoes/despesas', {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+export const getDespesas = async (pagina = 1, limite = 10): Promise<IPaginatedResponse<IDespesa>> => {
+  const response = await api.get('/despesas', {
+    params: { pagina, limite },
   });
-
   return response.data;
 };
 
-/**
- * @description Envia os dados de uma nova despesa para o backend.
- */
 export const createDespesa = async (despesaData: ICreateDespesa): Promise<IDespesa> => {
-  const token = getAuthToken();
-  if (!token) {
-    throw new Error('Token de autenticação não encontrado no localStorage.');
-  }
-
-  const response = await api.post('/movimentacoes/despesas', despesaData, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
+  const response = await api.post('/despesas', despesaData);
   return response.data;
 };

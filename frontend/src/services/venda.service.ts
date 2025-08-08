@@ -1,71 +1,47 @@
-// frontend/src/services/venda.service.ts
+import axios from 'axios';
+import { IPaginatedResponse } from './cliente.service';
 
-// Obtém o token do localStorage para autenticação
-const getToken = () => localStorage.getItem('token');
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const apiClient = axios.create({ baseURL: API_URL } );
 
-// Define a URL base da nossa API
-const API_URL = 'http://localhost:3001/api/movimentacoes';
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
-// Interface para definir a estrutura de uma Venda (Movimentação de Entrada )
-export interface Venda {
+interface IProdutoVenda {
+  produto_id: number;
+  quantidade: number;
+  valor_unitario: number;
+  nome: string;
+}
+
+export interface IVenda {
   id: number;
   cliente_nome: string;
   usuario_nome: string;
   valor_total: number;
-  data: string;
-  produtos: { produto_id: number; quantidade: number; valor_unitario: number }[];
+  data_movimentacao: string;
+  produtos: IProdutoVenda[];
 }
 
-// Interface para os dados necessários para criar uma nova venda
-export interface NovaVenda {
+// Interface para criar uma nova venda
+export interface INovaVenda {
   cliente_id: number;
-  valor_total: number;
   produtos: { produto_id: number; quantidade: number; valor_unitario: number }[];
+  valor_total: number; // <<< CORREÇÃO: Adicionando o campo que faltava
 }
 
-// Função para buscar todas as vendas
-export const getVendas = async (): Promise<Venda[]> => {
-  const response = await fetch(API_URL, {
-    headers: {
-      'Authorization': `Bearer ${getToken()}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error('Falha ao buscar vendas.');
-  }
-  return response.json();
+export const getVendas = async (pagina = 1, limite = 10): Promise<IPaginatedResponse<IVenda>> => {
+  const response = await apiClient.get('/movimentacoes/vendas', { params: { pagina, limite } });
+  return response.data;
 };
 
-// Função para criar uma nova venda
-export const createVenda = async (novaVenda: NovaVenda): Promise<Venda> => {
-  const response = await fetch(API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${getToken()}`,
-    },
-    body: JSON.stringify(novaVenda),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.message || 'Falha ao registrar a venda.');
-  }
-  return response.json();
-};
-
-// Função para deletar uma venda
-export const deleteVenda = async (id: number): Promise<{ message: string }> => {
-  const response = await fetch(`${API_URL}/${id}`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${getToken()}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error('Falha ao deletar a venda.');
-  }
-  return response.json();
+export const createVenda = async (novaVenda: INovaVenda): Promise<IVenda> => {
+  const response = await apiClient.post('/movimentacoes/vendas', novaVenda);
+  return response.data;
 };

@@ -1,201 +1,155 @@
-// frontend/src/pages/Produtos.tsx
+// CÓDIGO COMPLETO, REVISADO E CORRIGIDO PARA frontend/src/pages/Produtos.tsx
 
 import {
-  Box, Button, Drawer, DrawerBody, DrawerCloseButton, DrawerContent,
+  Box, Button, Center, Drawer, DrawerBody, DrawerCloseButton, DrawerContent,
   DrawerFooter, DrawerHeader, DrawerOverlay, Flex, FormControl, FormLabel,
-  Heading, IconButton, Input, NumberDecrementStepper, NumberIncrementStepper,
-  NumberInput, NumberInputField, NumberInputStepper, Stack, Table, Tbody, Td,
-  Text, Th, Thead, Tr, useDisclosure, useToast
+  Heading, IconButton, Input, NumberInput, NumberInputField, Select, Spinner,
+  Stack, Table, Tbody, Td, Text, Th, Thead, Tr, useDisclosure, useToast,
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { FiEdit, FiPlus, FiTrash2 } from 'react-icons/fi';
-import { IProduto, createProduto, deleteProduto, getProdutos, updateProduto } from '../services/produto.service';
-import { useAuth } from '../hooks/useAuth';
-import { useState } from 'react'; // <<< CORREÇÃO: Importar o useState do React
+import { useEffect, useState } from 'react';
+import {
+  IProduto, createProduto, deleteProduto, getProdutos, updateProduto, IProdutoForm,
+} from '../services/produto.service';
+import { Pagination } from '../components/Pagination';
 
-type ProdutoFormData = Omit<IProduto, 'id' | 'criado_em'>;
+type ProdutoFormData = IProdutoForm & {
+  outra_unidade_medida?: string;
+};
 
-const Produtos = () => {
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm<ProdutoFormData>();
-  const toast = useToast();
-  const queryClient = useQueryClient();
-  const { isAdmin } = useAuth();
+const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
+  isOpen: boolean; onClose: () => void; produto: IProduto | null; onSave: (data: ProdutoFormData) => void; isLoading: boolean;
+}) => {
+  const { register, handleSubmit, setValue, reset, watch, control, formState: { errors } } = useForm<ProdutoFormData>();
+  const unidadeMedida = watch('unidade_medida');
 
-  // State para saber se estamos editando ou criando
-  const [editingProduto, setEditingProduto] = useState<IProduto | null>(null);
-
-  // Query para buscar os produtos
-  const { data: produtos, isLoading } = useQuery({
-    queryKey: ['produtos'],
-    queryFn: getProdutos,
-  });
-
-  // Mutation para deletar um produto
-  const deleteMutation = useMutation({
-    mutationFn: deleteProduto,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['produtos'] });
-      toast({ title: 'Produto deletado com sucesso!', status: 'success', duration: 3000, isClosable: true });
-    },
-    onError: (error: any) => {
-      toast({ title: 'Erro ao deletar produto.', description: error.response?.data?.msg || error.message, status: 'error', duration: 5000, isClosable: true });
-    }
-  });
-
-  // Mutation para criar ou atualizar um produto
-  const saveMutation = useMutation({
-    mutationFn: (data: ProdutoFormData) => {
-      // Corrigindo a chamada para usar o ID do estado
-      if (editingProduto) {
-        return updateProduto(editingProduto.id, data);
+  useEffect(() => {
+    if (isOpen) {
+      if (produto) {
+        setValue('nome', produto.nome);
+        setValue('price', produto.price);
+        const unidadesPadrao = ['un', 'kg'];
+        if (unidadesPadrao.includes(produto.unidade_medida)) {
+          setValue('unidade_medida', produto.unidade_medida);
+          setValue('outra_unidade_medida', '');
+        } else {
+          setValue('unidade_medida', 'outros');
+          setValue('outra_unidade_medida', produto.unidade_medida);
+        }
+      } else {
+        reset({ nome: '', price: undefined, unidade_medida: 'un', outra_unidade_medida: '' });
       }
-      return createProduto(data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['produtos'] });
-      toast({ title: `Produto ${editingProduto ? 'atualizado' : 'criado'} com sucesso!`, status: 'success', duration: 3000, isClosable: true });
-      handleCloseDrawer();
-    },
-    onError: (error: any) => {
-      toast({ title: `Erro ao salvar produto.`, description: error.response?.data?.msg || error.message, status: 'error', duration: 5000, isClosable: true });
     }
-  });
+  }, [isOpen, produto, setValue, reset]);
 
-  const handleOpenDrawerForCreate = () => {
-    setEditingProduto(null);
-    reset({ nome: '', descricao: '', preco: 0, estoque: 0 });
-    onOpen();
-  };
-
-  const handleOpenDrawerForEdit = (produto: IProduto) => {
-    setEditingProduto(produto);
-    // Usando os valores do produto para preencher o formulário
-    setValue('nome', produto.nome);
-    setValue('descricao', produto.descricao || '');
-    setValue('preco', produto.preco);
-    setValue('estoque', produto.estoque || 0);
-    onOpen();
-  };
-
-  const handleCloseDrawer = () => {
-    setEditingProduto(null);
-    reset();
-    onClose();
-  };
-
-  const onSubmit = (data: ProdutoFormData) => {
-    const payload = {
-      ...data,
-      preco: Number(data.preco),
-      estoque: Number(data.estoque),
-    };
-    saveMutation.mutate(payload);
+  const handleFormSubmit = (data: ProdutoFormData) => {
+    const finalData = { ...data };
+    if (data.unidade_medida === 'outros' && data.outra_unidade_medida) {
+      finalData.unidade_medida = data.outra_unidade_medida;
+    }
+    onSave(finalData);
   };
 
   return (
+    <Drawer isOpen={isOpen} placement="right" onClose={onClose} size="md">
+      <DrawerOverlay />
+      <DrawerContent>
+        <DrawerCloseButton />
+        <DrawerHeader>{produto ? 'Editar Produto' : 'Criar Novo Produto'}</DrawerHeader>
+        <form onSubmit={handleSubmit(handleFormSubmit)}>
+          <DrawerBody>
+            <Stack spacing={4}>
+              <FormControl isInvalid={!!errors.nome}>
+                <FormLabel htmlFor="nome">Nome do Produto</FormLabel>
+                <Input
+                  id="nome"
+                  placeholder="Informe o nome do produto"
+                  {...register('nome', { required: 'Nome é obrigatório' })}
+                />
+                {errors.nome && <Text color="red.500" fontSize="sm" mt={1}>{errors.nome.message}</Text>}
+              </FormControl>
+
+              <FormControl isInvalid={!!errors.unidade_medida}>
+                <FormLabel htmlFor="unidade_medida">Unidade de Medida</FormLabel>
+                <Select id="unidade_medida" {...register('unidade_medida', { required: 'Unidade de medida é obrigatória' })}>
+                  <option value="un">Unidade (un)</option>
+                  <option value="kg">Quilo (kg)</option>
+                  <option value="outros">Outros</option>
+                </Select>
+              </FormControl>
+
+              {unidadeMedida === 'outros' && (
+                <FormControl isInvalid={!!errors.outra_unidade_medida}>
+                  <FormLabel htmlFor="outra_unidade_medida">Especifique a Unidade (ex: dz, cx)</FormLabel>
+                  <Input id="outra_unidade_medida" {...register('outra_unidade_medida', { required: unidadeMedida === 'outros' ? 'Especifique a unidade' : false })} />
+                </FormControl>
+              )}
+
+              <FormControl isInvalid={!!errors.price}>
+                <FormLabel htmlFor="price">Preço (R$)</FormLabel>
+                <Controller
+                  name="price"
+                  control={control}
+                  rules={{ required: 'Preço é obrigatório', min: { value: 0, message: 'Preço não pode ser negativo' } }}
+                  render={({ field: { onChange, onBlur, value, ref } }) => (
+                    <NumberInput
+                      id="price"
+                      onChange={(_valAsString, valAsNumber) => onChange(valAsNumber)}
+                      onBlur={onBlur}
+                      value={value}
+                      ref={ref}
+                      precision={2}
+                      step={0.1}
+                      min={0}
+                    >
+                      <NumberInputField placeholder="Informe o valor" />
+                    </NumberInput>
+                  )}
+                />
+                {errors.price && <Text color="red.500" fontSize="sm" mt={1}>{errors.price.message}</Text>}
+              </FormControl>
+            </Stack>
+          </DrawerBody>
+          <DrawerFooter borderTopWidth="1px">
+            <Button variant="outline" mr={3} onClick={onClose}>Cancelar</Button>
+            <Button colorScheme="teal" type="submit" isLoading={isLoading}>Salvar</Button>
+          </DrawerFooter>
+        </form>
+      </DrawerContent>
+    </Drawer>
+  );
+};
+
+const ProdutosPage = () => {
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const [pagina, setPagina] = useState(1);
+  const [editingProduto, setEditingProduto] = useState<IProduto | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['produtos', pagina],
+    queryFn: () => getProdutos(pagina, 10),
+  });
+  console.log('DADOS RECEBIDOS PELO useQuery:', data);
+  
+  const deleteMutation = useMutation({ mutationFn: deleteProduto, onSuccess: async () => { toast({ title: 'Produto deletado!', status: 'success', duration: 3000, isClosable: true }); await queryClient.invalidateQueries({ queryKey: ['produtos'] }); }, onError: (error: any) => { toast({ title: 'Erro ao deletar.', description: error.message, status: 'error', duration: 5000, isClosable: true }); } });
+  const saveMutation = useMutation({ mutationFn: (data: { formData: IProdutoForm; id?: number }) => (data.id ? updateProduto(data.id, data.formData) : createProduto(data.formData)), onSuccess: async () => { toast({ title: `Produto salvo com sucesso!`, status: 'success', duration: 3000, isClosable: true }); await queryClient.invalidateQueries({ queryKey: ['produtos'] }); onClose(); }, onError: (error: any) => { toast({ title: `Erro ao salvar produto.`, description: error.message, status: 'error', duration: 5000, isClosable: true }); } });
+  const handleSave = (formData: IProdutoForm) => { saveMutation.mutate({ formData, id: editingProduto?.id }); };
+  const handleOpenForCreate = () => { setEditingProduto(null); onOpen(); };
+  const handleOpenForEdit = (produto: IProduto) => { setEditingProduto(produto); onOpen(); };
+
+  return (
     <Box p={8}>
-      <Flex justify="space-between" align="center" mb={6}>
-        <Heading>Produtos</Heading>
-        {isAdmin && (
-          <Button leftIcon={<FiPlus />} colorScheme="teal" onClick={handleOpenDrawerForCreate}>
-            Novo Produto
-          </Button>
-        )}
-      </Flex>
-
-      {isLoading ? (
-        <Text>Carregando produtos...</Text>
-      ) : (
-        <Table variant="simple">
-          <Thead>
-            <Tr>
-              <Th>Nome</Th>
-              <Th>Descrição</Th>
-              <Th isNumeric>Preço (R$)</Th>
-              <Th isNumeric>Estoque</Th>
-              {isAdmin && <Th>Ações</Th>}
-            </Tr>
-          </Thead>
-          <Tbody>
-            {produtos?.map((produto) => (
-              <Tr key={produto.id}>
-                <Td>{produto.nome}</Td>
-                <Td>{produto.descricao}</Td>
-                {/* <<< CORREÇÃO: Garantir que o preço seja sempre um número para toFixed */}
-                <Td isNumeric>{typeof produto.preco === 'number' ? produto.preco.toFixed(2) : '0.00'}</Td>
-                <Td isNumeric>{produto.estoque}</Td>
-                {isAdmin && (
-                  <Td>
-                    <IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleOpenDrawerForEdit(produto)} mr={2} />
-                    <IconButton 
-                      aria-label="Deletar" 
-                      icon={<FiTrash2 />} 
-                      colorScheme="red" 
-                      onClick={() => deleteMutation.mutate(produto.id)}
-                      isLoading={deleteMutation.isPending && deleteMutation.variables === produto.id} // <<< MELHORIA: Mostra loading no botão de deletar
-                    />
-                  </Td>
-                )}
-              </Tr>
-            ))}
-          </Tbody>
-        </Table>
-      )}
-
-      {/* Drawer para Formulário de Criação/Edição */}
-      <Drawer isOpen={isOpen} placement="right" onClose={handleCloseDrawer} size="md">
-        <DrawerOverlay />
-        <DrawerContent>
-          <DrawerCloseButton />
-          <DrawerHeader>{editingProduto ? 'Editar Produto' : 'Criar Novo Produto'}</DrawerHeader>
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <DrawerBody>
-              <Stack spacing={4}>
-                <FormControl isInvalid={!!errors.nome}>
-                  <FormLabel htmlFor="nome">Nome do Produto</FormLabel>
-                  <Input id="nome" {...register('nome', { required: 'Nome é obrigatório' })} />
-                </FormControl>
-                <FormControl>
-                  <FormLabel htmlFor="descricao">Descrição</FormLabel>
-                  <Input id="descricao" {...register('descricao')} />
-                </FormControl>
-                <FormControl isInvalid={!!errors.preco}>
-                  <FormLabel htmlFor="preco">Preço</FormLabel>
-                  <NumberInput defaultValue={0} precision={2} step={0.1}>
-                    <NumberInputField id="preco" {...register('preco', { required: 'Preço é obrigatório', valueAsNumber: true, min: { value: 0.01, message: 'Preço deve ser positivo' } })} />
-                    <NumberInputStepper>
-                      <NumberIncrementStepper />
-                      <NumberDecrementStepper />
-                    </NumberInputStepper>
-                  </NumberInput>
-                </FormControl>
-                <FormControl>
-                  <FormLabel htmlFor="estoque">Estoque</FormLabel>
-                  <NumberInput defaultValue={0} min={0}>
-                    <NumberInputField id="estoque" {...register('estoque', { valueAsNumber: true })} />
-                    <NumberInputStepper>
-                      <NumberIncrementStepper />
-                      <NumberDecrementStepper />
-                    </NumberInputStepper>
-                  </NumberInput>
-                </FormControl>
-              </Stack>
-            </DrawerBody>
-            <DrawerFooter borderTopWidth="1px">
-              <Button variant="outline" mr={3} onClick={handleCloseDrawer}>
-                Cancelar
-              </Button>
-              <Button colorScheme="teal" type="submit" isLoading={saveMutation.isPending}>
-                Salvar
-              </Button>
-            </DrawerFooter>
-          </form>
-        </DrawerContent>
-      </Drawer>
+      <Flex justify="space-between" align="center" mb={6}><Heading>Produtos</Heading><Button leftIcon={<FiPlus />} colorScheme="teal" onClick={handleOpenForCreate}>Novo Produto</Button></Flex>
+      {isLoading && <Center><Spinner size="xl" /></Center>}
+      {!isLoading && data && (<><Table variant="simple"><Thead><Tr><Th>Nome</Th><Th>Unidade</Th><Th isNumeric>Preço (R$)</Th><Th>Ações</Th></Tr></Thead><Tbody>{data.dados.map((produto) => (<Tr key={produto.id}><Td>{produto.nome}</Td><Td>{produto.unidade_medida}</Td><Td isNumeric>{typeof produto.price === 'number' ? produto.price.toFixed(2) : '0.00'}</Td><Td><IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleOpenForEdit(produto)} mr={2} /><IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" onClick={() => deleteMutation.mutate(produto.id)} isLoading={deleteMutation.isPending && deleteMutation.variables === produto.id} /></Td></Tr>))}</Tbody></Table><Pagination paginaAtual={pagina} totalPaginas={data.totalPaginas || 1} onPageChange={(page) => setPagina(page)} /></>)}
+      {!isLoading && !data && (<Center p={10}><Text color="red.500" fontWeight="bold">Falha ao carregar os produtos. Verifique se o servidor backend está rodando.</Text></Center>)}
+      <FormularioProduto isOpen={isOpen} onClose={onClose} produto={editingProduto} onSave={handleSave} isLoading={saveMutation.isPending} />
     </Box>
   );
 };
 
-export default Produtos;
+export default ProdutosPage;

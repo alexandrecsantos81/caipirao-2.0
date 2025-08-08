@@ -24,6 +24,7 @@ router.post('/register', async (req, res) => {
 
     // 3. Inserir o novo usuário no banco de dados
     // CORREÇÃO: Usando a coluna 'senha' em vez de 'senha_hash'.
+    // MUDANÇA TEMPORÁRIA
     const newUser = await pool.query(
       'INSERT INTO utilizadores (nome, email, senha, perfil) VALUES ($1, $2, $3, $4) RETURNING id, nome, email, perfil',
       [nome, email, senhaCriptografada, perfil]
@@ -73,7 +74,7 @@ router.post('/login', async (req, res) => {
     };
 
     // Use uma chave secreta forte e guarde-a em variáveis de ambiente (.env) em um projeto real
-    const token = jwt.sign(payload, 'seuSuperSegredoJWT', { expiresIn: '8h' });
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
 
     res.json({ token });
 

@@ -21,13 +21,14 @@ const registerUser = async (req, res) => {
 
         // CORREÇÃO: Garante que a query INSERT use os nomes de coluna corretos
         // da tabela 'utilizadores' (nome, email, senha, perfil).
+        // CÓDIGO ORIGINAL E SEGURO
         const novoUsuario = await db.query(
             `INSERT INTO utilizadores (nome, email, senha, perfil) 
-             VALUES ($1, $2, $3, $4) 
-             RETURNING id, nome, email, perfil`,
+            VALUES ($1, $2, $3, $4) 
+            RETURNING id, nome, email, perfil`,
             [nome, email, senhaCriptografada, perfil || 'USER']
-
         );
+
 
         res.status(201).json(novoUsuario.rows[0]);
 

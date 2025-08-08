@@ -1,27 +1,25 @@
 // backend/db.js
 
-// Importa o pacote 'pg' e extrai a classe Pool
-const { Pool } = require('pg');
-// Carrega as variáveis de ambiente do arquivo .env
+const { Pool, types } = require('pg'); // 1. Importe 'types' de 'pg'
 require('dotenv').config();
 
-// Cria uma nova instância do Pool com as configurações do banco de dados
+// 2. Diga ao pg para converter os tipos NUMERIC (código 1700) para float
+types.setTypeParser(1700, (val) => {
+  return parseFloat(val);
+});
+
 const pool = new Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST,
-  database: process.env.DB_DATABASE, // Volte para esta linha
+  database: process.env.DB_DATABASE,
   password: process.env.DB_PASSWORD,
   port: process.env.DB_PORT,
 });
 
-// Adiciona um listener para o evento de 'connect', que é disparado
-// sempre que uma nova conexão é estabelecida com sucesso.
 pool.on('connect', () => {
   console.log(`Conexão com o PostgreSQL bem-sucedida: ${new Date().toLocaleString()}`);
 });
 
-// Exporta um objeto com um método 'query'
-// Este método permite executar consultas no banco de dados usando uma conexão do pool
 module.exports = {
   query: (text, params) => pool.query(text, params),
 };

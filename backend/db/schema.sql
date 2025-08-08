@@ -37,17 +37,14 @@ CREATE TABLE produtos (
 
 -- Tabela de Movimentações: registra todas as transações financeiras (vendas e despesas).
 CREATE TABLE movimentacoes (
+CREATE TABLE movimentacoes (
     id SERIAL PRIMARY KEY,
-    tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('ENTRADA', 'SAIDA')), -- 'ENTRADA' para vendas, 'SAIDA' para despesas
+    tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('ENTRADA', 'SAIDA')),
     data TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     valor_total NUMERIC(10, 2) NOT NULL,
-    
-    -- Chaves Estrangeiras que conectam as tabelas
-    utilizador_id INT REFERENCES utilizadores(id) ON DELETE SET NULL, -- Quem registrou a movimentação.
-    cliente_id INT REFERENCES clientes(id) ON DELETE SET NULL, -- Cliente associado (para vendas).
-    
-    -- Armazena os produtos da venda em formato JSONB
-    -- Exemplo: '[{"produto_id": 1, "quantidade": 2, "valor_unitario": 25.50}, ...]'
+    utilizador_id INT REFERENCES utilizadores(id) ON DELETE SET NULL,
+    cliente_id INT REFERENCES clientes(id) ON DELETE SET NULL,
+    descricao TEXT, -- <<< COLUNA IMPORTANTE PARA DESPESAS
     produtos JSONB
 );
 
