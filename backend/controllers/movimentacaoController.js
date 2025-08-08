@@ -1,164 +1,220 @@
+// backend/controllers/movimentacaoController.js
+
 const pool = require('../db');
 
-// @desc    Registrar uma nova VENDA (ENTRADA)
+/**
+ * @desc    Registrar uma nova VENDA (ENTRADA) com lógica financeira
+ * @route   POST /api/movimentacoes/vendas
+ * @access  Privado (qualquer usuário logado)
+ */
 const createVenda = async (req, res) => {
-  const { cliente_id, produtos } = req.body;
-  const usuario_id = req.user.id;
+  const { cliente_id, produtos, data_venda, opcao_pagamento, data_vencimento } = req.body;
+  // O token JWT gera 'id', que corresponde ao 'utilizador_id' na tabela.
+  const utilizador_id = req.user.id;
 
-  if (!cliente_id || !produtos || !Array.isArray(produtos) || produtos.length === 0) {
-    return res.status(400).json({ error: 'Dados da venda inválidos. Cliente e produtos são obrigatórios.' });
+  if (!utilizador_id) {
+    return res.status(401).json({ error: 'ID do usuário não encontrado no token. Faça login novamente.' });
+  }
+  if (!cliente_id || !produtos || !Array.isArray(produtos) || produtos.length === 0 || !opcao_pagamento || !data_venda) {
+    return res.status(400).json({ error: 'Dados da venda inválidos.' });
+  }
+  if (opcao_pagamento === 'A PRAZO' && !data_vencimento) {
+    return res.status(400).json({ error: 'Data de vencimento é obrigatória para vendas a prazo.' });
   }
 
   const client = await pool.connect();
-
   try {
     await client.query('BEGIN');
+    let valor_total_venda = 0;
+    const produtosParaSalvar = [];
 
-    // Validação de estoque antes de qualquer inserção
     for (const item of produtos) {
-      const produtoResult = await client.query('SELECT nome, quantidade_em_estoque FROM produtos WHERE id = $1', [item.produto_id]);
+      if (!item.produto_id || !item.quantidade || item.quantidade <= 0) {
+        throw new Error('Cada produto na venda deve ter um ID e uma quantidade válida.');
+      }
+      const produtoResult = await client.query('SELECT nome, price, unidade_medida FROM produtos WHERE id = $1', [item.produto_id]);
       if (produtoResult.rows.length === 0) {
         throw new Error(`Produto com ID ${item.produto_id} não encontrado.`);
       }
-      const produto = produtoResult.rows[0];
-      // Convertendo para Number para garantir a comparação correta
-      if (Number(produto.quantidade_em_estoque) < Number(item.quantidade)) {
-        throw new Error(`Estoque insuficiente para o produto "${produto.nome}". Disponível: ${produto.quantidade_em_estoque}, Solicitado: ${item.quantidade}.`);
-      }
+      const produtoDB = produtoResult.rows[0];
+      const valor_unitario = (item.preco_manual !== undefined && item.preco_manual !== null && !isNaN(parseFloat(item.preco_manual)))
+                             ? parseFloat(item.preco_manual)
+                             : parseFloat(produtoDB.price);
+      const valor_item = item.quantidade * valor_unitario;
+      valor_total_venda += valor_item;
+      produtosParaSalvar.push({
+        produto_id: item.produto_id, nome: produtoDB.nome, unidade_medida: produtoDB.unidade_medida,
+        quantidade: item.quantidade, valor_unitario: valor_unitario, valor_total_item: valor_item,
+      });
+      await client.query('UPDATE produtos SET quantidade_em_estoque = quantidade_em_estoque - $1 WHERE id = $2', [item.quantidade, item.produto_id]);
     }
 
-    // Calcula o valor total da venda
-    const valor_total_venda = produtos.reduce((total, item) => {
-      return total + (item.quantidade * item.valor_unitario);
-    }, 0);
+    const data_pagamento_inicial = opcao_pagamento === 'À VISTA' ? data_venda : null;
+    const data_vencimento_final = opcao_pagamento === 'À VISTA' ? data_venda : data_vencimento;
 
-    // Insere a movimentação principal
+    // CORREÇÃO: Usando a coluna 'utilizador_id' no INSERT.
     const movimentacaoResult = await client.query(
-      `INSERT INTO movimentacoes (tipo, valor_total, cliente_id, usuario_id, produtos)
-       VALUES ('ENTRADA', $1, $2, $3, $4)
-       RETURNING id`,
-      [valor_total_venda, cliente_id, usuario_id, JSON.stringify(produtos)]
+      `INSERT INTO movimentacoes (tipo, valor_total, cliente_id, utilizador_id, produtos, data_venda, opcao_pagamento, data_vencimento, data_pagamento)
+       VALUES ('ENTRADA', $1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+      [valor_total_venda, cliente_id, utilizador_id, JSON.stringify(produtosParaSalvar), data_venda, opcao_pagamento, data_vencimento_final, data_pagamento_inicial]
     );
     const movimentacao_id = movimentacaoResult.rows[0].id;
-
-    // Atualiza o estoque de cada produto
-    for (const item of produtos) {
-      await client.query(
-        'UPDATE produtos SET quantidade_em_estoque = quantidade_em_estoque - $1 WHERE id = $2',
-        [item.quantidade, item.produto_id]
-      );
-    }
-
     await client.query('COMMIT');
     res.status(201).json({ id: movimentacao_id, message: 'Venda registrada com sucesso!' });
-
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Erro ao registrar venda:', error);
-    // Retorna a mensagem de erro específica (ex: estoque insuficiente) para o frontend
-    res.status(400).json({ error: error.message || 'Erro interno do servidor' });
+    res.status(400).json({ error: error.message || 'Erro interno do servidor ao registrar venda.' });
   } finally {
     client.release();
   }
 };
 
-// As outras funções (getVendas, createDespesa, getDespesas) não precisam de alteração neste momento.
-// ... (cole o restante do seu arquivo aqui)
+/**
+ * @desc    Obter todas as VENDAS com paginação
+ * @route   GET /api/movimentacoes/vendas
+ * @access  Privado (qualquer usuário logado)
+ */
 const getVendas = async (req, res) => {
     const pagina = parseInt(req.query.pagina, 10) || 1;
     const limite = parseInt(req.query.limite, 10) || 10;
     const offset = (pagina - 1) * limite;
-
     try {
+        // CORREÇÃO: Trocando m.usuario_id por m.utilizador_id
         const query = `
-            SELECT 
-                m.id, 
-                m.data_movimentacao, -- JÁ ESTAVA CORRETO AQUI
-                m.valor_total, 
-                c.nome AS cliente_nome, 
-                u.nome AS usuario_nome,
-                m.produtos
+            SELECT m.id, m.data_venda, m.valor_total, m.opcao_pagamento, m.data_vencimento, m.data_pagamento, c.nome AS cliente_nome, u.nome AS usuario_nome, m.produtos
             FROM movimentacoes m
             LEFT JOIN clientes c ON m.cliente_id = c.id
             LEFT JOIN utilizadores u ON m.utilizador_id = u.id
-            WHERE m.tipo = 'ENTRADA'
-            ORDER BY m.data_movimentacao DESC -- CORREÇÃO AQUI
-            LIMIT $1 OFFSET $2;
+            WHERE m.tipo = 'ENTRADA' ORDER BY m.data_venda DESC, m.id DESC LIMIT $1 OFFSET $2;
         `;
         const vendasResult = await pool.query(query, [limite, offset]);
-        
         const totalResult = await pool.query("SELECT COUNT(*) FROM movimentacoes WHERE tipo = 'ENTRADA'");
         const totalVendas = parseInt(totalResult.rows[0].count, 10);
-
         res.status(200).json({
-            dados: vendasResult.rows,
-            total: totalVendas,
-            pagina: pagina,
-            limite: limite,
-            totalPaginas: Math.ceil(totalVendas / limite)
+            dados: vendasResult.rows, total: totalVendas, pagina: pagina, limite: limite, totalPaginas: Math.ceil(totalVendas / limite),
         });
     } catch (error) {
         console.error('Erro ao buscar vendas:', error);
-        res.status(500).json({ error: 'Erro interno do servidor' });
+        res.status(500).json({ error: 'Erro interno do servidor.' });
     }
 };
 
+
+/**
+ * @desc    Registrar uma nova DESPESA (SAÍDA)
+ * @route   POST /api/movimentacoes/despesas
+ * @access  Restrito (Admin)
+ */
 const createDespesa = async (req, res) => {
-    const { descricao, valor_total } = req.body;
-    const usuario_id = req.user.id;
-
+    const { descricao, valor_total, data_movimentacao } = req.body;
+    const utilizador_id = req.user.id; // Usando o nome correto da variável
     if (!descricao || !valor_total || valor_total <= 0) {
-        return res.status(400).json({ error: 'Descrição e valor total são obrigatórios.' });
+        return res.status(400).json({ error: 'Descrição e valor total válido são obrigatórios.' });
     }
-
     try {
+        // CORREÇÃO: Usando a coluna 'utilizador_id' no INSERT.
         const result = await pool.query(
-            `INSERT INTO movimentacoes (tipo, descricao, valor_total, usuario_id)
-             VALUES ('SAIDA', $1, $2, $3)
-             RETURNING id, tipo, descricao, valor_total, data_movimentacao`,
-            [descricao, valor_total, usuario_id]
+            `INSERT INTO movimentacoes (tipo, descricao, valor_total, utilizador_id, data_venda) VALUES ('SAIDA', $1, $2, $3, $4) RETURNING id, tipo, descricao, valor_total, data_venda`,
+            [descricao, valor_total, utilizador_id, data_movimentacao || new Date()]
         );
         res.status(201).json(result.rows[0]);
     } catch (error) {
         console.error('Erro ao registrar despesa:', error);
-        res.status(500).json({ error: 'Erro interno do servidor' });
+        res.status(500).json({ error: 'Erro interno do servidor.' });
     }
 };
 
+
+/**
+ * @desc    Obter todas as DESPESAS com paginação
+ * @route   GET /api/movimentacoes/despesas
+ * @access  Privado (qualquer usuário logado)
+ */
 const getDespesas = async (req, res) => {
     const pagina = parseInt(req.query.pagina, 10) || 1;
     const limite = parseInt(req.query.limite, 10) || 10;
     const offset = (pagina - 1) * limite;
+    try {
+        // CORREÇÃO: Trocando m.usuario_id por m.utilizador_id
+        const query = `
+            SELECT m.id, m.descricao, m.valor_total, m.data_venda, u.nome as usuario_nome
+            FROM movimentacoes m
+            LEFT JOIN utilizadores u ON m.utilizador_id = u.id
+            WHERE m.tipo = 'SAIDA' ORDER BY m.data_venda DESC, m.id DESC LIMIT $1 OFFSET $2;
+        `;
+        const despesasResult = await pool.query(query, [limite, offset]);
+        const totalResult = await pool.query("SELECT COUNT(*) FROM movimentacoes WHERE tipo = 'SAIDA'");
+        const totalDespesas = parseInt(totalResult.rows[0].count, 10);
+        res.status(200).json({
+            dados: despesasResult.rows, total: totalDespesas, pagina: pagina, limite: limite, totalPaginas: Math.ceil(totalDespesas / limite),
+        });
+    } catch (error) {
+        console.error('Erro ao buscar despesas:', error);
+        res.status(500).json({ error: 'Erro interno do servidor.' });
+    }
+};
 
+// --- NOVA FUNÇÃO ---
+/**
+ * @desc    Obter contas a receber com vencimento nos próximos 5 dias
+ * @route   GET /api/movimentacoes/contas-a-receber
+ * @access  Restrito (Admin)
+ */
+const getContasAReceber = async (req, res) => {
     try {
         const query = `
             SELECT 
                 m.id,
-                m.descricao,
                 m.valor_total,
-                m.data_movimentacao, -- JÁ ESTAVA CORRETO AQUI
-                u.nome as usuario_nome
-            FROM movimentacoes m
-            LEFT JOIN utilizadores u ON m.utilizador_id = u.id
-            WHERE m.tipo = 'SAIDA'
-            ORDER BY m.data_movimentacao DESC -- CORREÇÃO AQUI
-            LIMIT $1 OFFSET $2;
+                m.data_vencimento,
+                c.nome AS cliente_nome,
+                c.telefone AS cliente_telefone
+            FROM 
+                movimentacoes m
+            JOIN 
+                clientes c ON m.cliente_id = c.id
+            WHERE 
+                m.tipo = 'ENTRADA' 
+                AND m.opcao_pagamento = 'A PRAZO'
+                AND m.data_pagamento IS NULL
+                AND m.data_vencimento BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '5 days'
+            ORDER BY 
+                m.data_vencimento ASC;
         `;
-        const despesasResult = await pool.query(query, [limite, offset]);
-
-        const totalResult = await pool.query("SELECT COUNT(*) FROM movimentacoes WHERE tipo = 'SAIDA'");
-        const totalDespesas = parseInt(totalResult.rows[0].count, 10);
-
-        res.status(200).json({
-            dados: despesasResult.rows,
-            total: totalDespesas,
-            pagina: pagina,
-            limite: limite,
-            totalPaginas: Math.ceil(totalDespesas / limite)
-        });
+        const { rows } = await pool.query(query);
+        res.status(200).json(rows);
     } catch (error) {
-        console.error('Erro ao buscar despesas:', error);
-        res.status(500).json({ error: 'Erro interno do servidor' });
+        console.error('Erro ao buscar contas a receber:', error);
+        res.status(500).json({ error: 'Erro interno do servidor.' });
+    }
+};
+
+// --- NOVA FUNÇÃO ---
+/**
+ * @desc    Registrar o pagamento de uma venda
+ * @route   PUT /api/movimentacoes/vendas/:id/pagamento
+ * @access  Restrito (Admin)
+ */
+const registrarPagamento = async (req, res) => {
+    const { id } = req.params;
+    // Opcionalmente, receber a data do pagamento do frontend. Se não, usar a data atual.
+    const { data_pagamento } = req.body; 
+
+    try {
+        const result = await pool.query(
+            'UPDATE movimentacoes SET data_pagamento = $1 WHERE id = $2 AND tipo = \'ENTRADA\' RETURNING *',
+            [data_pagamento || new Date(), id]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Venda não encontrada ou já paga.' });
+        }
+
+        res.status(200).json({ message: 'Pagamento registrado com sucesso!', venda: result.rows[0] });
+    } catch (error) {
+        console.error('Erro ao registrar pagamento:', error);
+        res.status(500).json({ error: 'Erro interno do servidor.' });
     }
 };
 
@@ -167,5 +223,7 @@ module.exports = {
   createVenda,
   getVendas,
   createDespesa,
-  getDespesas
+  getDespesas,
+  getContasAReceber, // Exportar a nova função
+  registrarPagamento, // Exportar a nova função
 };

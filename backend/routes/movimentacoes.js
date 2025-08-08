@@ -2,27 +2,30 @@
 
 const express = require('express');
 const router = express.Router();
-const { createVenda, getVendas, createDespesa, getDespesas } = require('../controllers/movimentacaoController');
+// 1. Importar a nova função do controller
+const { 
+    createVenda, 
+    getVendas, 
+    createDespesa, 
+    getDespesas, 
+    getContasAReceber, // <-- NOVA FUNÇÃO
+    registrarPagamento, // <-- NOVA FUNÇÃO
+} = require('../controllers/movimentacaoController');
 const { verifyToken, checkAdmin } = require('../middleware/authMiddleware');
 
 // --- ROTAS DE VENDAS (ENTRADAS) ---
-// Qualquer usuário logado pode criar e ver as vendas.
 router.post('/vendas', verifyToken, createVenda);
 router.get('/vendas', verifyToken, getVendas);
 
 // --- ROTAS DE DESPESAS (SAÍDAS) ---
-// Acesso para CRIAR despesas é restrito a ADMINS.
 router.post('/despesas', verifyToken, checkAdmin, createDespesa);
-
-// Qualquer usuário logado pode VER as despesas.
-// (Poderíamos restringir a ADMIN se necessário, mas por enquanto deixamos aberto para usuários logados)
 router.get('/despesas', verifyToken, getDespesas);
 
+// --- ROTAS FINANCEIRAS (Contas a Receber) ---
+// 2. Criar a nova rota GET para buscar as contas a receber
+router.get('/contas-a-receber', verifyToken, checkAdmin, getContasAReceber);
 
-// Futuramente, podemos adicionar rotas de PUT e DELETE para despesas aqui, também protegidas por checkAdmin.
-// Exemplo:
-// router.put('/despesas/:id', verifyToken, checkAdmin, updateDespesa);
-// router.delete('/despesas/:id', verifyToken, checkAdmin, deleteDespesa);
-
+// 3. Criar a nova rota PUT para registrar o pagamento de uma venda
+router.put('/vendas/:id/pagamento', verifyToken, checkAdmin, registrarPagamento);
 
 module.exports = router;
