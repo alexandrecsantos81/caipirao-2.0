@@ -1,0 +1,117 @@
+const pool = require('../db');
+
+/**
+ * @desc    Busca os principais KPIs para os cards do dashboard.
+ * @route   GET /api/dashboard/kpis
+ * @access  Protegido
+ */
+const getKPIs = async (req, res) => {
+    try {
+        // --- 1. Resumo Financeiro do Mês Atual ---
+        const resumoMesQuery = `
+            SELECT 
+                COALESCE(SUM(CASE WHEN tipo = 'ENTRADA' THEN valor_total ELSE 0 END), 0) AS "totalVendasMes",
+                COALESCE(SUM(CASE WHEN tipo_saida IS NOT NULL THEN valor ELSE 0 END), 0) AS "totalDespesasMes"
+            FROM (
+                SELECT 'ENTRADA' as tipo, valor_total, NULL as tipo_saida, NULL as valor, data_venda as data_mov
+                FROM movimentacoes
+                WHERE data_venda >= DATE_TRUNC('month', CURRENT_DATE)
+                
+                UNION ALL
+                
+                SELECT NULL as tipo, NULL as valor_total, tipo_saida, valor, data_vencimento as data_mov
+                FROM despesas
+                WHERE data_vencimento >= DATE_TRUNC('month', CURRENT_DATE)
+            ) as movimentacoes_mes;
+        `;
+        const resumoMesResult = await pool.query(resumoMesQuery);
+        const { totalVendasMes, totalDespesasMes } = resumoMesResult.rows[0];
+
+
+        // --- 2. Total de Contas a Receber (Vendas a Prazo Pendentes) ---
+        const contasAReceberQuery = `
+            SELECT COALESCE(SUM(valor_total), 0) AS "totalContasAReceber"
+            FROM movimentacoes
+            WHERE tipo = 'ENTRADA' AND opcao_pagamento = 'A PRAZO' AND data_pagamento IS NULL;
+        `;
+        const contasAReceberResult = await pool.query(contasAReceberQuery);
+        const { totalContasAReceber } = contasAReceberResult.rows[0];
+
+
+        // --- 3. Total de Contas a Pagar (Despesas Pendentes) ---
+        const contasAPagarQuery = `
+            SELECT COALESCE(SUM(valor), 0) AS "totalContasAPagar"
+            FROM despesas
+            WHERE data_pagamento IS NULL;
+        `;
+        const contasAPagarResult = await pool.query(contasAPagarQuery);
+        const { totalContasAPagar } = contasAPagarResult.rows[0];
+
+
+        // --- 4. Novos Clientes no Mês Atual ---
+        const novosClientesQuery = `
+            SELECT COUNT(id) AS "novosClientesMes"
+            FROM clientes
+            WHERE data_criacao >= DATE_TRUNC('month', CURRENT_DATE);
+        `;
+        const novosClientesResult = await pool.query(novosClientesQuery);
+        const { novosClientesMes } = novosClientesResult.rows[0];
+
+
+        // --- 5. Monta o objeto de resposta ---
+        res.status(200).json({
+            totalVendasMes: parseFloat(totalVendasMes),
+            totalDespesasMes: parseFloat(totalDespesasMes),
+            saldoMes: parseFloat(totalVendasMes) - parseFloat(totalDespesasMes),
+            totalContasAReceber: parseFloat(totalContasAReceber),
+            totalContasAPagar: parseFloat(totalContasAPagar),
+            novosClientesMes: parseInt(novosClientesMes, 10),
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar KPIs do dashboard:', error);
+        res.status(500).json({ error: 'Erro interno do servidor.' });
+    }
+};
+
+
+/**
+ * @desc    Busca dados de vendas diárias para o gráfico do dashboard.
+ * @route   GET /api/dashboard/vendas-por-dia
+ * @access  Protegido
+ */
+const getVendasPorDia = async (req, res) => {
+    try {
+        // Busca o total de vendas agrupado por dia nos últimos 30 dias
+        const query = `
+            SELECT 
+                TO_CHAR(data_venda, 'YYYY-MM-DD') AS dia,
+                SUM(valor_total) AS total
+            FROM movimentacoes
+            WHERE 
+                tipo = 'ENTRADA' AND
+                data_venda >= CURRENT_DATE - INTERVAL '30 days'
+            GROUP BY dia
+            ORDER BY dia ASC;
+        `;
+        const resultado = await pool.query(query);
+
+        // Formata os dados para o gráfico
+        const dadosFormatados = resultado.rows.map(row => ({
+            dia: new Date(row.dia).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+            total: parseFloat(row.total)
+        }));
+
+        res.status(200).json(dadosFormatados);
+
+    } catch (error) {
+        console.error('Erro ao buscar dados de vendas por dia:', error);
+        res.status(500).json({ error: 'Erro interno do servidor.' });
+    }
+};
+
+
+module.exports = {
+    getKPIs,
+    getVendasPorDia,
+};

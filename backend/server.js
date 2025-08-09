@@ -9,8 +9,9 @@ const produtoRoutes = require('./routes/produtos');
 const movimentacaoRoutes = require('./routes/movimentacoes');
 const reportRoutes = require('./routes/reports');
 const utilizadorRoutes = require('./routes/utilizadores');
-const fornecedorRoutes = require('./routes/fornecedorRoutes'); // <-- CORREÇÃO AQUI
-const despesaRoutes = require('./routes/despesaRoutes');       // <-- CORREÇÃO AQUI
+const fornecedorRoutes = require('./routes/fornecedorRoutes');
+const despesaRoutes = require('./routes/despesaRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes'); // <-- 1. IMPORTAR A NOVA ROTA
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -27,12 +28,13 @@ app.get('/', (req, res) => {
 // Rotas da API
 app.use('/api/auth', authRoutes);
 app.use('/api/utilizadores', utilizadorRoutes);
-app.use('/api/fornecedores', fornecedorRoutes); // <--- NOVO
-app.use('/api/despesas', despesaRoutes);       // <--- NOVO
+app.use('/api/fornecedores', fornecedorRoutes);
+app.use('/api/despesas', despesaRoutes);
 app.use('/api/clientes', clienteRoutes);
 app.use('/api/produtos', produtoRoutes);
 app.use('/api/movimentacoes', movimentacaoRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/dashboard', dashboardRoutes); // <-- 2. ADICIONAR A NOVA ROTA
 
 // Iniciar o servidor
 app.listen(port, () => {
