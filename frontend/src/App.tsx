@@ -42,7 +42,6 @@ const Layout = () => {
       gridTemplateColumns={isSidebarOpen ? '240px 1fr' : '72px 1fr'}
       gridTemplateRows={'auto 1fr'}
       h='100vh'
-      // A propriedade 'bg' foi removida daqui para ser controlada pelo tema global.
       transition="grid-template-columns 0.2s ease-in-out"
     >
       <GridItem area={'nav'}>
@@ -50,7 +49,12 @@ const Layout = () => {
       </GridItem>
 
       <GridItem area={'header'}>
-        <Header onToggleSidebar={onToggleSidebar} />
+        {/* ======================= INÍCIO DA ALTERAÇÃO ======================= */}
+        <Header 
+          onToggleSidebar={onToggleSidebar} 
+          isSidebarOpen={isSidebarOpen} // <-- Passando o estado para o Header
+        />
+        {/* ======================== FIM DA ALTERAÇÃO ========================= */}
       </GridItem>
 
       <GridItem area={'main'} overflowY="auto">

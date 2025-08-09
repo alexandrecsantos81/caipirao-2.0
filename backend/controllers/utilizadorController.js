@@ -3,11 +3,11 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
 /**
- * @desc    Admin cria um novo utilizador diretamente.
+ * @desc    Admin cria um novo utilizador diretamente, já ativo.
  * @route   POST /api/utilizadores
  * @access  Admin
  */
-const createUtilizador = async (req, res) => {
+const createUtilizadorByAdmin = async (req, res) => {
     const { nome, email, telefone, nickname, senha, perfil } = req.body;
 
     if (!nome || !email || !nickname || !senha || !perfil) {
@@ -35,6 +35,7 @@ const createUtilizador = async (req, res) => {
     }
 };
 
+
 /**
  * @desc    Utilizador não autenticado solicita acesso ao sistema.
  * @route   POST /api/utilizadores/solicitar-acesso
@@ -48,7 +49,6 @@ const solicitarAcesso = async (req, res) => {
     }
 
     try {
-        // Insere o utilizador com perfil PENDENTE e status INATIVO
         const novaSolicitacao = await pool.query(
             `INSERT INTO utilizadores (nome, email, telefone, perfil, status)
              VALUES ($1, $2, $3, 'PENDENTE', 'INATIVO')
@@ -132,7 +132,7 @@ const getUtilizadores = async (req, res) => {
 };
 
 /**
- * @desc    Admin atualiza os dados de um utilizador (incluindo status e perfil).
+ * @desc    Admin atualiza um utilizador.
  * @route   PUT /api/utilizadores/:id
  * @access  Admin
  */
@@ -141,14 +141,14 @@ const updateUtilizador = async (req, res) => {
     const { nome, email, telefone, nickname, perfil, status } = req.body;
 
     if (!nome || !email || !perfil || !status) {
-        return res.status(400).json({ error: 'Nome, email, perfil e status são obrigatórios.' });
+        return res.status(400).json({ error: 'Campos obrigatórios: nome, email, perfil e status.' });
     }
 
     try {
         const utilizadorAtualizado = await pool.query(
             `UPDATE utilizadores 
              SET nome = $1, email = $2, telefone = $3, nickname = $4, perfil = $5, status = $6
-             WHERE id = $7 RETURNING id, nome, email, telefone, nickname, perfil, status`,
+             WHERE id = $7 RETURNING *`,
             [nome, email, telefone, nickname, perfil, status, id]
         );
 
@@ -158,7 +158,7 @@ const updateUtilizador = async (req, res) => {
 
         res.status(200).json(utilizadorAtualizado.rows[0]);
     } catch (error) {
-        if (error.code === '23505') { // Violação de chave única
+        if (error.code === '23505') {
             return res.status(409).json({ error: 'Email, telefone ou nickname já cadastrado em outro utilizador.' });
         }
         console.error('Erro ao atualizar utilizador:', error);
@@ -173,12 +173,6 @@ const updateUtilizador = async (req, res) => {
  */
 const deleteUtilizador = async (req, res) => {
     const { id } = req.params;
-    const adminId = req.user.id;
-
-    if (Number(id) === Number(adminId)) {
-        return res.status(403).json({ error: 'Não é permitido excluir o seu próprio utilizador.' });
-    }
-
     try {
         const resultado = await pool.query('DELETE FROM utilizadores WHERE id = $1', [id]);
         if (resultado.rowCount === 0) {
@@ -192,7 +186,7 @@ const deleteUtilizador = async (req, res) => {
 };
 
 module.exports = {
-    createUtilizador,
+    createUtilizadorByAdmin, // <-- Adicionada
     solicitarAcesso,
     ativarUtilizador,
     getUtilizadores,

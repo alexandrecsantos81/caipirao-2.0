@@ -143,7 +143,7 @@ const ProdutosPage = () => {
 
   return (
     <Box p={8}>
-      <Flex justify="space-between" align="center" mb={6}><Heading>Produtos</Heading><Button leftIcon={<FiPlus />} colorScheme="teal" onClick={handleOpenForCreate}>Novo Produto</Button></Flex>
+      <Flex justify="space-between" align="center" mb={6}><Heading></Heading><Button leftIcon={<FiPlus />} colorScheme="teal" onClick={handleOpenForCreate}>Novo Produto</Button></Flex>
       {isLoading && <Center><Spinner size="xl" /></Center>}
       {!isLoading && data && (<><Table variant="simple"><Thead><Tr><Th>Nome</Th><Th>Unidade</Th><Th isNumeric>Preço (R$)</Th><Th>Ações</Th></Tr></Thead><Tbody>{data.dados.map((produto) => (<Tr key={produto.id}><Td>{produto.nome}</Td><Td>{produto.unidade_medida}</Td><Td isNumeric>{typeof produto.price === 'number' ? produto.price.toFixed(2) : '0.00'}</Td><Td><IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleOpenForEdit(produto)} mr={2} /><IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" onClick={() => deleteMutation.mutate(produto.id)} isLoading={deleteMutation.isPending && deleteMutation.variables === produto.id} /></Td></Tr>))}</Tbody></Table><Pagination paginaAtual={pagina} totalPaginas={data.totalPaginas || 1} onPageChange={(page) => setPagina(page)} /></>)}
       {!isLoading && !data && (<Center p={10}><Text color="red.500" fontWeight="bold">Falha ao carregar os produtos. Verifique se o servidor backend está rodando.</Text></Center>)}

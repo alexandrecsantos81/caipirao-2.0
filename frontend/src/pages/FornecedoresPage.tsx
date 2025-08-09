@@ -135,7 +135,7 @@ const FornecedoresPage = () => {
   return (
     <Box p={8}>
       <Flex justify="space-between" align="center" mb={6}>
-        <Heading>Gestão de Fornecedores</Heading>
+        <Heading></Heading>
         <Button leftIcon={<FiPlus />} colorScheme="teal" onClick={handleAddClick}>Adicionar Fornecedor</Button>
       </Flex>
 

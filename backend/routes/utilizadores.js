@@ -2,32 +2,29 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken, checkAdmin } = require('../middleware/authMiddleware');
 const {
-    createUtilizador,
+    createUtilizadorByAdmin, // <-- Alterado de createUtilizador para a nova função
     solicitarAcesso,
     ativarUtilizador,
     getUtilizadores,
-    updateUtilizador, // <-- Importar
-    deleteUtilizador, // <-- Importar
+    updateUtilizador,
+    deleteUtilizador,
 } = require('../controllers/utilizadorController');
 
-// --- ROTAS PÚBLICAS ---
-// Rota para um novo colaborador solicitar acesso
+// --- ROTA PÚBLICA ---
 router.post('/solicitar-acesso', solicitarAcesso);
 
-
 // --- ROTAS PROTEGIDAS (ADMIN) ---
-// As rotas abaixo exigem que o utilizador seja um admin logado
-router.use(verifyToken, checkAdmin); // Aplica a proteção para todas as rotas abaixo
+router.use(verifyToken, checkAdmin);
 
-// Rota para /api/utilizadores
+// Listar todos os utilizadores e Criar um novo utilizador
 router.route('/')
     .get(getUtilizadores)
-    .post(createUtilizador);
+    .post(createUtilizadorByAdmin); // <-- Rota POST agora usa a função de criação pelo admin
 
-// Rota para ativar um utilizador pendente
+// Ativar um utilizador pendente
 router.put('/:id/ativar', ativarUtilizador);
 
-// Novas rotas para editar e deletar um utilizador específico
+// Editar e deletar um utilizador específico
 router.route('/:id')
     .put(updateUtilizador)
     .delete(deleteUtilizador);

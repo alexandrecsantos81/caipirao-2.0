@@ -6,14 +6,18 @@ import {
   Heading,
   Spacer,
 } from '@chakra-ui/react';
-import { FiMenu, FiMoon, FiSun } from 'react-icons/fi';
+// ======================= INÍCIO DA ALTERAÇÃO =======================
+// Trocamos os ícones do 'react-icons/fi' para 'react-icons/bs'
+import { BsLayoutSidebarInset, BsLayoutSidebarInsetReverse } from 'react-icons/bs';
+import { FiMoon, FiSun } from 'react-icons/fi';
+// ======================== FIM DA ALTERAÇÃO =========================
 import { useLocation } from 'react-router-dom';
 
 interface HeaderProps {
-  onToggleSidebar: () => void; // Função para abrir/fechar a sidebar
+  onToggleSidebar: () => void;
+  isSidebarOpen: boolean;
 }
 
-// Mapeia as rotas para títulos amigáveis
 const routeTitles: { [key: string]: string } = {
   '/dashboard': 'Dashboard',
   '/movimentacoes': 'Movimentações',
@@ -23,11 +27,10 @@ const routeTitles: { [key: string]: string } = {
   '/utilizadores': 'Gestão de Utilizadores',
 };
 
-export const Header = ({ onToggleSidebar }: HeaderProps) => {
+export const Header = ({ onToggleSidebar, isSidebarOpen }: HeaderProps) => {
   const { colorMode, toggleColorMode } = useColorMode();
   const location = useLocation();
 
-  // Pega o título da rota atual ou usa um padrão
   const pageTitle = routeTitles[location.pathname] || 'Caipirão 3.0';
 
   return (
@@ -44,13 +47,17 @@ export const Header = ({ onToggleSidebar }: HeaderProps) => {
       h="14"
     >
       <Flex align="center">
+        {/* ======================= INÍCIO DA ALTERAÇÃO ======================= */}
         <IconButton
           aria-label="Toggle Sidebar"
-          icon={<FiMenu />}
+          // Usando os novos ícones que são visualmente idênticos à referência
+          icon={isSidebarOpen ? <BsLayoutSidebarInset /> : <BsLayoutSidebarInsetReverse />}
           onClick={onToggleSidebar}
           variant="ghost"
           mr={3}
+          fontSize="20px" // Ajuste opcional de tamanho
         />
+        {/* ======================== FIM DA ALTERAÇÃO ========================= */}
         <Heading as="h1" size="md">
           {pageTitle}
         </Heading>

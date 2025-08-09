@@ -121,7 +121,7 @@ const ClientesPage = () => {
     <Box p={8}>
       <Flex justify="space-between" align="center" mb={6}>
         <Box>
-          <Heading>Clientes</Heading>
+          <Heading></Heading>
           <Text color="gray.500">Adicione, edite e gerencie seus clientes.</Text>
         </Box>
         <Button leftIcon={<FiPlus />} colorScheme="teal" onClick={() => handleOpenForm(null)}>

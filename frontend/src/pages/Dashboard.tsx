@@ -32,7 +32,7 @@ const DashboardPage = () => {
 
   return (
     <Box p={8}>
-      <Heading mb={6}>Dashboard</Heading>
+      <Heading mb={6}></Heading>
       
       {/* Grade de Cards com os KPIs */}
       <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
