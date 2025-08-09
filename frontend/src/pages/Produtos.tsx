@@ -1,5 +1,3 @@
-// CÓDIGO COMPLETO, REVISADO E CORRIGIDO PARA frontend/src/pages/Produtos.tsx
-
 import {
   Box, Button, Center, Drawer, DrawerBody, DrawerCloseButton, DrawerContent,
   DrawerFooter, DrawerHeader, DrawerOverlay, Flex, FormControl, FormLabel,
@@ -14,6 +12,7 @@ import {
   IProduto, createProduto, deleteProduto, getProdutos, updateProduto, IProdutoForm,
 } from '../services/produto.service';
 import { Pagination } from '../components/Pagination';
+import { useAuth } from '../hooks/useAuth'; // 1. IMPORTAR O HOOK
 
 type ProdutoFormData = IProdutoForm & {
   outra_unidade_medida?: string;
@@ -128,12 +127,13 @@ const ProdutosPage = () => {
   const queryClient = useQueryClient();
   const [pagina, setPagina] = useState(1);
   const [editingProduto, setEditingProduto] = useState<IProduto | null>(null);
+  const { user } = useAuth(); // 2. OBTER O USUÁRIO
+  const isAdmin = user?.perfil === 'ADMIN'; // 3. CRIAR A VARIÁVEL DE VERIFICAÇÃO
 
   const { data, isLoading } = useQuery({
     queryKey: ['produtos', pagina],
     queryFn: () => getProdutos(pagina, 10),
   });
-  console.log('DADOS RECEBIDOS PELO useQuery:', data);
   
   const deleteMutation = useMutation({ mutationFn: deleteProduto, onSuccess: async () => { toast({ title: 'Produto deletado!', status: 'success', duration: 3000, isClosable: true }); await queryClient.invalidateQueries({ queryKey: ['produtos'] }); }, onError: (error: any) => { toast({ title: 'Erro ao deletar.', description: error.message, status: 'error', duration: 5000, isClosable: true }); } });
   const saveMutation = useMutation({ mutationFn: (data: { formData: IProdutoForm; id?: number }) => (data.id ? updateProduto(data.id, data.formData) : createProduto(data.formData)), onSuccess: async () => { toast({ title: `Produto salvo com sucesso!`, status: 'success', duration: 3000, isClosable: true }); await queryClient.invalidateQueries({ queryKey: ['produtos'] }); onClose(); }, onError: (error: any) => { toast({ title: `Erro ao salvar produto.`, description: error.message, status: 'error', duration: 5000, isClosable: true }); } });
@@ -143,11 +143,54 @@ const ProdutosPage = () => {
 
   return (
     <Box p={8}>
-      <Flex justify="space-between" align="center" mb={6}><Heading></Heading><Button leftIcon={<FiPlus />} colorScheme="teal" onClick={handleOpenForCreate}>Novo Produto</Button></Flex>
+      <Flex justify="space-between" align="center" mb={6}>
+        <Heading></Heading>
+        {/* 4. RENDERIZAÇÃO CONDICIONAL DO BOTÃO "NOVO PRODUTO" */}
+        {isAdmin && (
+          <Button leftIcon={<FiPlus />} colorScheme="teal" onClick={handleOpenForCreate}>
+            Novo Produto
+          </Button>
+        )}
+      </Flex>
       {isLoading && <Center><Spinner size="xl" /></Center>}
-      {!isLoading && data && (<><Table variant="simple"><Thead><Tr><Th>Nome</Th><Th>Unidade</Th><Th isNumeric>Preço (R$)</Th><Th>Ações</Th></Tr></Thead><Tbody>{data.dados.map((produto) => (<Tr key={produto.id}><Td>{produto.nome}</Td><Td>{produto.unidade_medida}</Td><Td isNumeric>{typeof produto.price === 'number' ? produto.price.toFixed(2) : '0.00'}</Td><Td><IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleOpenForEdit(produto)} mr={2} /><IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" onClick={() => deleteMutation.mutate(produto.id)} isLoading={deleteMutation.isPending && deleteMutation.variables === produto.id} /></Td></Tr>))}</Tbody></Table><Pagination paginaAtual={pagina} totalPaginas={data.totalPaginas || 1} onPageChange={(page) => setPagina(page)} /></>)}
+      {!isLoading && data && (
+        <>
+          <Table variant="simple">
+            <Thead>
+              <Tr>
+                <Th>Nome</Th>
+                <Th>Unidade</Th>
+                <Th isNumeric>Preço (R$)</Th>
+                {/* 5. RENDERIZAÇÃO CONDICIONAL DA COLUNA DE AÇÕES */}
+                {isAdmin && <Th>Ações</Th>}
+              </Tr>
+            </Thead>
+            <Tbody>
+              {data.dados.map((produto) => (
+                <Tr key={produto.id}>
+                  <Td>{produto.nome}</Td>
+                  <Td>{produto.unidade_medida}</Td>
+                  <Td isNumeric>{typeof produto.price === 'number' ? produto.price.toFixed(2) : '0.00'}</Td>
+                  {/* 6. RENDERIZAÇÃO CONDICIONAL DOS BOTÕES DE AÇÃO */}
+                  {isAdmin && (
+                    <Td>
+                      <IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleOpenForEdit(produto)} mr={2} />
+                      <IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" onClick={() => deleteMutation.mutate(produto.id)} isLoading={deleteMutation.isPending && deleteMutation.variables === produto.id} />
+                    </Td>
+                  )}
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+          <Pagination paginaAtual={pagina} totalPaginas={data.totalPaginas || 1} onPageChange={(page) => setPagina(page)} />
+        </>
+      )}
       {!isLoading && !data && (<Center p={10}><Text color="red.500" fontWeight="bold">Falha ao carregar os produtos. Verifique se o servidor backend está rodando.</Text></Center>)}
-      <FormularioProduto isOpen={isOpen} onClose={onClose} produto={editingProduto} onSave={handleSave} isLoading={saveMutation.isPending} />
+      
+      {/* 7. RENDERIZAÇÃO CONDICIONAL DO FORMULÁRIO */}
+      {isAdmin && (
+        <FormularioProduto isOpen={isOpen} onClose={onClose} produto={editingProduto} onSave={handleSave} isLoading={saveMutation.isPending} />
+      )}
     </Box>
   );
 };

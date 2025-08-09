@@ -48,8 +48,6 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
   const { data: produtos } = useQuery<IPaginatedResponse<IProduto>>({ queryKey: ['todosProdutos'], queryFn: () => getProdutos(1, 1000), enabled: isOpen });
 
   const dataVendaValue = watch('data_venda');
-  // A LINHA ABAIXO FOI REMOVIDA
-  // const watchedProdutoId = watch('produto_selecionado_id'); 
 
   const valorTotalCalculado = useMemo(() => {
     return produtosNaVenda.reduce((total, item) => {
@@ -336,7 +334,10 @@ const MovimentacoesPage = () => {
   return (
     <Box>
       <Tabs isFitted variant="enclosed-colored">
-        <TabList mb="1em"><Tab>Vendas (Entradas)</Tab><Tab>Despesas (Saídas)</Tab></TabList>
+        <TabList mb="1em">
+          <Tab>Vendas (Entradas)</Tab>
+          {isAdmin && <Tab>Despesas (Saídas)</Tab>}
+        </TabList>
         <TabPanels>
           <TabPanel>
             <Flex justify="space-between" mb={4}>
@@ -345,18 +346,24 @@ const MovimentacoesPage = () => {
             </Flex>
             <TabelaVendas onEdit={handleEditVenda} onDelete={(id) => handleDeleteClick(id, 'venda')} />
           </TabPanel>
-          <TabPanel>
-            <Flex justify="space-between" mb={4}>
-              <Heading size="md">Histórico de Despesas</Heading>
-              {isAdmin && (<Button leftIcon={<FiPlus />} colorScheme="red" onClick={handleAddNewDespesa}>Registrar Despesa</Button>)}
-            </Flex>
-            <TabelaDespesas onEdit={handleEditDespesa} onDelete={(id) => handleDeleteClick(id, 'despesa')} />
-          </TabPanel>
+          
+          {isAdmin && (
+            <TabPanel>
+              <Flex justify="space-between" mb={4}>
+                <Heading size="md">Histórico de Despesas</Heading>
+                <Button leftIcon={<FiPlus />} colorScheme="red" onClick={handleAddNewDespesa}>Registrar Despesa</Button>
+              </Flex>
+              <TabelaDespesas onEdit={handleEditDespesa} onDelete={(id) => handleDeleteClick(id, 'despesa')} />
+            </TabPanel>
+          )}
         </TabPanels>
       </Tabs>
       
       <FormularioNovaVenda isOpen={isVendaDrawerOpen} onClose={onVendaDrawerClose} vendaParaEditar={vendaParaEditar} />
-      <FormularioNovaDespesa isOpen={isDespesaDrawerOpen} onClose={onDespesaDrawerClose} despesaParaEditar={despesaParaEditar} />
+      
+      {isAdmin && (
+        <FormularioNovaDespesa isOpen={isDespesaDrawerOpen} onClose={onDespesaDrawerClose} despesaParaEditar={despesaParaEditar} />
+      )}
 
       <AlertDialog isOpen={isConfirmOpen} leastDestructiveRef={cancelRef} onClose={onConfirmClose}>
         <AlertDialogOverlay><AlertDialogContent>

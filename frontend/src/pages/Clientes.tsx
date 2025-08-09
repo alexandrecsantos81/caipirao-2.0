@@ -1,5 +1,3 @@
-// frontend/src/pages/Clientes.tsx
-
 import {
   Badge, Box, Button, Center, Drawer, DrawerBody, DrawerContent, DrawerFooter,
   DrawerHeader, DrawerOverlay, Flex, FormControl, FormLabel, HStack, Heading,
@@ -14,6 +12,7 @@ import { Pagination } from '../components/Pagination';
 import {
   ICliente, IClienteForm, createCliente, deleteCliente, getClientes, updateCliente,
 } from '../services/cliente.service';
+import { useAuth } from '../hooks/useAuth'; // 1. IMPORTAR O HOOK
 
 const formatarTelefone = (telefone: string): string => {
   if (!telefone) return '';
@@ -72,6 +71,8 @@ const ClientesPage = () => {
   const [editingCliente, setEditingCliente] = useState<ICliente | null>(null);
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth(); // 2. OBTER O USUÁRIO DO CONTEXTO
+  const isAdmin = user?.perfil === 'ADMIN'; // 3. CRIAR A VARIÁVEL DE VERIFICAÇÃO
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['clientes', pagina],
@@ -114,7 +115,7 @@ const ClientesPage = () => {
 
   const openWhatsApp = (phone: string) => {
     const cleanPhone = phone.replace(/\D/g, '');
-    window.open(`https://wa.me/55${cleanPhone}`, '_blank' );
+    window.open(`https://wa.me/55${cleanPhone}`, '_blank'  );
   };
 
   return (
@@ -170,14 +171,17 @@ const ClientesPage = () => {
                         <Button size="sm" leftIcon={<FiEdit />} onClick={() => handleOpenForm(cliente)}>
                           Editar
                         </Button>
-                        <IconButton
-                          aria-label="Deletar"
-                          icon={<FiTrash2 />}
-                          colorScheme="red"
-                          size="sm"
-                          onClick={() => deleteMutation.mutate(cliente.id)}
-                          isLoading={deleteMutation.isPending && deleteMutation.variables === cliente.id}
-                        />
+                        {/* 4. RENDERIZAÇÃO CONDICIONAL DO BOTÃO DE EXCLUSÃO */}
+                        {isAdmin && (
+                          <IconButton
+                            aria-label="Deletar"
+                            icon={<FiTrash2 />}
+                            colorScheme="red"
+                            size="sm"
+                            onClick={() => deleteMutation.mutate(cliente.id)}
+                            isLoading={deleteMutation.isPending && deleteMutation.variables === cliente.id}
+                          />
+                        )}
                       </HStack>
                     </Td>
                   </Tr>
@@ -187,7 +191,7 @@ const ClientesPage = () => {
           </TableContainer>
 
           <Pagination
-            paginaAtual={data?.pagina || 1} // <-- CORREÇÃO AQUI
+            paginaAtual={data?.pagina || 1}
             totalPaginas={data?.totalPaginas || 1}
             onPageChange={(page) => setPagina(page)}
           />

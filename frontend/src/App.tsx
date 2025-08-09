@@ -23,16 +23,24 @@ const ProtectedRoute = () => {
   return isAuthenticated ? <Layout /> : <Navigate to="/login" replace />;
 };
 
-// --- Componente de Proteção para Rotas de Admin ---
+// --- NOVO: Componente de Proteção para Rotas de Admin ---
 const AdminRoute = () => {
-  const { user } = useAuth();
-  if (user?.perfil !== 'ADMIN') {
-    return <Navigate to="/dashboard" replace />;
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <Center h="100vh"><Spinner size="xl" /></Center>;
   }
+
+  // Se o usuário não for ADMIN, redireciona para a página de movimentações
+  if (user?.perfil !== 'ADMIN') {
+    return <Navigate to="/movimentacoes" replace />;
+  }
+  
+  // Se for ADMIN, renderiza o conteúdo da rota
   return <Outlet />;
 };
 
-// --- Componente de Layout Principal (ATUALIZADO) ---
+// --- Componente de Layout Principal (sem alterações) ---
 const Layout = () => {
   const { isOpen: isSidebarOpen, onToggle: onToggleSidebar } = useDisclosure({ defaultIsOpen: true });
 
@@ -47,16 +55,9 @@ const Layout = () => {
       <GridItem area={'nav'}>
         <Sidebar isCollapsed={!isSidebarOpen} />
       </GridItem>
-
       <GridItem area={'header'}>
-        {/* ======================= INÍCIO DA ALTERAÇÃO ======================= */}
-        <Header 
-          onToggleSidebar={onToggleSidebar} 
-          isSidebarOpen={isSidebarOpen} // <-- Passando o estado para o Header
-        />
-        {/* ======================== FIM DA ALTERAÇÃO ========================= */}
+        <Header onToggleSidebar={onToggleSidebar} isSidebarOpen={isSidebarOpen} />
       </GridItem>
-
       <GridItem area={'main'} overflowY="auto">
         <Box p={8}>
           <Outlet />
@@ -66,7 +67,7 @@ const Layout = () => {
   );
 };
 
-// --- Componente Principal da Aplicação ---
+// --- Componente Principal da Aplicação (ROTAS ATUALIZADAS) ---
 function App() {
   return (
     <Routes>
@@ -76,17 +77,20 @@ function App() {
 
       {/* Rotas Protegidas */}
       <Route element={<ProtectedRoute />}>
-        <Route path="/dashboard" element={<DashboardPage />} />
+        {/* Rotas Comuns */}
         <Route path="/movimentacoes" element={<MovimentacoesPage />} />
         <Route path="/clientes" element={<ClientesPage />} />
         <Route path="/produtos" element={<ProdutosPage />} />
-        <Route path="/fornecedores" element={<FornecedoresPage />} />
         
+        {/* Rotas de Admin */}
         <Route element={<AdminRoute />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/fornecedores" element={<FornecedoresPage />} />
           <Route path="/utilizadores" element={<UtilizadoresPage />} />
         </Route>
 
-        <Route path="/" element={<Navigate to="/dashboard" />} />
+        {/* Redirecionamento padrão */}
+        <Route path="/" element={<Navigate to="/movimentacoes" />} />
       </Route>
 
       <Route path="*" element={<Box p={10}><Heading>404: Página Não Encontrada</Heading></Box>} />
