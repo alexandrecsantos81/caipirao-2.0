@@ -8,17 +8,18 @@ types.setTypeParser(1700, (val) => {
   return parseFloat(val);
 });
 
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_DATABASE,
-  password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT,
-});
+// Configuração para produção (Render) e desenvolvimento (local)
+const isProduction = process.env.NODE_ENV === 'production';
+
+const connectionConfig = {
+  connectionString: process.env.DATABASE_URL, // URL fornecida pela Render
+  ssl: isProduction ? { rejectUnauthorized: false } : false,
+};
+
+const pool = new Pool(connectionConfig);
 
 pool.on('connect', () => {
   console.log(`Conexão com o PostgreSQL bem-sucedida: ${new Date().toLocaleString()}`);
 });
 
-// CORREÇÃO: Exportar a instância completa do pool, não apenas a função query.
 module.exports = pool;
