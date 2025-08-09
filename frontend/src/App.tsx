@@ -1,6 +1,5 @@
-import { Routes, Route, Link as RouterLink, Navigate, Outlet } from 'react-router-dom';
-import { Box, Flex, Button, Heading, Spacer, Menu, MenuButton, MenuList, MenuItem, Spinner } from '@chakra-ui/react';
-import { ChevronDownIcon } from '@chakra-ui/icons';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { Box, Spinner, Grid, GridItem, Center, Heading } from '@chakra-ui/react'; // <-- CORREÇÃO: Adicionado Center e Heading
 
 // Hooks e Páginas
 import { useAuth } from './hooks/useAuth';
@@ -12,11 +11,15 @@ import MovimentacoesPage from './pages/Movimentacoes';
 import DashboardPage from './pages/Dashboard';
 import UtilizadoresPage from './pages/UtilizadoresPage';
 import FornecedoresPage from './pages/FornecedoresPage';
+import { Sidebar } from './components/Sidebar';
 
 // --- Componente de Proteção de Rota ---
 const ProtectedRoute = () => {
   const { isAuthenticated, loading } = useAuth();
-  if (loading) return <Box p={8} textAlign="center"><Spinner size="xl" /></Box>;
+  if (loading) {
+    // Usando o Center que acabamos de importar
+    return <Center h="100vh"><Spinner size="xl" /></Center>;
+  }
   return isAuthenticated ? <Layout /> : <Navigate to="/login" replace />;
 };
 
@@ -29,47 +32,26 @@ const AdminRoute = () => {
   return <Outlet />;
 };
 
-// --- Componente de Navegação (Navbar) ---
-const Navbar = () => {
-  const { user, logout } = useAuth();
-  const isAdmin = user?.perfil === 'ADMIN';
-
-  return (
-    <Flex as="nav" align="center" wrap="wrap" padding="1.5rem" bg="teal.500" color="white">
-      <Heading as="h1" size="lg" letterSpacing={'-.1rem'}>Caipirão 3.0</Heading>
-      <Spacer />
-      <Box>
-        <Button as={RouterLink} to="/dashboard" variant="ghost" mr={2}>Dashboard</Button>
-        <Button as={RouterLink} to="/movimentacoes" variant="ghost" mr={2}>Movimentações</Button>
-        <Button as={RouterLink} to="/clientes" variant="ghost" mr={2}>Clientes</Button>
-        <Button as={RouterLink} to="/produtos" variant="ghost" mr={2}>Produtos</Button>
-        <Button as={RouterLink} to="/fornecedores" variant="ghost" mr={4}>Fornecedores</Button> {/* <--- NOVO */}
-        {isAdmin && (
-          <Button as={RouterLink} to="/utilizadores" variant="ghost" mr={4}>Utilizadores</Button>
-        )}
-      </Box>
-      <Spacer />
-      <Menu>
-        <MenuButton as={Button} rightIcon={<ChevronDownIcon />} colorScheme="teal">
-          {user?.nome}
-        </MenuButton>
-        <MenuList color="black">
-          <MenuItem onClick={logout}>Sair</MenuItem>
-        </MenuList>
-      </Menu>
-    </Flex>
-  );
-};
-
-// --- Componente de Layout Principal ---
+// --- Componente de Layout Principal (ATUALIZADO) ---
 const Layout = () => (
-  <Box>
-    <Navbar />
-    <main><Outlet /></main>
-  </Box>
+  <Grid
+    templateAreas={`"nav main"`}
+    gridTemplateColumns={'240px 1fr'} // Largura da Sidebar e o resto para o conteúdo
+    h='100vh'
+    bg="gray.50"
+  >
+    <GridItem area={'nav'}>
+      <Sidebar />
+    </GridItem>
+    <GridItem area={'main'} overflowY="auto">
+      <Box p={8}>
+        <Outlet />
+      </Box>
+    </GridItem>
+  </Grid>
 );
 
-// --- Componente Principal da Aplicação ---
+// --- Componente Principal da Aplicação (ATUALIZADO) ---
 function App() {
   return (
     <Routes>
@@ -83,7 +65,7 @@ function App() {
         <Route path="/movimentacoes" element={<MovimentacoesPage />} />
         <Route path="/clientes" element={<ClientesPage />} />
         <Route path="/produtos" element={<ProdutosPage />} />
-        <Route path="/fornecedores" element={<FornecedoresPage />} /> {/* <--- NOVO */}
+        <Route path="/fornecedores" element={<FornecedoresPage />} />
         
         <Route element={<AdminRoute />}>
           <Route path="/utilizadores" element={<UtilizadoresPage />} />
@@ -92,7 +74,8 @@ function App() {
         <Route path="/" element={<Navigate to="/dashboard" />} />
       </Route>
 
-      <Route path="*" element={<Heading p={10}>404: Página Não Encontrada</Heading>} />
+      {/* Rota de fallback para páginas não encontradas */}
+      <Route path="*" element={<Box p={10}><Heading>404: Página Não Encontrada</Heading></Box>} />
     </Routes>
   );
 }
