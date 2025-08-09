@@ -1,5 +1,3 @@
-// frontend/src/services/venda.service.ts
-
 import axios from 'axios';
 import { IPaginatedResponse } from './cliente.service';
 
@@ -19,17 +17,19 @@ apiClient.interceptors.request.use(
 
 // --- INTERFACES ---
 
-interface IProdutoVenda {
+export interface IProdutoVenda {
   produto_id: number;
   nome: string;
   unidade_medida: string;
   quantidade: number;
   valor_unitario: number;
   valor_total_item: number;
+  preco_manual?: number;
 }
 
 export interface IVenda {
   id: number;
+  cliente_id: number;
   cliente_nome: string;
   usuario_nome: string;
   valor_total: number;
@@ -52,16 +52,13 @@ export interface INovaVenda {
   }[];
 }
 
-// --- NOVA INTERFACE ---
-// Interface para os dados de "Contas a Receber" que virão do backend
 export interface IContaAReceber {
-    id: number; // ID da movimentação/venda
+    id: number;
     valor_total: number;
     data_vencimento: string;
     cliente_nome: string;
     cliente_telefone: string;
 }
-
 
 // --- FUNÇÕES DE SERVIÇO ---
 
@@ -75,24 +72,33 @@ export const createVenda = async (novaVenda: INovaVenda): Promise<IVenda> => {
   return response.data;
 };
 
-// --- NOVA FUNÇÃO ---
+/**
+ * @description Atualiza uma venda existente.
+ */
+export const updateVenda = async ({ id, data }: { id: number, data: INovaVenda }): Promise<IVenda> => {
+  const response = await apiClient.put(`/movimentacoes/vendas/${id}`, data);
+  return response.data;
+};
+
+/**
+ * @description Deleta uma venda.
+ */
+export const deleteVenda = async (id: number): Promise<void> => {
+  await apiClient.delete(`/movimentacoes/vendas/${id}`);
+};
+
 /**
  * @description Busca a lista de contas a receber com vencimento nos próximos 5 dias.
- * @returns Uma promessa com um array de contas a receber.
  */
 export const getContasAReceber = async (): Promise<IContaAReceber[]> => {
     const response = await apiClient.get('/movimentacoes/contas-a-receber');
     return response.data;
 };
 
-// --- NOVA FUNÇÃO ---
 /**
  * @description Registra o pagamento de uma venda específica.
- * @param vendaId - O ID da venda que foi paga.
- * @returns Uma promessa com os dados da venda atualizada.
  */
 export const registrarPagamento = async (vendaId: number): Promise<IVenda> => {
-    // A data do pagamento será definida pelo backend como a data atual.
     const response = await apiClient.put(`/movimentacoes/vendas/${vendaId}/pagamento`);
     return response.data;
 };

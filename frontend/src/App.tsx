@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { Box, Spinner, Grid, GridItem, Center, Heading } from '@chakra-ui/react'; // <-- CORREÇÃO: Adicionado Center e Heading
+import { Box, Spinner, Grid, GridItem, Center, Heading, useDisclosure } from '@chakra-ui/react';
 
 // Hooks e Páginas
 import { useAuth } from './hooks/useAuth';
@@ -12,12 +12,12 @@ import DashboardPage from './pages/Dashboard';
 import UtilizadoresPage from './pages/UtilizadoresPage';
 import FornecedoresPage from './pages/FornecedoresPage';
 import { Sidebar } from './components/Sidebar';
+import { Header } from './components/Header'; // <-- 1. Importar o Header
 
 // --- Componente de Proteção de Rota ---
 const ProtectedRoute = () => {
   const { isAuthenticated, loading } = useAuth();
   if (loading) {
-    // Usando o Center que acabamos de importar
     return <Center h="100vh"><Spinner size="xl" /></Center>;
   }
   return isAuthenticated ? <Layout /> : <Navigate to="/login" replace />;
@@ -33,25 +33,40 @@ const AdminRoute = () => {
 };
 
 // --- Componente de Layout Principal (ATUALIZADO) ---
-const Layout = () => (
-  <Grid
-    templateAreas={`"nav main"`}
-    gridTemplateColumns={'240px 1fr'} // Largura da Sidebar e o resto para o conteúdo
-    h='100vh'
-    bg="gray.50"
-  >
-    <GridItem area={'nav'}>
-      <Sidebar />
-    </GridItem>
-    <GridItem area={'main'} overflowY="auto">
-      <Box p={8}>
-        <Outlet />
-      </Box>
-    </GridItem>
-  </Grid>
-);
+const Layout = () => {
+  // 2. Controlar o estado da sidebar (aberta/fechada)
+  const { isOpen: isSidebarOpen, onToggle: onToggleSidebar } = useDisclosure({ defaultIsOpen: true });
 
-// --- Componente Principal da Aplicação (ATUALIZADO) ---
+  return (
+    <Grid
+      templateAreas={`"nav header" "nav main"`}
+      // 3. A largura da sidebar agora é dinâmica
+      gridTemplateColumns={isSidebarOpen ? '240px 1fr' : '72px 1fr'}
+      gridTemplateRows={'auto 1fr'}
+      h='100vh'
+      bg="gray.50"
+      transition="grid-template-columns 0.2s ease-in-out" // Animação suave
+    >
+      <GridItem area={'nav'}>
+        {/* 4. Passar o estado para a Sidebar */}
+        <Sidebar isCollapsed={!isSidebarOpen} />
+      </GridItem>
+
+      <GridItem area={'header'}>
+        {/* 5. Passar a função de toggle para o Header */}
+        <Header onToggleSidebar={onToggleSidebar} />
+      </GridItem>
+
+      <GridItem area={'main'} overflowY="auto">
+        <Box p={8}>
+          <Outlet />
+        </Box>
+      </GridItem>
+    </Grid>
+  );
+};
+
+// --- Componente Principal da Aplicação ---
 function App() {
   return (
     <Routes>
@@ -74,7 +89,6 @@ function App() {
         <Route path="/" element={<Navigate to="/dashboard" />} />
       </Route>
 
-      {/* Rota de fallback para páginas não encontradas */}
       <Route path="*" element={<Box p={10}><Heading>404: Página Não Encontrada</Heading></Box>} />
     </Routes>
   );

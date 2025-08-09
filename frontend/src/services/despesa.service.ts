@@ -55,7 +55,7 @@ export interface IContasAPagar {
 
 export interface IQuitacaoData {
     data_pagamento: string; // YYYY-MM-DD
-    responsavel_pagamento_id?: number; // Opcional, o backend usa o user logado se não for enviado
+    responsavel_pagamento_id?: number;
 }
 
 // --- FUNÇÕES DO SERVIÇO ---
@@ -66,6 +66,21 @@ export interface IQuitacaoData {
 export const registrarDespesa = async (data: IDespesaForm): Promise<IDespesa> => {
   const response = await apiClient.post('/', data);
   return response.data;
+};
+
+/**
+ * @description Atualiza uma despesa existente.
+ */
+export const updateDespesa = async ({ id, data }: { id: number, data: IDespesaForm }): Promise<IDespesa> => {
+  const response = await apiClient.put(`/${id}`, data);
+  return response.data;
+};
+
+/**
+ * @description Deleta uma despesa.
+ */
+export const deleteDespesa = async (id: number): Promise<void> => {
+  await apiClient.delete(`/${id}`);
 };
 
 /**

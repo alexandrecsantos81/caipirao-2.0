@@ -28,7 +28,6 @@ const registrarDespesa = async (req, res) => {
 // @route   GET /api/despesas
 // @access  Protegido
 const getDespesas = async (req, res) => {
-    // Futuramente, podemos adicionar filtros via query string (ex: ?status=pendente)
     try {
         const resultado = await pool.query(`
             SELECT 
@@ -51,13 +50,12 @@ const getDespesas = async (req, res) => {
 const quitarDespesa = async (req, res) => {
     const { id } = req.params;
     const { data_pagamento, responsavel_pagamento_id } = req.body;
-    const userIdFromToken = req.user.id; // ID do utilizador que está fazendo a ação
+    const userIdFromToken = req.user.id;
 
     if (!data_pagamento) {
         return res.status(400).json({ error: 'A data de pagamento é obrigatória.' });
     }
     
-    // O responsável pode ser quem está logado ou outro admin selecionado no frontend
     const responsavelId = responsavel_pagamento_id || userIdFromToken;
 
     try {
@@ -85,7 +83,6 @@ const quitarDespesa = async (req, res) => {
 // @access  Protegido
 const getDespesasAPagar = async (req, res) => {
     try {
-        // Busca despesas não pagas com vencimento nos próximos 5 dias (ou já vencidas)
         const resultado = await pool.query(`
             SELECT 
                 d.id,
@@ -105,10 +102,63 @@ const getDespesasAPagar = async (req, res) => {
     }
 };
 
+/**
+ * @desc    Atualizar uma despesa existente
+ * @route   PUT /api/despesas/:id
+ * @access  Protegido (Admin)
+ */
+const updateDespesa = async (req, res) => {
+    const { id } = req.params;
+    const { tipo_saida, valor, discriminacao, data_vencimento, fornecedor_id } = req.body;
 
+    if (!tipo_saida || !valor || !discriminacao || !data_vencimento) {
+        return res.status(400).json({ error: 'Campos obrigatórios: tipo, valor, discriminação e vencimento.' });
+    }
+
+    try {
+        const despesaAtualizada = await pool.query(
+            `UPDATE despesas 
+             SET tipo_saida = $1, valor = $2, discriminacao = $3, data_vencimento = $4, fornecedor_id = $5
+             WHERE id = $6 RETURNING *`,
+            [tipo_saida, valor, discriminacao, data_vencimento, fornecedor_id, id]
+        );
+
+        if (despesaAtualizada.rowCount === 0) {
+            return res.status(404).json({ error: 'Despesa não encontrada.' });
+        }
+
+        res.status(200).json(despesaAtualizada.rows[0]);
+    } catch (error) {
+        console.error('Erro ao atualizar despesa:', error);
+        res.status(500).json({ error: 'Erro interno do servidor.' });
+    }
+};
+
+/**
+ * @desc    Deletar uma despesa
+ * @route   DELETE /api/despesas/:id
+ * @access  Protegido (Admin)
+ */
+const deleteDespesa = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const resultado = await pool.query('DELETE FROM despesas WHERE id = $1', [id]);
+        if (resultado.rowCount === 0) {
+            return res.status(404).json({ error: 'Despesa não encontrada.' });
+        }
+        res.status(204).send(); // Sucesso, sem conteúdo
+    } catch (error) {
+        console.error('Erro ao deletar despesa:', error);
+        res.status(500).json({ error: 'Erro interno do servidor.' });
+    }
+};
+
+// CORREÇÃO: Garantindo que todas as funções sejam exportadas.
 module.exports = {
     registrarDespesa,
     getDespesas,
     quitarDespesa,
     getDespesasAPagar,
+    updateDespesa,
+    deleteDespesa,
 };

@@ -1,13 +1,19 @@
-// frontend/src/main.tsx
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { ChakraProvider } from '@chakra-ui/react';
+import { ChakraProvider, extendTheme, ThemeConfig } from '@chakra-ui/react'; // 1. Importar o necessário
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import App from './App';
-import { AuthProvider } from './hooks/useAuth'; // 1. IMPORTE O AUTHPROVIDER
+import { AuthProvider } from './hooks/useAuth';
+
+// 2. Configurar o tema
+const config: ThemeConfig = {
+  initialColorMode: 'system', // 'light', 'dark', ou 'system'
+  useSystemColorMode: true,   // Segue a preferência do sistema operacional
+};
+
+const theme = extendTheme({ config }); // Cria o tema estendido
 
 const queryClient = new QueryClient();
 const rootElement = document.getElementById('root');
@@ -17,8 +23,8 @@ ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
-        <ChakraProvider>
-          {/* 2. ENVOLVA O APP COM O AUTHPROVIDER */}
+        {/* 3. Passar o novo tema para o provider */}
+        <ChakraProvider theme={theme}>
           <AuthProvider>
             <App />
           </AuthProvider>

@@ -1,24 +1,21 @@
-// frontend/src/pages/Movimentacoes.tsx
-
 import {
   Box, Button, Center, Flex, FormControl, FormLabel, Heading, IconButton,
   Input, NumberInput, NumberInputField, Select, Spinner, Tab, TabList, TabPanel,
   TabPanels, Table, TableContainer, Tabs, Tbody, Td, Text, Th, Thead, Tr,
   useDisclosure, useToast, VStack, Badge, FormErrorMessage,
   Drawer, DrawerBody, DrawerCloseButton, DrawerContent, DrawerFooter, DrawerHeader, DrawerOverlay, Textarea,
+  AlertDialog, AlertDialogBody, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogOverlay, HStack,
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { Controller, useForm, SubmitHandler } from 'react-hook-form';
-import { FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiEdit } from 'react-icons/fi';
 
-// Importação dos Serviços e Componentes
 import { Pagination } from '../components/Pagination';
 import { ICliente, getClientes, IPaginatedResponse } from '../services/cliente.service';
-// V CORREÇÃO FINAL: Importando do arquivo renomeado "despesa.service.ts"
-import { IDespesa, IDespesaForm, registrarDespesa, getDespesas, tiposDeSaida } from '../services/despesa.service';
+import { IDespesa, IDespesaForm, registrarDespesa, getDespesas, tiposDeSaida, updateDespesa, deleteDespesa } from '../services/despesa.service';
 import { IProduto, getProdutos } from '../services/produto.service';
-import { IVenda, INovaVenda, createVenda, getVendas } from '../services/venda.service';
+import { IVenda, INovaVenda, createVenda, getVendas, updateVenda, deleteVenda } from '../services/venda.service';
 import { IFornecedor, getFornecedores } from '../services/fornecedor.service';
 import { useAuth } from '../hooks/useAuth';
 
@@ -33,7 +30,7 @@ interface ProdutoVendaItem {
 }
 
 // --- COMPONENTE DO FORMULÁRIO DE VENDA ---
-const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) => {
+const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boolean; onClose: () => void; vendaParaEditar: IVenda | null }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { user } = useAuth();
@@ -47,49 +44,58 @@ const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     },
   });
 
-  const { data: clientes } = useQuery<IPaginatedResponse<ICliente>>({ queryKey: ['todosClientes'], queryFn: () => getClientes(1, 1000) });
-  const { data: produtos } = useQuery<IPaginatedResponse<IProduto>>({ queryKey: ['todosProdutos'], queryFn: () => getProdutos(1, 1000) });
+  const { data: clientes } = useQuery<IPaginatedResponse<ICliente>>({ queryKey: ['todosClientes'], queryFn: () => getClientes(1, 1000), enabled: isOpen });
+  const { data: produtos } = useQuery<IPaginatedResponse<IProduto>>({ queryKey: ['todosProdutos'], queryFn: () => getProdutos(1, 1000), enabled: isOpen });
 
-  const watchedQuantidade = watch('quantidade');
-  const watchedPrecoManual = watch('preco_manual');
-  const watchedProdutoId = watch('produto_selecionado_id');
   const dataVendaValue = watch('data_venda');
+  // A LINHA ABAIXO FOI REMOVIDA
+  // const watchedProdutoId = watch('produto_selecionado_id'); 
 
   const valorTotalCalculado = useMemo(() => {
-    const totalItensNaLista = produtosNaVenda.reduce((total, item) => {
+    return produtosNaVenda.reduce((total, item) => {
       const preco = item.preco_manual ?? item.preco_original;
       return total + (item.quantidade * preco);
     }, 0);
-    let valorItemAtual = 0;
-    const produtoInfo = produtos?.dados.find(p => p.id === Number(watchedProdutoId));
-    if (produtoInfo) {
-      const precoAtual = Number(watchedPrecoManual) > 0 ? Number(watchedPrecoManual) : produtoInfo.price;
-      valorItemAtual = (Number(watchedQuantidade) || 0) * precoAtual;
-    }
-    return totalItensNaLista + valorItemAtual;
-  }, [produtosNaVenda, watchedQuantidade, watchedPrecoManual, watchedProdutoId, produtos]);
+  }, [produtosNaVenda]);
 
   const mutation = useMutation({
-    mutationFn: createVenda,
+    mutationFn: (data: { vendaData: INovaVenda, id?: number }) => 
+      data.id ? updateVenda({ id: data.id, data: data.vendaData }) : createVenda(data.vendaData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendas'] });
       queryClient.invalidateQueries({ queryKey: ['produtos'] });
-      queryClient.invalidateQueries({ queryKey: ['contasAReceber'] });
-      toast({ title: "Venda registrada!", status: "success", duration: 3000, isClosable: true });
+      toast({ title: `Venda ${vendaParaEditar ? 'atualizada' : 'registrada'}!`, status: "success", duration: 3000, isClosable: true });
       onClose();
     },
     onError: (error: any) => {
-      toast({ title: "Erro ao registrar venda", description: error.response?.data?.error || error.message, status: "error", duration: 6000, isClosable: true });
+      toast({ title: "Erro ao salvar venda", description: error.response?.data?.error || error.message, status: "error", duration: 5000, isClosable: true });
     },
   });
 
   useEffect(() => {
-    if (!isOpen) {
-      reset({ cliente_id: '', data_venda: new Date().toISOString().split('T')[0], data_vencimento: '', produto_selecionado_id: '', quantidade: 1, preco_manual: '' });
-      setProdutosNaVenda([]);
-      setOpcaoPagamento('À VISTA');
+    if (isOpen) {
+      if (vendaParaEditar) {
+        setValue('cliente_id', String(vendaParaEditar.cliente_id));
+        setValue('data_venda', vendaParaEditar.data_venda.split('T')[0]);
+        setOpcaoPagamento(vendaParaEditar.opcao_pagamento);
+        setValue('data_vencimento', vendaParaEditar.data_vencimento ? vendaParaEditar.data_vencimento.split('T')[0] : '');
+        
+        const produtosEdit = vendaParaEditar.produtos.map(p => ({
+          produto_id: p.produto_id,
+          quantidade: p.quantidade,
+          preco_manual: p.preco_manual,
+          nome: p.nome,
+          unidade_medida: p.unidade_medida,
+          preco_original: p.valor_unitario,
+        }));
+        setProdutosNaVenda(produtosEdit);
+      } else {
+        reset({ cliente_id: '', data_venda: new Date().toISOString().split('T')[0], data_vencimento: '', produto_selecionado_id: '', quantidade: 1, preco_manual: '' });
+        setProdutosNaVenda([]);
+        setOpcaoPagamento('À VISTA');
+      }
     }
-  }, [isOpen, reset]);
+  }, [isOpen, vendaParaEditar, reset, setValue]);
 
   useEffect(() => {
     if (opcaoPagamento === 'À VISTA') setValue('data_vencimento', dataVendaValue);
@@ -115,7 +121,9 @@ const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
       unidade_medida: produtoInfo.unidade_medida,
       preco_original: produtoInfo.price,
     }]);
-    reset({ ...getValues(), produto_selecionado_id: '', quantidade: 1, preco_manual: '' });
+    setValue('produto_selecionado_id', '');
+    setValue('quantidade', 1);
+    setValue('preco_manual', '');
   };
 
   const handleRemoveProduto = (produtoId: number) => {
@@ -123,25 +131,7 @@ const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   };
 
   const onSubmit: SubmitHandler<any> = (data) => {
-    const { produto_selecionado_id, quantidade } = getValues();
-    let listaFinalDeProdutos = [...produtosNaVenda];
-    if (produto_selecionado_id && quantidade > 0) {
-      const produtoJaNaLista = produtosNaVenda.some(p => p.produto_id === Number(produto_selecionado_id));
-      if (!produtoJaNaLista) {
-        const produtoInfo = produtos?.dados.find(p => p.id === Number(produto_selecionado_id));
-        if (produtoInfo) {
-          listaFinalDeProdutos.push({
-            produto_id: produtoInfo.id,
-            quantidade: Number(quantidade),
-            preco_manual: getValues('preco_manual') ? Number(getValues('preco_manual')) : undefined,
-            nome: produtoInfo.nome,
-            unidade_medida: produtoInfo.unidade_medida,
-            preco_original: produtoInfo.price,
-          });
-        }
-      }
-    }
-    if (listaFinalDeProdutos.length === 0) {
+    if (produtosNaVenda.length === 0) {
       toast({ title: "Nenhum produto adicionado", status: "error", duration: 4000, isClosable: true });
       return;
     }
@@ -150,20 +140,20 @@ const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
       data_venda: data.data_venda,
       opcao_pagamento: opcaoPagamento,
       data_vencimento: data.data_vencimento,
-      produtos: listaFinalDeProdutos.map(p => ({
+      produtos: produtosNaVenda.map(p => ({
         produto_id: p.produto_id,
         quantidade: p.quantidade,
         preco_manual: p.preco_manual,
       })),
     };
-    mutation.mutate(vendaParaAPI);
+    mutation.mutate({ vendaData: vendaParaAPI, id: vendaParaEditar?.id });
   };
 
   return (
     <Drawer isOpen={isOpen} placement="right" onClose={onClose} size="xl">
       <DrawerOverlay />
       <DrawerContent>
-        <DrawerHeader borderBottomWidth="1px">Registrar Nova Venda</DrawerHeader>
+        <DrawerHeader borderBottomWidth="1px">{vendaParaEditar ? 'Editar Venda' : 'Registrar Nova Venda'}</DrawerHeader>
         <DrawerCloseButton />
         <form onSubmit={handleSubmit(onSubmit)}>
           <DrawerBody>
@@ -183,52 +173,46 @@ const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 };
 
 // --- COMPONENTE DO FORMULÁRIO DE DESPESA ---
-const FormularioNovaDespesa = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) => {
+const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen: boolean; onClose: () => void; despesaParaEditar: IDespesa | null }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
   
-  const { register, handleSubmit, control, reset, formState: { errors } } = useForm<IDespesaForm>({
-    defaultValues: {
-      discriminacao: '',
-      tipo_saida: '',
-      valor: '',
-      data_vencimento: new Date().toISOString().split('T')[0],
-      fornecedor_id: undefined,
-    }
-  });
+  const { register, handleSubmit, control, reset, formState: { errors } } = useForm<IDespesaForm>();
 
-  const { data: fornecedores } = useQuery<IFornecedor[]>({ 
-    queryKey: ['todosFornecedores'], 
-    queryFn: getFornecedores,
-    enabled: isOpen,
-  });
+  const { data: fornecedores } = useQuery<IFornecedor[]>({ queryKey: ['todosFornecedores'], queryFn: getFornecedores, enabled: isOpen });
 
   const mutation = useMutation({
-    mutationFn: registrarDespesa,
+    mutationFn: (data: { despesaData: IDespesaForm, id?: number }) =>
+      data.id ? updateDespesa({ id: data.id, data: data.despesaData }) : registrarDespesa(data.despesaData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['despesas'] });
-      queryClient.invalidateQueries({ queryKey: ['contasAPagar'] });
-      toast({ title: "Despesa registrada com sucesso!", status: "success", duration: 3000, isClosable: true });
+      toast({ title: `Despesa ${despesaParaEditar ? 'atualizada' : 'registrada'}!`, status: "success", duration: 3000, isClosable: true });
       onClose();
     },
     onError: (error: any) => {
-      toast({ title: "Erro ao registrar despesa", description: error.response?.data?.error || error.message, status: "error", duration: 6000, isClosable: true });
+      toast({ title: "Erro ao salvar despesa", description: error.response?.data?.error || error.message, status: "error", duration: 5000, isClosable: true });
     }
   });
 
   useEffect(() => {
-    if (!isOpen) {
-      reset();
+    if (isOpen) {
+      if (despesaParaEditar) {
+        reset({
+          ...despesaParaEditar,
+          data_vencimento: despesaParaEditar.data_vencimento.split('T')[0],
+        });
+      } else {
+        reset({
+          discriminacao: '', tipo_saida: '', valor: '',
+          data_vencimento: new Date().toISOString().split('T')[0], fornecedor_id: undefined,
+        });
+      }
     }
-  }, [isOpen, reset]);
+  }, [isOpen, despesaParaEditar, reset]);
 
   const onSubmit: SubmitHandler<IDespesaForm> = (data) => {
-    const finalData = {
-      ...data,
-      valor: Number(data.valor),
-      fornecedor_id: data.fornecedor_id ? Number(data.fornecedor_id) : null,
-    };
-    mutation.mutate(finalData);
+    const finalData = { ...data, valor: Number(data.valor), fornecedor_id: data.fornecedor_id ? Number(data.fornecedor_id) : null };
+    mutation.mutate({ despesaData: finalData, id: despesaParaEditar?.id });
   };
 
   return (
@@ -236,71 +220,48 @@ const FormularioNovaDespesa = ({ isOpen, onClose }: { isOpen: boolean; onClose: 
       <DrawerOverlay />
       <DrawerContent>
         <form onSubmit={handleSubmit(onSubmit)}>
-          <DrawerHeader borderBottomWidth="1px">Registrar Nova Despesa</DrawerHeader>
+          <DrawerHeader borderBottomWidth="1px">{despesaParaEditar ? 'Editar Despesa' : 'Registrar Nova Despesa'}</DrawerHeader>
           <DrawerCloseButton />
           <DrawerBody>
             <VStack spacing={4}>
-              <FormControl isRequired isInvalid={!!errors.tipo_saida}>
-                <FormLabel>Tipo de Saída</FormLabel>
-                <Select placeholder="Selecione o tipo da despesa" {...register('tipo_saida', { required: 'Tipo é obrigatório' })}>
-                  {tiposDeSaida.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}
-                </Select>
-                <FormErrorMessage>{errors.tipo_saida?.message}</FormErrorMessage>
-              </FormControl>
-
-              <FormControl isRequired isInvalid={!!errors.valor}>
-                <FormLabel>Valor (R$)</FormLabel>
-                <Controller
-                  name="valor"
-                  control={control}
-                  rules={{ required: 'Valor é obrigatório', min: { value: 0.01, message: 'Valor deve ser maior que zero' } }}
-                  render={({ field }) => <NumberInput {...field} onChange={(_, valAsNumber) => field.onChange(valAsNumber)} value={field.value as number} min={0.01} precision={2}><NumberInputField /></NumberInput>}
-                />
-                <FormErrorMessage>{errors.valor?.message}</FormErrorMessage>
-              </FormControl>
-
-              <FormControl isRequired isInvalid={!!errors.discriminacao}>
-                <FormLabel>Discriminação (Detalhes)</FormLabel>
-                <Textarea placeholder="Detalhes da despesa (ex: compra de limões, pagamento de frete)" {...register('discriminacao', { required: 'A descrição é obrigatória' })} />
-                <FormErrorMessage>{errors.discriminacao?.message}</FormErrorMessage>
-              </FormControl>
-
-              <FormControl isRequired isInvalid={!!errors.data_vencimento}>
-                <FormLabel>Data de Vencimento</FormLabel>
-                <Input type="date" {...register('data_vencimento', { required: 'Data de vencimento é obrigatória' })} />
-                <FormErrorMessage>{errors.data_vencimento?.message}</FormErrorMessage>
-              </FormControl>
-
-              <FormControl>
-                <FormLabel>Fornecedor/Credor (Opcional)</FormLabel>
-                <Select placeholder="Selecione um fornecedor" {...register('fornecedor_id')}>
-                  {fornecedores?.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
-                </Select>
-              </FormControl>
+              <FormControl isRequired isInvalid={!!errors.tipo_saida}><FormLabel>Tipo de Saída</FormLabel><Select placeholder="Selecione o tipo da despesa" {...register('tipo_saida', { required: 'Tipo é obrigatório' })}>{tiposDeSaida.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}</Select><FormErrorMessage>{errors.tipo_saida?.message}</FormErrorMessage></FormControl>
+              <FormControl isRequired isInvalid={!!errors.valor}><FormLabel>Valor (R$)</FormLabel><Controller name="valor" control={control} rules={{ required: 'Valor é obrigatório', min: { value: 0.01, message: 'Valor deve ser maior que zero' } }} render={({ field }) => <NumberInput {...field} onChange={(_, valAsNumber) => field.onChange(valAsNumber)} value={field.value as number} min={0.01} precision={2}><NumberInputField /></NumberInput>} /><FormErrorMessage>{errors.valor?.message}</FormErrorMessage></FormControl>
+              <FormControl isRequired isInvalid={!!errors.discriminacao}><FormLabel>Discriminação (Detalhes)</FormLabel><Textarea placeholder="Detalhes da despesa..." {...register('discriminacao', { required: 'A descrição é obrigatória' })} /><FormErrorMessage>{errors.discriminacao?.message}</FormErrorMessage></FormControl>
+              <FormControl isRequired isInvalid={!!errors.data_vencimento}><FormLabel>Data de Vencimento</FormLabel><Input type="date" {...register('data_vencimento', { required: 'Data de vencimento é obrigatória' })} /><FormErrorMessage>{errors.data_vencimento?.message}</FormErrorMessage></FormControl>
+              <FormControl><FormLabel>Fornecedor/Credor (Opcional)</FormLabel><Select placeholder="Selecione um fornecedor" {...register('fornecedor_id')}>{fornecedores?.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}</Select></FormControl>
             </VStack>
           </DrawerBody>
-          <DrawerFooter borderTopWidth="1px">
-            <Button variant="outline" mr={3} onClick={onClose}>Cancelar</Button>
-            <Button colorScheme="red" type="submit" isLoading={mutation.isPending}>Salvar Despesa</Button>
-          </DrawerFooter>
+          <DrawerFooter borderTopWidth="1px"><Button variant="outline" mr={3} onClick={onClose}>Cancelar</Button><Button colorScheme="red" type="submit" isLoading={mutation.isPending}>Salvar Despesa</Button></DrawerFooter>
         </form>
       </DrawerContent>
     </Drawer>
   );
 };
 
-// --- COMPONENTES DE TABELA ---
-const TabelaVendas = () => {
+// --- COMPONENTES DE TABELA (ATUALIZADOS) ---
+const TabelaVendas = ({ onEdit, onDelete }: { onEdit: (venda: IVenda) => void; onDelete: (id: number) => void; }) => {
   const [pagina, setPagina] = useState(1);
   const { data, isLoading, isError } = useQuery({ queryKey: ['vendas', pagina], queryFn: () => getVendas(pagina, 10), placeholderData: keepPreviousData });
+  
   if (isLoading) return <Center p={10}><Spinner size="xl" /></Center>;
   if (isError) return <Center p={10}><Text color="red.500">Não foi possível carregar as vendas.</Text></Center>;
+
   return (
     <>
       <TableContainer>
         <Table variant="striped">
-          <Thead><Tr><Th>Data Venda</Th><Th>Cliente</Th><Th>Pagamento</Th><Th>Vencimento</Th><Th>Status</Th><Th isNumeric>Valor Total</Th></Tr></Thead>
-          <Tbody>{data?.dados.map((venda: IVenda) => (<Tr key={venda.id}><Td>{new Date(venda.data_venda).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td><Td>{venda.cliente_nome}</Td><Td>{venda.opcao_pagamento}</Td><Td>{venda.data_vencimento ? new Date(venda.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'}</Td><Td><Badge colorScheme={venda.data_pagamento ? 'green' : 'red'}>{venda.data_pagamento ? 'Pago' : 'Pendente'}</Badge></Td><Td isNumeric>{venda.valor_total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td></Tr>))}</Tbody>
+          <Thead><Tr><Th>Data</Th><Th>Cliente</Th><Th>Pagamento</Th><Th>Status</Th><Th isNumeric>Valor</Th><Th>Ações</Th></Tr></Thead>
+          <Tbody>{data?.dados.map((venda: IVenda) => (<Tr key={venda.id}>
+            <Td>{new Date(venda.data_venda).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
+            <Td>{venda.cliente_nome}</Td>
+            <Td>{venda.opcao_pagamento}</Td>
+            <Td><Badge colorScheme={venda.data_pagamento ? 'green' : 'red'}>{venda.data_pagamento ? 'Pago' : 'Pendente'}</Badge></Td>
+            <Td isNumeric>{venda.valor_total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
+            <Td><HStack spacing={2}>
+              <IconButton aria-label="Editar" icon={<FiEdit />} size="sm" onClick={() => onEdit(venda)} />
+              <IconButton aria-label="Excluir" icon={<FiTrash2 />} size="sm" colorScheme="red" onClick={() => onDelete(venda.id)} />
+            </HStack></Td>
+          </Tr>))}</Tbody>
         </Table>
       </TableContainer>
       <Pagination paginaAtual={data?.pagina || 1} totalPaginas={data?.totalPaginas || 1} onPageChange={setPagina} />
@@ -308,11 +269,10 @@ const TabelaVendas = () => {
   );
 };
 
-const TabelaDespesas = () => {
-  const { data, isLoading, isError } = useQuery<IDespesa[]>({ 
-    queryKey: ['despesas'], 
-    queryFn: getDespesas 
-  });
+const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => void; onDelete: (id: number) => void; }) => {
+  const { data, isLoading, isError } = useQuery<IDespesa[]>({ queryKey: ['despesas'], queryFn: getDespesas });
+  const { user } = useAuth();
+  const isAdmin = user?.perfil === 'ADMIN';
 
   if (isLoading) return <Center p={10}><Spinner size="xl" /></Center>;
   if (isError) return <Center p={10}><Text color="red.500">Não foi possível carregar as despesas.</Text></Center>;
@@ -320,26 +280,18 @@ const TabelaDespesas = () => {
   return (
     <TableContainer>
       <Table variant="striped">
-        <Thead><Tr>
-          <Th>Vencimento</Th>
-          <Th>Discriminação</Th>
-          <Th>Tipo</Th>
-          <Th>Fornecedor</Th>
-          <Th>Status</Th>
-          <Th isNumeric>Valor</Th>
-        </Tr></Thead>
+        <Thead><Tr><Th>Vencimento</Th><Th>Discriminação</Th><Th>Tipo</Th><Th>Status</Th><Th isNumeric>Valor</Th>{isAdmin && <Th>Ações</Th>}</Tr></Thead>
         <Tbody>{data?.map((despesa) => (
           <Tr key={despesa.id}>
             <Td>{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
             <Td>{despesa.discriminacao}</Td>
             <Td>{despesa.tipo_saida}</Td>
-            <Td>{despesa.nome_fornecedor || 'N/A'}</Td>
-            <Td>
-              <Badge colorScheme={despesa.data_pagamento ? 'green' : 'orange'}>
-                {despesa.data_pagamento ? 'Pago' : 'Pendente'}
-              </Badge>
-            </Td>
+            <Td><Badge colorScheme={despesa.data_pagamento ? 'green' : 'orange'}>{despesa.data_pagamento ? 'Pago' : 'Pendente'}</Badge></Td>
             <Td isNumeric>{despesa.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
+            {isAdmin && (<Td><HStack spacing={2}>
+              <IconButton aria-label="Editar" icon={<FiEdit />} size="sm" onClick={() => onEdit(despesa)} />
+              <IconButton aria-label="Excluir" icon={<FiTrash2 />} size="sm" colorScheme="red" onClick={() => onDelete(despesa.id)} />
+            </HStack></Td>)}
           </Tr>
         ))}</Tbody>
       </Table>
@@ -349,37 +301,75 @@ const TabelaDespesas = () => {
 
 // --- PÁGINA PRINCIPAL DE MOVIMENTAÇÕES ---
 const MovimentacoesPage = () => {
-  const { isOpen: isVendaDrawerOpen, onOpen: onVendaDrawerOpen, onClose: onVendaDrawerClose } = useDisclosure();
-  const { isOpen: isDespesaDrawerOpen, onOpen: onDespesaDrawerOpen, onClose: onDespesaDrawerClose } = useDisclosure();
   const { user } = useAuth();
   const isAdmin = user?.perfil === 'ADMIN';
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  const { isOpen: isVendaDrawerOpen, onOpen: onVendaDrawerOpen, onClose: onVendaDrawerClose } = useDisclosure();
+  const { isOpen: isDespesaDrawerOpen, onOpen: onDespesaDrawerOpen, onClose: onDespesaDrawerClose } = useDisclosure();
+  const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure();
+  
+  const [vendaParaEditar, setVendaParaEditar] = useState<IVenda | null>(null);
+  const [despesaParaEditar, setDespesaParaEditar] = useState<IDespesa | null>(null);
+  const [itemParaDeletar, setItemParaDeletar] = useState<{ id: number; tipo: 'venda' | 'despesa' } | null>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+
+  const deleteVendaMutation = useMutation({ mutationFn: deleteVenda, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['vendas'] }); toast({ title: 'Venda excluída!', status: 'success' }); onConfirmClose(); } });
+  const deleteDespesaMutation = useMutation({ mutationFn: deleteDespesa, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['despesas'] }); toast({ title: 'Despesa excluída!', status: 'success' }); onConfirmClose(); } });
+
+  const handleEditVenda = (venda: IVenda) => { setVendaParaEditar(venda); onVendaDrawerOpen(); };
+  const handleEditDespesa = (despesa: IDespesa) => { setDespesaParaEditar(despesa); onDespesaDrawerOpen(); };
+  const handleAddNewVenda = () => { setVendaParaEditar(null); onVendaDrawerOpen(); };
+  const handleAddNewDespesa = () => { setDespesaParaEditar(null); onDespesaDrawerOpen(); };
+
+  const handleDeleteClick = (id: number, tipo: 'venda' | 'despesa') => { setItemParaDeletar({ id, tipo }); onConfirmOpen(); };
+  const handleConfirmDelete = () => {
+    if (!itemParaDeletar) return;
+    if (itemParaDeletar.tipo === 'venda') {
+      deleteVendaMutation.mutate(itemParaDeletar.id);
+    } else {
+      deleteDespesaMutation.mutate(itemParaDeletar.id);
+    }
+  };
 
   return (
-    <Box p={8}>
-      <Heading mb={6}>Movimentações</Heading>
+    <Box>
       <Tabs isFitted variant="enclosed-colored">
         <TabList mb="1em"><Tab>Vendas (Entradas)</Tab><Tab>Despesas (Saídas)</Tab></TabList>
         <TabPanels>
           <TabPanel>
             <Flex justify="space-between" mb={4}>
               <Heading size="md">Histórico de Vendas</Heading>
-              <Button leftIcon={<FiPlus />} colorScheme="teal" onClick={onVendaDrawerOpen}>Registrar Venda</Button>
+              <Button leftIcon={<FiPlus />} colorScheme="teal" onClick={handleAddNewVenda}>Registrar Venda</Button>
             </Flex>
-            <TabelaVendas />
+            <TabelaVendas onEdit={handleEditVenda} onDelete={(id) => handleDeleteClick(id, 'venda')} />
           </TabPanel>
           <TabPanel>
             <Flex justify="space-between" mb={4}>
               <Heading size="md">Histórico de Despesas</Heading>
-              {isAdmin && (<Button leftIcon={<FiPlus />} colorScheme="red" onClick={onDespesaDrawerOpen}>Registrar Despesa</Button>)}
+              {isAdmin && (<Button leftIcon={<FiPlus />} colorScheme="red" onClick={handleAddNewDespesa}>Registrar Despesa</Button>)}
             </Flex>
-            <TabelaDespesas />
+            <TabelaDespesas onEdit={handleEditDespesa} onDelete={(id) => handleDeleteClick(id, 'despesa')} />
           </TabPanel>
         </TabPanels>
       </Tabs>
       
-      <FormularioNovaVenda isOpen={isVendaDrawerOpen} onClose={onVendaDrawerClose} />
-      <FormularioNovaDespesa isOpen={isDespesaDrawerOpen} onClose={onDespesaDrawerClose} />
-      
+      <FormularioNovaVenda isOpen={isVendaDrawerOpen} onClose={onVendaDrawerClose} vendaParaEditar={vendaParaEditar} />
+      <FormularioNovaDespesa isOpen={isDespesaDrawerOpen} onClose={onDespesaDrawerClose} despesaParaEditar={despesaParaEditar} />
+
+      <AlertDialog isOpen={isConfirmOpen} leastDestructiveRef={cancelRef} onClose={onConfirmClose}>
+        <AlertDialogOverlay><AlertDialogContent>
+          <AlertDialogHeader fontSize="lg" fontWeight="bold">Confirmar Exclusão</AlertDialogHeader>
+          <AlertDialogBody>Tem certeza que deseja excluir este lançamento? Esta ação não pode ser desfeita.</AlertDialogBody>
+          <AlertDialogFooter>
+            <Button ref={cancelRef} onClick={onConfirmClose}>Cancelar</Button>
+            <Button colorScheme="red" onClick={handleConfirmDelete} ml={3} isLoading={deleteVendaMutation.isPending || deleteDespesaMutation.isPending}>
+              Sim, Excluir
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent></AlertDialogOverlay>
+      </AlertDialog>
     </Box>
   );
 };

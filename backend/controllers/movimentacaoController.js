@@ -1,5 +1,3 @@
-// backend/controllers/movimentacaoController.js
-
 const pool = require('../db');
 
 /**
@@ -9,7 +7,6 @@ const pool = require('../db');
  */
 const createVenda = async (req, res) => {
   const { cliente_id, produtos, data_venda, opcao_pagamento, data_vencimento } = req.body;
-  // O token JWT gera 'id', que corresponde ao 'utilizador_id' na tabela.
   const utilizador_id = req.user.id;
 
   if (!utilizador_id) {
@@ -52,7 +49,6 @@ const createVenda = async (req, res) => {
     const data_pagamento_inicial = opcao_pagamento === 'À VISTA' ? data_venda : null;
     const data_vencimento_final = opcao_pagamento === 'À VISTA' ? data_venda : data_vencimento;
 
-    // CORREÇÃO: Usando a coluna 'utilizador_id' no INSERT.
     const movimentacaoResult = await client.query(
       `INSERT INTO movimentacoes (tipo, valor_total, cliente_id, utilizador_id, produtos, data_venda, opcao_pagamento, data_vencimento, data_pagamento)
        VALUES ('ENTRADA', $1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
@@ -80,9 +76,8 @@ const getVendas = async (req, res) => {
     const limite = parseInt(req.query.limite, 10) || 10;
     const offset = (pagina - 1) * limite;
     try {
-        // CORREÇÃO: Trocando m.usuario_id por m.utilizador_id
         const query = `
-            SELECT m.id, m.data_venda, m.valor_total, m.opcao_pagamento, m.data_vencimento, m.data_pagamento, c.nome AS cliente_nome, u.nome AS usuario_nome, m.produtos
+            SELECT m.id, m.data_venda, m.valor_total, m.opcao_pagamento, m.data_vencimento, m.data_pagamento, c.nome AS cliente_nome, u.nome AS usuario_nome, m.produtos, m.cliente_id
             FROM movimentacoes m
             LEFT JOIN clientes c ON m.cliente_id = c.id
             LEFT JOIN utilizadores u ON m.utilizador_id = u.id
@@ -100,62 +95,6 @@ const getVendas = async (req, res) => {
     }
 };
 
-
-/**
- * @desc    Registrar uma nova DESPESA (SAÍDA)
- * @route   POST /api/movimentacoes/despesas
- * @access  Restrito (Admin)
- */
-const createDespesa = async (req, res) => {
-    const { descricao, valor_total, data_movimentacao } = req.body;
-    const utilizador_id = req.user.id; // Usando o nome correto da variável
-    if (!descricao || !valor_total || valor_total <= 0) {
-        return res.status(400).json({ error: 'Descrição e valor total válido são obrigatórios.' });
-    }
-    try {
-        // CORREÇÃO: Usando a coluna 'utilizador_id' no INSERT.
-        const result = await pool.query(
-            `INSERT INTO movimentacoes (tipo, descricao, valor_total, utilizador_id, data_venda) VALUES ('SAIDA', $1, $2, $3, $4) RETURNING id, tipo, descricao, valor_total, data_venda`,
-            [descricao, valor_total, utilizador_id, data_movimentacao || new Date()]
-        );
-        res.status(201).json(result.rows[0]);
-    } catch (error) {
-        console.error('Erro ao registrar despesa:', error);
-        res.status(500).json({ error: 'Erro interno do servidor.' });
-    }
-};
-
-
-/**
- * @desc    Obter todas as DESPESAS com paginação
- * @route   GET /api/movimentacoes/despesas
- * @access  Privado (qualquer usuário logado)
- */
-const getDespesas = async (req, res) => {
-    const pagina = parseInt(req.query.pagina, 10) || 1;
-    const limite = parseInt(req.query.limite, 10) || 10;
-    const offset = (pagina - 1) * limite;
-    try {
-        // CORREÇÃO: Trocando m.usuario_id por m.utilizador_id
-        const query = `
-            SELECT m.id, m.descricao, m.valor_total, m.data_venda, u.nome as usuario_nome
-            FROM movimentacoes m
-            LEFT JOIN utilizadores u ON m.utilizador_id = u.id
-            WHERE m.tipo = 'SAIDA' ORDER BY m.data_venda DESC, m.id DESC LIMIT $1 OFFSET $2;
-        `;
-        const despesasResult = await pool.query(query, [limite, offset]);
-        const totalResult = await pool.query("SELECT COUNT(*) FROM movimentacoes WHERE tipo = 'SAIDA'");
-        const totalDespesas = parseInt(totalResult.rows[0].count, 10);
-        res.status(200).json({
-            dados: despesasResult.rows, total: totalDespesas, pagina: pagina, limite: limite, totalPaginas: Math.ceil(totalDespesas / limite),
-        });
-    } catch (error) {
-        console.error('Erro ao buscar despesas:', error);
-        res.status(500).json({ error: 'Erro interno do servidor.' });
-    }
-};
-
-// --- NOVA FUNÇÃO ---
 /**
  * @desc    Obter contas a receber com vencimento nos próximos 5 dias
  * @route   GET /api/movimentacoes/contas-a-receber
@@ -190,7 +129,6 @@ const getContasAReceber = async (req, res) => {
     }
 };
 
-// --- NOVA FUNÇÃO ---
 /**
  * @desc    Registrar o pagamento de uma venda
  * @route   PUT /api/movimentacoes/vendas/:id/pagamento
@@ -198,7 +136,6 @@ const getContasAReceber = async (req, res) => {
  */
 const registrarPagamento = async (req, res) => {
     const { id } = req.params;
-    // Opcionalmente, receber a data do pagamento do frontend. Se não, usar a data atual.
     const { data_pagamento } = req.body; 
 
     try {
@@ -218,12 +155,113 @@ const registrarPagamento = async (req, res) => {
     }
 };
 
+/**
+ * @desc    Atualizar uma VENDA (ENTRADA)
+ * @route   PUT /api/movimentacoes/vendas/:id
+ * @access  Privado (qualquer usuário logado)
+ */
+const updateVenda = async (req, res) => {
+    const { id } = req.params;
+    const { cliente_id, produtos, data_venda, opcao_pagamento, data_vencimento } = req.body;
+    
+    if (!cliente_id || !produtos || !Array.isArray(produtos) || produtos.length === 0 || !opcao_pagamento || !data_venda) {
+        return res.status(400).json({ error: 'Dados da venda inválidos.' });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const vendaAntigaResult = await client.query('SELECT produtos FROM movimentacoes WHERE id = $1 AND tipo = \'ENTRADA\'', [id]);
+        if (vendaAntigaResult.rows.length === 0) {
+            throw new Error('Venda não encontrada.');
+        }
+        const produtosAntigos = vendaAntigaResult.rows[0].produtos;
+
+        for (const item of produtosAntigos) {
+            await client.query('UPDATE produtos SET quantidade_em_estoque = quantidade_em_estoque + $1 WHERE id = $2', [item.quantidade, item.produto_id]);
+        }
+
+        let valor_total_venda = 0;
+        const produtosParaSalvar = [];
+        for (const item of produtos) {
+            const produtoResult = await client.query('SELECT nome, price, unidade_medida FROM produtos WHERE id = $1', [item.produto_id]);
+            if (produtoResult.rows.length === 0) throw new Error(`Produto com ID ${item.produto_id} não encontrado.`);
+            
+            const produtoDB = produtoResult.rows[0];
+            const valor_unitario = (item.preco_manual !== undefined && item.preco_manual !== null) ? parseFloat(item.preco_manual) : parseFloat(produtoDB.price);
+            const valor_item = item.quantidade * valor_unitario;
+            valor_total_venda += valor_item;
+
+            produtosParaSalvar.push({
+                produto_id: item.produto_id, nome: produtoDB.nome, unidade_medida: produtoDB.unidade_medida,
+                quantidade: item.quantidade, valor_unitario: valor_unitario, valor_total_item: valor_item,
+            });
+            await client.query('UPDATE produtos SET quantidade_em_estoque = quantidade_em_estoque - $1 WHERE id = $2', [item.quantidade, item.produto_id]);
+        }
+
+        const data_pagamento_final = opcao_pagamento === 'À VISTA' ? data_venda : null;
+        const data_vencimento_final = opcao_pagamento === 'À VISTA' ? data_venda : data_vencimento;
+
+        const result = await client.query(
+            `UPDATE movimentacoes 
+             SET cliente_id = $1, produtos = $2, data_venda = $3, opcao_pagamento = $4, data_vencimento = $5, valor_total = $6, data_pagamento = $7
+             WHERE id = $8 RETURNING *`,
+            [cliente_id, JSON.stringify(produtosParaSalvar), data_venda, opcao_pagamento, data_vencimento_final, valor_total_venda, data_pagamento_final, id]
+        );
+
+        await client.query('COMMIT');
+        res.status(200).json(result.rows[0]);
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Erro ao atualizar venda:', error);
+        res.status(400).json({ error: error.message || 'Erro interno do servidor.' });
+    } finally {
+        client.release();
+    }
+};
+
+/**
+ * @desc    Deletar uma VENDA (ENTRADA)
+ * @route   DELETE /api/movimentacoes/vendas/:id
+ * @access  Privado (qualquer usuário logado)
+ */
+const deleteVenda = async (req, res) => {
+    const { id } = req.params;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const vendaResult = await client.query('SELECT produtos FROM movimentacoes WHERE id = $1 AND tipo = \'ENTRADA\'', [id]);
+        if (vendaResult.rows.length === 0) {
+            throw new Error('Venda não encontrada.');
+        }
+        const produtos = vendaResult.rows[0].produtos;
+
+        for (const item of produtos) {
+            await client.query('UPDATE produtos SET quantidade_em_estoque = quantidade_em_estoque + $1 WHERE id = $2', [item.quantidade, item.produto_id]);
+        }
+
+        await client.query('DELETE FROM movimentacoes WHERE id = $1', [id]);
+
+        await client.query('COMMIT');
+        res.status(204).send();
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Erro ao deletar venda:', error);
+        res.status(400).json({ error: error.message || 'Erro interno do servidor.' });
+    } finally {
+        client.release();
+    }
+};
 
 module.exports = {
   createVenda,
   getVendas,
-  createDespesa,
-  getDespesas,
-  getContasAReceber, // Exportar a nova função
-  registrarPagamento, // Exportar a nova função
+  getContasAReceber,
+  registrarPagamento,
+  updateVenda,
+  deleteVenda,
 };
