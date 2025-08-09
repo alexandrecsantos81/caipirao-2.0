@@ -1,10 +1,13 @@
 // frontend/src/services/auth.service.ts
 
-const API_URL = 'http://localhost:3001/api/auth';
+import axios from 'axios';
 
-// Interface para as credenciais de login
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/auth';
+const apiClient = axios.create({ baseURL: API_URL } );
+
+// Interface para as credenciais de login (atualizada)
 export interface LoginCredentials {
-  email: string;
+  credencial: string; // Pode ser email, nickname ou telefone
   senha: string;
 }
 
@@ -13,21 +16,14 @@ interface LoginResponse {
   token: string;
 }
 
-// Função para realizar o login
-export const login = async (credentials: LoginCredentials ): Promise<LoginResponse> => {
-  const response = await fetch(`${API_URL}/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(credentials),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    // Lança um erro com a mensagem vinda do backend
-    throw new Error(errorData.message || 'Falha na autenticação');
+// Função para realizar o login (atualizada)
+export const login = async (credentials: LoginCredentials): Promise<LoginResponse> => {
+  try {
+    const response = await apiClient.post('/login', credentials);
+    return response.data;
+  } catch (error: any) {
+    // Captura o erro do Axios e lança uma mensagem mais clara
+    const errorMessage = error.response?.data?.error || 'Falha na autenticação. Verifique suas credenciais.';
+    throw new Error(errorMessage);
   }
-
-  return response.json();
 };

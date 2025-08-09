@@ -1,13 +1,14 @@
 // frontend/src/hooks/useAuth.tsx
 
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
 import { jwtDecode } from 'jwt-decode';
+import { useNavigate } from 'react-router-dom';
 
 // Interface para o payload decodificado do token JWT
 interface DecodedToken {
-  userId: number;
+  id: number; // Corrigido de userId para id
   nome: string;
-  perfil: 'ADMIN' | 'USER';
+  perfil: 'VENDEDOR' | 'GERENTE' | 'ADMINISTRATIVO' | 'ADMIN' | 'PENDENTE';
   iat: number;
   exp: number;
 }
@@ -17,16 +18,16 @@ interface AuthContextType {
   user: DecodedToken | null;
   isAuthenticated: boolean;
   loading: boolean;
+  login: (token: string) => void;
   logout: () => void;
 }
 
-// Cria o contexto com um valor padrão
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Componente Provedor que vai envolver a aplicação
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<DecodedToken | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -39,36 +40,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           localStorage.removeItem('token');
         }
       } catch (error) {
-        console.error("Erro ao decodificar o token:", error);
+        console.error("Token inválido:", error);
         localStorage.removeItem('token');
       }
     }
     setLoading(false);
   }, []);
 
-  const logout = () => {
+  const login = useCallback((token: string) => {
+    try {
+      const decoded = jwtDecode<DecodedToken>(token);
+      localStorage.setItem('token', token);
+      setUser(decoded);
+      navigate('/dashboard'); // Redireciona para o dashboard após o login
+    } catch (error) {
+      console.error("Falha ao processar o token de login:", error);
+    }
+  }, [navigate]);
+
+  const logout = useCallback(() => {
     setUser(null);
     localStorage.removeItem('token');
-    window.location.href = '/login';
-  };
+    navigate('/login');
+  }, [navigate]);
 
-  // O valor que será fornecido pelo contexto
   const authContextValue = {
     user,
-    isAuthenticated: !!user,
+    isAuthenticated: !loading && !!user,
     loading,
+    login,
     logout,
   };
 
-  // A sintaxe correta para o provider
   return (
     <AuthContext.Provider value={authContextValue}>
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
 };
 
-// Hook customizado para usar o contexto de autenticação de forma segura
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {

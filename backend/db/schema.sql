@@ -7,23 +7,33 @@ DROP TABLE IF EXISTS produtos;
 DROP TABLE IF EXISTS clientes;
 DROP TABLE IF EXISTS utilizadores;
 
--- Tabela de Utilizadores: armazena os dados de login e perfis de acesso.
+-- Tabela de Utilizadores: armazena os dados de login, perfis e status.
 CREATE TABLE utilizadores (
     id SERIAL PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
-    senha VARCHAR(255) NOT NULL,
-    perfil VARCHAR(10) NOT NULL DEFAULT 'USER' CHECK (perfil IN ('ADMIN', 'USER')),
+    telefone VARCHAR(20) UNIQUE, -- Adicionado para login e contato
+    nickname VARCHAR(50) UNIQUE, -- Adicionado para login
+    senha VARCHAR(255), -- Senha pode ser nula para solicitações pendentes
+    
+    -- Perfil agora é um ENUM para garantir a consistência dos dados
+    perfil VARCHAR(20) NOT NULL DEFAULT 'PENDENTE' 
+        CHECK (perfil IN ('VENDEDOR', 'GERENTE', 'ADMINISTRATIVO', 'ADMIN', 'PENDENTE')),
+        
+    -- Status para controlar o fluxo de ativação do utilizador
+    status VARCHAR(10) NOT NULL DEFAULT 'INATIVO'
+        CHECK (status IN ('ATIVO', 'INATIVO')),
+
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabela de Clientes: armazena as informações dos clientes.
+-- Tabela de Clientes (sem alterações nesta fase)
 CREATE TABLE clientes (
     id SERIAL PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE,
     telefone VARCHAR(20),
-    endereco TEXT, -- Alterado para TEXT para acomodar endereços mais longos
+    endereco TEXT,
     responsavel VARCHAR(100),
     tem_whatsapp BOOLEAN DEFAULT FALSE,
     coordenada_x NUMERIC,
@@ -31,49 +41,44 @@ CREATE TABLE clientes (
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabela de Produtos: armazena informações sobre os produtos à venda.
+-- Tabela de Produtos (sem alterações nesta fase)
 CREATE TABLE produtos (
     id SERIAL PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
     unidade_medida VARCHAR(20) NOT NULL,
-    -- A coluna de preço foi confirmada como 'price'
     price NUMERIC(10, 2) NOT NULL CHECK (price >= 0),
     quantidade_em_estoque NUMERIC(10, 3) NOT NULL DEFAULT 0,
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabela de Movimentações: registra todas as transações financeiras (vendas e despesas).
--- Esta é a tabela com as maiores atualizações.
+-- Tabela de Movimentações (sem alterações nesta fase)
 CREATE TABLE movimentacoes (
     id SERIAL PRIMARY KEY,
     tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('ENTRADA', 'SAIDA')),
     valor_total NUMERIC(10, 2) NOT NULL,
-    
-    -- Chaves Estrangeiras
     utilizador_id INT REFERENCES utilizadores(id) ON DELETE SET NULL,
     cliente_id INT REFERENCES clientes(id) ON DELETE SET NULL,
-    
-    -- Campos para Vendas e Despesas
-    produtos JSONB, -- Para detalhes dos produtos na venda
-    descricao TEXT,  -- Para descrição da despesa
-
-    -- NOVAS COLUNAS PARA CONTROLE FINANCEIRO
+    produtos JSONB,
+    descricao TEXT,
     data_venda DATE NOT NULL DEFAULT CURRENT_DATE,
     opcao_pagamento VARCHAR(10) CHECK (opcao_pagamento IN ('À VISTA', 'A PRAZO')),
     data_vencimento DATE,
     data_pagamento DATE
 );
 
--- Índices para otimizar consultas futuras
+-- Índices para otimizar consultas
 CREATE INDEX idx_movimentacoes_tipo ON movimentacoes(tipo);
 CREATE INDEX idx_movimentacoes_data_venda ON movimentacoes(data_venda);
 CREATE INDEX idx_movimentacoes_data_vencimento ON movimentacoes(data_vencimento);
 CREATE INDEX idx_clientes_nome ON clientes(nome);
 CREATE INDEX idx_produtos_nome ON produtos(nome);
+CREATE INDEX idx_utilizadores_email ON utilizadores(email);
+CREATE INDEX idx_utilizadores_telefone ON utilizadores(telefone);
+CREATE INDEX idx_utilizadores_nickname ON utilizadores(nickname);
+CREATE INDEX idx_utilizadores_status ON utilizadores(status);
 
--- Inserir um usuário ADMIN padrão para o primeiro login
+-- Inserir um utilizador ADMIN padrão para o primeiro login
 -- A senha 'admin' deve ser registrada pela API para ser criptografada corretamente.
--- Este INSERT é apenas um placeholder.
-INSERT INTO utilizadores (nome, email, senha, perfil) VALUES 
-('Admin Principal', 'admin@caipirao.com', 'senha_criptografada_pela_api', 'ADMIN');
+INSERT INTO utilizadores (nome, email, nickname, telefone, senha, perfil, status) VALUES 
+('Admin Principal', 'admin@caipirao.com', 'admin', '00000000000', '$2a$10$ExemploDeHashSeguroNaoUseIsso', 'ADMIN', 'ATIVO');
 

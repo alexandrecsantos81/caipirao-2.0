@@ -1,84 +1,64 @@
 // backend/controllers/authController.js
 
-const db = require('../db');
+const pool = require('../db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-// @desc    Registrar um novo usuário
-// @route   POST /api/auth/register
-// @access  Público
-const registerUser = async (req, res) => {
-    const { nome, email, senha, perfil } = req.body;
+const loginUser = async (req, res) => {
+    const { credencial, senha } = req.body;
 
-    if (!nome || !email || !senha) {
-        return res.status(400).json({ error: 'Nome, email e senha são obrigatórios.' });
+    console.log('\n--- NOVA TENTATIVA DE LOGIN ---');
+    console.log('Credencial recebida:', credencial);
+    console.log('Senha recebida:', senha);
+
+    if (!credencial || !senha) {
+        return res.status(400).json({ error: 'Credencial e senha são obrigatórias.' });
     }
 
     try {
-        // Criptografa a senha antes de salvar
-        const salt = await bcrypt.genSalt(10);
-        const senhaCriptografada = await bcrypt.hash(senha, salt);
+        const query = `
+            SELECT id, nome, email, nickname, telefone, perfil, status, senha 
+            FROM utilizadores 
+            WHERE (email = $1 OR nickname = $1 OR telefone = $1) AND status = 'ATIVO'
+        `;
+        
+        console.log('Executando query no banco...');
+        const resultado = await pool.query(query, [credencial]);
+        console.log('Resultado da query:', resultado.rows);
 
-        // CORREÇÃO: Garante que a query INSERT use os nomes de coluna corretos
-        // da tabela 'utilizadores' (nome, email, senha, perfil).
-        // CÓDIGO ORIGINAL E SEGURO
-        const novoUsuario = await db.query(
-            `INSERT INTO utilizadores (nome, email, senha, perfil) 
-            VALUES ($1, $2, $3, $4) 
-            RETURNING id, nome, email, perfil`,
-            [nome, email, senhaCriptografada, perfil || 'USER']
+        if (resultado.rows.length === 0) {
+            console.log('>>> MOTIVO DA FALHA: Nenhum utilizador encontrado com essa credencial e status ATIVO.');
+            return res.status(401).json({ error: 'Credenciais inválidas ou utilizador inativo.' });
+        }
+
+        const utilizador = resultado.rows[0];
+        console.log('Utilizador encontrado:', utilizador);
+        console.log('Hash da senha no banco:', utilizador.senha);
+
+        console.log('Comparando senhas com bcrypt.compare...');
+        const senhaValida = await bcrypt.compare(senha, utilizador.senha);
+        console.log('Resultado da comparação (senhaValida):', senhaValida);
+
+        if (!senhaValida) {
+            console.log('>>> MOTIVO DA FALHA: bcrypt.compare retornou false.');
+            return res.status(401).json({ error: 'Credenciais inválidas ou utilizador inativo.' });
+        }
+
+        console.log('Login bem-sucedido! Gerando token...');
+        const token = jwt.sign(
+            { id: utilizador.id, nome: utilizador.nome, perfil: utilizador.perfil },
+            process.env.JWT_SECRET,
+            { expiresIn: '1d' }
         );
 
-
-        res.status(201).json(novoUsuario.rows[0]);
+        res.json({ token });
 
     } catch (error) {
-        // Este console.log é crucial para depuração
-        console.error('ERRO DETALHADO AO REGISTRAR:', error); 
-
-        if (error.code === '23505') { // Código para violação de chave única (email duplicado)
-            return res.status(409).json({ error: 'Este email já está cadastrado.' });
-        }
-        
-        // Mensagem de erro genérica que você recebeu
-        res.status(500).json({ error: 'Erro interno do servidor ao registrar usuário.' });
-    }
-};
-
-// @desc    Autenticar um usuário (Login)
-// @route   POST /api/auth/login
-// @access  Público
-const loginUser = async (req, res) => {
-    const { email, senha } = req.body;
-
-    if (!email || !senha) {
-        return res.status(400).json({ error: 'Email e senha são obrigatórios.' });
-    }
-
-    try {
-        const resultado = await db.query('SELECT * FROM utilizadores WHERE email = $1', [email]);
-        const usuario = resultado.rows[0];
-
-        if (usuario && (await bcrypt.compare(senha, usuario.senha))) {
-            // Senha correta, gerar token JWT
-            const token = jwt.sign(
-                { userId: usuario.id, nome: usuario.nome, perfil: usuario.perfil },
-                process.env.JWT_SECRET,
-                { expiresIn: '1d' } // Token expira em 1 dia
-            );
-
-            res.json({ token });
-        } else {
-            // Usuário não encontrado ou senha incorreta
-            res.status(401).json({ error: 'Credenciais inválidas.' });
-        }
-    } catch (error) {
-        console.error('ERRO DETALHADO NO LOGIN:', error);
+        console.error('>>> ERRO CRÍTICO DURANTE O LOGIN:', error);
         res.status(500).json({ error: 'Erro interno do servidor durante o login.' });
     }
 };
 
 module.exports = {
-    registerUser,
     loginUser,
 };
