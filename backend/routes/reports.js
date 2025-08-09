@@ -1,25 +1,30 @@
-// backend/routes/reports.js
+// backend/src/routes/reports.js
 
 const express = require('express');
 const router = express.Router();
-
-// 1. Importe as duas funções do controller
-const { getFinancialSummary, getProdutosMaisVendidos } = require('../controllers/reportController');
 const { verifyToken, checkAdmin } = require('../middleware/authMiddleware');
 
-/**
- * @route GET /api/reports/summary
- * @description Retorna um resumo financeiro (Receita, Despesa, Saldo).
- * @access Privado - Apenas ADMINS podem ver os relatórios financeiros.
- */
-router.get('/summary', verifyToken, checkAdmin, getFinancialSummary);
+// ATUALIZE A IMPORTAÇÃO PARA INCLUIR A NOVA FUNÇÃO
+const { 
+    getSalesSummary, 
+    getProductRanking,
+    getClientRanking,
+    getClientAnalysis,
+    getSellerProductivity // Importe a nova função
+} = require('../controllers/reportController');
+
+router.use(verifyToken, checkAdmin);
+
+router.get('/sales-summary', getSalesSummary);
+router.get('/product-ranking', getProductRanking);
+router.get('/client-ranking', getClientRanking);
+router.get('/client-analysis', getClientAnalysis);
 
 /**
- * @route GET /api/reports/produtos-mais-vendidos
- * @description Retorna os 10 produtos mais vendidos.
- * @access Privado - Apenas ADMINS.
+ * @route   GET /api/reports/seller-productivity
+ * @desc    Retorna o ranking de produtividade dos vendedores no período.
+ * @access  Admin
  */
-router.get('/produtos-mais-vendidos', verifyToken, checkAdmin, getProdutosMaisVendidos);
-
+router.get('/seller-productivity', getSellerProductivity); // ADICIONE A NOVA ROTA AQUI
 
 module.exports = router;

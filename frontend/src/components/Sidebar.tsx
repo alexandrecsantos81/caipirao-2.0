@@ -1,9 +1,12 @@
+// src/components/Sidebar.tsx
+
 import {
-  Box, VStack, Heading, Link as ChakraLink, Text, Divider, Avatar, HStack, Tag, Icon, Tooltip, useColorModeValue,
+  Box, VStack, Heading, Link as ChakraLink, Text, Divider, Avatar, HStack, Tag, Icon, Tooltip, useColorModeValue, Flex,
 } from '@chakra-ui/react';
-import { NavLink as RouterLink, useLocation } from 'react-router-dom';
+// CORREÇÃO: Removido 'useNavigate' da importação
+import { NavLink as RouterLink, useLocation, Link } from 'react-router-dom';
 import {
-  FiHome, FiShoppingCart, FiUsers, FiBox, FiDollarSign, FiLogOut, FiTruck,
+  FiHome, FiShoppingCart, FiUsers, FiBox, FiDollarSign, FiLogOut, FiTruck, FiBarChart2, FiClipboard,
 } from 'react-icons/fi';
 import { useAuth } from '../hooks/useAuth';
 
@@ -52,9 +55,11 @@ interface SidebarProps {
 
 export const Sidebar = ({ isCollapsed }: SidebarProps) => {
   const { user, logout } = useAuth();
-  // ======================= INÍCIO DA ALTERAÇÃO =======================
   const isAdmin = user?.perfil === 'ADMIN';
-  // ======================== FIM DA ALTERAÇÃO =========================
+  
+  // CORREÇÃO: Removida a linha 'const navigate = useNavigate();'
+  
+  const homeLink = isAdmin ? '/dashboard' : '/movimentacoes';
 
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
@@ -73,24 +78,40 @@ export const Sidebar = ({ isCollapsed }: SidebarProps) => {
       borderColor={borderColor}
       transition="width 0.2s ease-in-out"
     >
-      <VStack h="full" justify="space-between" py={5}>
+      <VStack h="full" justify="space-between">
         <VStack align="stretch" w="full">
-          <Heading size="md" p={4} mb={4} textAlign="center" color={textColor}>
-            {isCollapsed ? 'C' : 'Caipirão 3.0'}
-          </Heading>
+          <Link to={homeLink}>
+            <Flex
+              h="14"
+              align="center"
+              justifyContent={isCollapsed ? 'center' : 'flex-start'}
+              px={isCollapsed ? 0 : 4}
+              borderBottomWidth="1px"
+              borderColor={borderColor}
+              _hover={{ bg: useColorModeValue('gray.100', 'gray.700') }}
+              transition="background-color 0.2s ease"
+            >
+              <Icon as={FiClipboard} mr={isCollapsed ? 0 : 2} fontSize="24" color="teal.400" />
+              {!isCollapsed && (
+                <Heading size="md" color={textColor}>
+                  Caipirão 3.0
+                </Heading>
+              )}
+            </Flex>
+          </Link>
           
-          {/* ======================= INÍCIO DA ALTERAÇÃO ======================= */}
-          {/* Renderização condicional dos links */}
-          {isAdmin && <NavItem icon={FiHome} label="Dashboard" to="/dashboard" isCollapsed={isCollapsed} />}
-          <NavItem icon={FiShoppingCart} label="Movimentações" to="/movimentacoes" isCollapsed={isCollapsed} />
-          <NavItem icon={FiDollarSign} label="Clientes" to="/clientes" isCollapsed={isCollapsed} />
-          <NavItem icon={FiBox} label="Produtos" to="/produtos" isCollapsed={isCollapsed} />
-          {isAdmin && <NavItem icon={FiTruck} label="Fornecedores" to="/fornecedores" isCollapsed={isCollapsed} />}
-          {isAdmin && <NavItem icon={FiUsers} label="Utilizadores" to="/utilizadores" isCollapsed={isCollapsed} />}
-          {/* ======================== FIM DA ALTERAÇÃO ========================= */}
+          <VStack align="stretch" w="full" mt={4}>
+            {isAdmin && <NavItem icon={FiHome} label="Dashboard" to="/dashboard" isCollapsed={isCollapsed} />}
+            <NavItem icon={FiShoppingCart} label="Movimentações" to="/movimentacoes" isCollapsed={isCollapsed} />
+            {isAdmin && <NavItem icon={FiBarChart2} label="Relatórios" to="/relatorios" isCollapsed={isCollapsed} />}
+            <NavItem icon={FiDollarSign} label="Clientes" to="/clientes" isCollapsed={isCollapsed} />
+            <NavItem icon={FiBox} label="Produtos" to="/produtos" isCollapsed={isCollapsed} />
+            {isAdmin && <NavItem icon={FiTruck} label="Fornecedores" to="/fornecedores" isCollapsed={isCollapsed} />}
+            {isAdmin && <NavItem icon={FiUsers} label="Utilizadores" to="/utilizadores" isCollapsed={isCollapsed} />}
+          </VStack>
         </VStack>
 
-        <VStack align="stretch" w="full" spacing={4}>
+        <VStack align="stretch" w="full" spacing={4} mb={4}>
           <Divider borderColor={borderColor} />
           <Box px={3}>
             <HStack justify={isCollapsed ? 'center' : 'flex-start'}>

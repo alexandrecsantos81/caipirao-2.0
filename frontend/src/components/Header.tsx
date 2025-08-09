@@ -1,3 +1,5 @@
+// src/components/Header.tsx
+
 import {
   Flex,
   IconButton,
@@ -6,11 +8,8 @@ import {
   Heading,
   Spacer,
 } from '@chakra-ui/react';
-// ======================= INÍCIO DA ALTERAÇÃO =======================
-// Trocamos os ícones do 'react-icons/fi' para 'react-icons/bs'
 import { BsLayoutSidebarInset, BsLayoutSidebarInsetReverse } from 'react-icons/bs';
 import { FiMoon, FiSun } from 'react-icons/fi';
-// ======================== FIM DA ALTERAÇÃO =========================
 import { useLocation } from 'react-router-dom';
 
 interface HeaderProps {
@@ -21,6 +20,7 @@ interface HeaderProps {
 const routeTitles: { [key: string]: string } = {
   '/dashboard': 'Dashboard',
   '/movimentacoes': 'Movimentações',
+  '/relatorios': 'Relatórios Gerenciais', // Adicionado título para a nova página
   '/clientes': 'Clientes',
   '/produtos': 'Produtos',
   '/fornecedores': 'Fornecedores',
@@ -40,24 +40,20 @@ export const Header = ({ onToggleSidebar, isSidebarOpen }: HeaderProps) => {
       justify="space-between"
       w="full"
       px="4"
-      py="2"
       bg={useColorModeValue('white', 'gray.800')}
       borderBottomWidth="1px"
       borderColor={useColorModeValue('gray.200', 'gray.700')}
-      h="14"
+      h="14" // Define uma altura fixa (56px por padrão no Chakra)
     >
       <Flex align="center">
-        {/* ======================= INÍCIO DA ALTERAÇÃO ======================= */}
         <IconButton
           aria-label="Toggle Sidebar"
-          // Usando os novos ícones que são visualmente idênticos à referência
           icon={isSidebarOpen ? <BsLayoutSidebarInset /> : <BsLayoutSidebarInsetReverse />}
           onClick={onToggleSidebar}
           variant="ghost"
           mr={3}
-          fontSize="20px" // Ajuste opcional de tamanho
+          fontSize="20px"
         />
-        {/* ======================== FIM DA ALTERAÇÃO ========================= */}
         <Heading as="h1" size="md">
           {pageTitle}
         </Heading>

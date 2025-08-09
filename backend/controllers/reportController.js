@@ -1,112 +1,263 @@
+// backend/src/controllers/reportController.js
+
 const pool = require('../db');
 
 /**
- * @description Calcula e retorna os principais KPIs financeiros, com filtro de data opcional.
- * @route GET /api/reports/summary?de=AAAA-MM-DD&ate=AAAA-MM-DD
+ * @description Calcula e retorna os KPIs de Vendas Gerais e a evolução diária das vendas.
+ * @route GET /api/reports/sales-summary?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
  * @access Privado - Apenas ADMINS
  */
-const getFinancialSummary = async (req, res) => {
-    // 1. Extrai as datas da query string
-    const { de, ate } = req.query;
+const getSalesSummary = async (req, res) => {
+    const { startDate, endDate } = req.query;
 
-    // 2. Prepara os parâmetros e a cláusula WHERE para as queries
-    const params = [];
-    let dateFilter = '';
-
-    if (de && ate) {
-        // Adiciona um dia ao 'ate' para incluir o dia inteiro na consulta
-        const ateDate = new Date(ate);
-        ateDate.setDate(ateDate.getDate() + 1);
-        
-        dateFilter = 'WHERE data_movimentacao >= $1 AND data_movimentacao < $2';
-        params.push(de, ateDate.toISOString().split('T')[0]);
+    if (!startDate || !endDate) {
+        return res.status(400).json({ error: 'As datas de início e fim são obrigatórias.' });
     }
 
     try {
-        // 3. Modifica as queries para incluir o filtro de data
-        const receitaQuery = `SELECT COALESCE(SUM(valor_total), 0) AS total FROM movimentacoes WHERE tipo = 'ENTRADA' ${dateFilter ? `AND ${dateFilter.replace('WHERE ', '')}` : ''}`;
-        const despesaQuery = `SELECT COALESCE(SUM(valor_total), 0) AS total FROM movimentacoes WHERE tipo = 'SAIDA' ${dateFilter ? `AND ${dateFilter.replace('WHERE ', '')}` : ''}`;
+        const query = `
+            WITH vendas_no_periodo AS (
+                SELECT 
+                    id,
+                    valor_total,
+                    data_venda,
+                    (
+                        SELECT COALESCE(SUM((item->>'quantidade')::numeric), 0) 
+                        FROM jsonb_array_elements(produtos) AS item
+                    ) AS peso_venda
+                FROM 
+                    movimentacoes
+                WHERE 
+                    tipo = 'ENTRADA' AND 
+                    data_venda BETWEEN $1 AND $2
+            ),
+            evolucao_diaria AS (
+                SELECT
+                    data_venda::date AS data,
+                    SUM(valor_total) AS faturamento
+                FROM
+                    vendas_no_periodo
+                GROUP BY
+                    data_venda::date
+                ORDER BY
+                    data ASC
+            )
+            SELECT 
+                (
+                    SELECT json_build_object(
+                        'faturamentoTotal', COALESCE(SUM(valor_total), 0),
+                        'pesoTotalVendido', COALESCE(SUM(peso_venda), 0),
+                        'totalTransacoes', COUNT(id)
+                    ) 
+                    FROM vendas_no_periodo
+                ) AS kpis,
+                (
+                    SELECT COALESCE(json_agg(evolucao_diaria), '[]'::json) 
+                    FROM evolucao_diaria
+                ) AS evolucaoVendas;
+        `;
 
-        const receitaResult = await pool.query(receitaQuery, params);
-        const receitaTotal = parseFloat(receitaResult.rows[0].total);
-
-        const despesaResult = await pool.query(despesaQuery, params);
-        const despesaTotal = parseFloat(despesaResult.rows[0].total);
-
-        const saldo = receitaTotal - despesaTotal;
-
-        res.status(200).json({
-            receitaTotal,
-            despesaTotal,
-            saldo
-        });
+        const result = await pool.query(query, [startDate, endDate]);
+        res.status(200).json(result.rows[0]);
 
     } catch (error) {
-        console.error('Erro ao gerar resumo financeiro:', error);
-        res.status(500).json({ error: 'Erro interno do servidor' });
+        console.error('Erro ao gerar resumo de vendas:', error);
+        res.status(500).json({ error: 'Erro interno do servidor ao gerar resumo de vendas.' });
     }
 };
 
 /**
- * @description Retorna uma lista dos produtos mais vendidos, com filtro de data opcional.
- * @route GET /api/reports/produtos-mais-vendidos?de=AAAA-MM-DD&ate=AAAA-MM-DD
+ * @description Retorna o ranking de produtos mais vendidos.
+ * @route GET /api/reports/product-ranking?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&orderBy=valor
  * @access Privado - Apenas ADMINS
  */
-const getProdutosMaisVendidos = async (req, res) => {
-    // 1. Extrai as datas da query string
-    const { de, ate } = req.query;
-    
-    const params = [];
-    let dateFilter = '';
+const getProductRanking = async (req, res) => {
+    const { startDate, endDate, orderBy = 'valor' } = req.query;
 
-    if (de && ate) {
-        const ateDate = new Date(ate);
-        ateDate.setDate(ateDate.getDate() + 1);
+    if (!startDate || !endDate) {
+        return res.status(400).json({ error: 'As datas de início e fim são obrigatórias.' });
+    }
 
-        // O placeholder ($1, $2) será adicionado dinamicamente
-        dateFilter = `AND m.data_movimentacao >= $${params.length + 1} AND m.data_movimentacao < $${params.length + 2}`;
-        params.push(de, ateDate.toISOString().split('T')[0]);
+    if (orderBy !== 'valor' && orderBy !== 'quantidade') {
+        return res.status(400).json({ error: "Parâmetro 'orderBy' inválido. Use 'valor' ou 'quantidade'." });
     }
 
     try {
-        // 2. Modifica a query para incluir o filtro de data
         const query = `
             SELECT 
-                p.id,
+                p.id AS "produtoId",
                 p.nome,
-                SUM(item.quantidade) AS total_vendido
+                SUM(
+                    item.quantidade * COALESCE(item.preco_manual, p.price)
+                ) AS "valorTotal",
+                SUM(item.quantidade) AS "quantidadeTotal"
             FROM 
                 movimentacoes m,
-                jsonb_to_recordset(m.produtos) AS item(produto_id INTEGER, quantidade INTEGER)
+                jsonb_to_recordset(m.produtos) AS item(produto_id int, quantidade numeric, preco_manual numeric)
             JOIN 
-                produtos p ON item.produto_id = p.id
+                produtos p ON p.id = item.produto_id
             WHERE 
-                m.tipo = 'ENTRADA'
-                ${dateFilter}
+                m.tipo = 'ENTRADA' AND 
+                m.data_venda BETWEEN $1 AND $2
             GROUP BY 
                 p.id, p.nome
-            ORDER BY 
-                total_vendido DESC
+            ORDER BY
+                CASE 
+                    WHEN $3 = 'quantidade' THEN SUM(item.quantidade)
+                    ELSE SUM(item.quantidade * COALESCE(item.preco_manual, p.price))
+                END DESC
             LIMIT 10;
         `;
 
-        const result = await pool.query(query, params);
-
-        const produtos = result.rows.map(produto => ({
-            ...produto,
-            total_vendido: parseInt(produto.total_vendido, 10)
-        }));
-
-        res.status(200).json(produtos);
+        const result = await pool.query(query, [startDate, endDate, orderBy]);
+        res.status(200).json(result.rows);
 
     } catch (error) {
-        console.error('Erro ao buscar produtos mais vendidos:', error);
-        res.status(500).json({ error: 'Erro interno do servidor' });
+        console.error('Erro ao gerar ranking de produtos:', error);
+        res.status(500).json({ error: 'Erro interno do servidor ao gerar ranking de produtos.' });
+    }
+};
+
+/**
+ * @description Retorna o ranking de clientes que mais compraram.
+ * @route GET /api/reports/client-ranking?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
+ * @access Privado - Apenas ADMINS
+ */
+const getClientRanking = async (req, res) => {
+    const { startDate, endDate } = req.query;
+
+    if (!startDate || !endDate) {
+        return res.status(400).json({ error: 'As datas de início e fim são obrigatórias.' });
+    }
+
+    try {
+        const query = `
+            SELECT 
+                c.id AS "clienteId",
+                c.nome,
+                c.telefone,
+                COUNT(m.id) AS "totalCompras",
+                SUM(m.valor_total) AS "valorTotalGasto"
+            FROM 
+                movimentacoes m
+            JOIN 
+                clientes c ON m.cliente_id = c.id
+            WHERE 
+                m.tipo = 'ENTRADA' AND 
+                m.data_venda BETWEEN $1 AND $2
+            GROUP BY 
+                c.id, c.nome, c.telefone
+            ORDER BY 
+                "valorTotalGasto" DESC
+            LIMIT 20;
+        `;
+
+        const result = await pool.query(query, [startDate, endDate]);
+        res.status(200).json(result.rows);
+
+    } catch (error) {
+        console.error('Erro ao gerar ranking de clientes:', error);
+        res.status(500).json({ error: 'Erro interno do servidor ao gerar ranking de clientes.' });
+    }
+};
+
+/**
+ * @description Retorna a lista de clientes ativos e inativos.
+ * @route GET /api/reports/client-analysis
+ * @access Privado - Apenas ADMINS
+ */
+const getClientAnalysis = async (req, res) => {
+    try {
+        const query = `
+            WITH ultima_compra AS (
+                SELECT
+                    cliente_id,
+                    MAX(data_venda) as data_ultima_compra
+                FROM
+                    movimentacoes
+                WHERE
+                    tipo = 'ENTRADA'
+                GROUP BY
+                    cliente_id
+            )
+            SELECT
+                c.id AS "clienteId",
+                c.nome,
+                c.telefone,
+                uc.data_ultima_compra,
+                CASE
+                    WHEN uc.data_ultima_compra >= CURRENT_DATE - INTERVAL '90 days' THEN 'Ativo'
+                    ELSE 'Inativo'
+                END AS status
+            FROM
+                clientes c
+            LEFT JOIN
+                ultima_compra uc ON c.id = uc.cliente_id
+            ORDER BY
+                status, uc.data_ultima_compra DESC NULLS LAST, c.nome;
+        `;
+
+        const result = await pool.query(query);
+
+        const ativos = result.rows.filter(c => c.status === 'Ativo');
+        const inativos = result.rows.filter(c => c.status === 'Inativo');
+
+        res.status(200).json({ ativos, inativos });
+
+    } catch (error) {
+        console.error('Erro ao gerar análise de clientes:', error);
+        res.status(500).json({ error: 'Erro interno do servidor ao gerar análise de clientes.' });
+    }
+};
+
+/**
+ * @description Retorna o ranking de produtividade dos vendedores.
+ * @route GET /api/reports/seller-productivity?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
+ * @access Privado - Apenas ADMINS
+ */
+const getSellerProductivity = async (req, res) => {
+    const { startDate, endDate } = req.query;
+
+    if (!startDate || !endDate) {
+        return res.status(400).json({ error: 'As datas de início e fim são obrigatórias.' });
+    }
+
+    try {
+        const query = `
+            SELECT
+                u.id AS "vendedorId",
+                u.nome,
+                COUNT(m.id) AS "numeroDeVendas",
+                COALESCE(SUM(m.valor_total), 0) AS "valorTotalVendido"
+            FROM
+                utilizadores u
+            LEFT JOIN
+                movimentacoes m ON u.id = m.utilizador_id
+                AND m.tipo = 'ENTRADA'
+                AND m.data_venda BETWEEN $1 AND $2
+            WHERE
+                u.status = 'ATIVO' -- Considera apenas vendedores ativos
+            GROUP BY
+                u.id, u.nome
+            ORDER BY
+                "valorTotalVendido" DESC;
+        `;
+
+        const result = await pool.query(query, [startDate, endDate]);
+        res.status(200).json(result.rows);
+
+    } catch (error) {
+        console.error('Erro ao gerar relatório de produtividade:', error);
+        res.status(500).json({ error: 'Erro interno do servidor ao gerar relatório de produtividade.' });
     }
 };
 
 
+// Exporta todas as funções do controller
 module.exports = {
-    getFinancialSummary,
-    getProdutosMaisVendidos
+    getSalesSummary,
+    getProductRanking,
+    getClientRanking,
+    getClientAnalysis,
+    getSellerProductivity, // Adiciona a nova função à exportação
 };

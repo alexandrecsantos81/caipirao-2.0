@@ -1,3 +1,5 @@
+// src/App.tsx
+
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Box, Spinner, Grid, GridItem, Center, Heading, useDisclosure } from '@chakra-ui/react';
 
@@ -13,6 +15,8 @@ import UtilizadoresPage from './pages/UtilizadoresPage';
 import FornecedoresPage from './pages/FornecedoresPage';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
+// 1. IMPORTAR A NOVA PÁGINA DE RELATÓRIOS
+import RelatoriosPage from './pages/RelatoriosPage';
 
 // --- Componente de Proteção de Rota ---
 const ProtectedRoute = () => {
@@ -23,7 +27,7 @@ const ProtectedRoute = () => {
   return isAuthenticated ? <Layout /> : <Navigate to="/login" replace />;
 };
 
-// --- NOVO: Componente de Proteção para Rotas de Admin ---
+// --- Componente de Proteção para Rotas de Admin ---
 const AdminRoute = () => {
   const { user, loading } = useAuth();
 
@@ -31,16 +35,14 @@ const AdminRoute = () => {
     return <Center h="100vh"><Spinner size="xl" /></Center>;
   }
 
-  // Se o usuário não for ADMIN, redireciona para a página de movimentações
   if (user?.perfil !== 'ADMIN') {
     return <Navigate to="/movimentacoes" replace />;
   }
   
-  // Se for ADMIN, renderiza o conteúdo da rota
   return <Outlet />;
 };
 
-// --- Componente de Layout Principal (sem alterações) ---
+// --- Componente de Layout Principal ---
 const Layout = () => {
   const { isOpen: isSidebarOpen, onToggle: onToggleSidebar } = useDisclosure({ defaultIsOpen: true });
 
@@ -67,7 +69,7 @@ const Layout = () => {
   );
 };
 
-// --- Componente Principal da Aplicação (ROTAS ATUALIZADAS) ---
+// --- Componente Principal da Aplicação ---
 function App() {
   return (
     <Routes>
@@ -87,6 +89,8 @@ function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/fornecedores" element={<FornecedoresPage />} />
           <Route path="/utilizadores" element={<UtilizadoresPage />} />
+          {/* 2. ADICIONAR A NOVA ROTA DE RELATÓRIOS AQUI */}
+          <Route path="/relatorios" element={<RelatoriosPage />} />
         </Route>
 
         {/* Redirecionamento padrão */}

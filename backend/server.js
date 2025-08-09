@@ -1,3 +1,5 @@
+// backend/src/server.js
+
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
@@ -7,11 +9,12 @@ const authRoutes = require('./routes/auth');
 const clienteRoutes = require('./routes/clientes');
 const produtoRoutes = require('./routes/produtos');
 const movimentacaoRoutes = require('./routes/movimentacoes');
-const reportRoutes = require('./routes/reports');
 const utilizadorRoutes = require('./routes/utilizadores');
 const fornecedorRoutes = require('./routes/fornecedorRoutes');
 const despesaRoutes = require('./routes/despesaRoutes');
-const dashboardRoutes = require('./routes/dashboardRoutes'); // <-- 1. IMPORTAR A NOVA ROTA
+const dashboardRoutes = require('./routes/dashboardRoutes');
+// 1. IMPORTAR A NOVA ROTA DE RELATÓRIOS
+const reportRoutes = require('./routes/reports');
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -33,8 +36,9 @@ app.use('/api/despesas', despesaRoutes);
 app.use('/api/clientes', clienteRoutes);
 app.use('/api/produtos', produtoRoutes);
 app.use('/api/movimentacoes', movimentacaoRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+// 2. ADICIONAR A NOVA ROTA À APLICAÇÃO
 app.use('/api/reports', reportRoutes);
-app.use('/api/dashboard', dashboardRoutes); // <-- 2. ADICIONAR A NOVA ROTA
 
 // Iniciar o servidor
 app.listen(port, () => {
