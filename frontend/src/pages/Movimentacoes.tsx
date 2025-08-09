@@ -5,21 +5,24 @@ import {
   Input, NumberInput, NumberInputField, Select, Spinner, Tab, TabList, TabPanel,
   TabPanels, Table, TableContainer, Tabs, Tbody, Td, Text, Th, Thead, Tr,
   useDisclosure, useToast, VStack, Badge, FormErrorMessage,
-  Drawer, DrawerBody, DrawerCloseButton, DrawerContent, DrawerFooter, DrawerHeader, DrawerOverlay,
-  Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay,
+  Drawer, DrawerBody, DrawerCloseButton, DrawerContent, DrawerFooter, DrawerHeader, DrawerOverlay, Textarea,
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useEffect, useState, useMemo } from 'react';
 import { Controller, useForm, SubmitHandler } from 'react-hook-form';
 import { FiPlus, FiTrash2 } from 'react-icons/fi';
 
+// Importação dos Serviços e Componentes
 import { Pagination } from '../components/Pagination';
-import { ICliente, getClientes } from '../services/cliente.service';
-import { IDespesa, createDespesa, getDespesas } from '../services/despesas.service';
+import { ICliente, getClientes, IPaginatedResponse } from '../services/cliente.service';
+// V CORREÇÃO FINAL: Importando do arquivo renomeado "despesa.service.ts"
+import { IDespesa, IDespesaForm, registrarDespesa, getDespesas, tiposDeSaida } from '../services/despesa.service';
 import { IProduto, getProdutos } from '../services/produto.service';
 import { IVenda, INovaVenda, createVenda, getVendas } from '../services/venda.service';
+import { IFornecedor, getFornecedores } from '../services/fornecedor.service';
 import { useAuth } from '../hooks/useAuth';
 
+// --- INTERFACES LOCAIS ---
 interface ProdutoVendaItem {
   produto_id: number;
   quantidade: number;
@@ -29,7 +32,7 @@ interface ProdutoVendaItem {
   preco_original: number;
 }
 
-// --- COMPONENTE DO FORMULÁRIO DE VENDA (sem alterações) ---
+// --- COMPONENTE DO FORMULÁRIO DE VENDA ---
 const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -44,8 +47,8 @@ const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     },
   });
 
-  const { data: clientes } = useQuery<ICliente[]>({ queryKey: ['todosClientes'], queryFn: () => getClientes(1, 1000).then(res => res.dados) });
-  const { data: produtos } = useQuery<IProduto[]>({ queryKey: ['todosProdutos'], queryFn: () => getProdutos(1, 1000).then(res => res.dados) });
+  const { data: clientes } = useQuery<IPaginatedResponse<ICliente>>({ queryKey: ['todosClientes'], queryFn: () => getClientes(1, 1000) });
+  const { data: produtos } = useQuery<IPaginatedResponse<IProduto>>({ queryKey: ['todosProdutos'], queryFn: () => getProdutos(1, 1000) });
 
   const watchedQuantidade = watch('quantidade');
   const watchedPrecoManual = watch('preco_manual');
@@ -58,7 +61,7 @@ const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
       return total + (item.quantidade * preco);
     }, 0);
     let valorItemAtual = 0;
-    const produtoInfo = produtos?.find(p => p.id === Number(watchedProdutoId));
+    const produtoInfo = produtos?.dados.find(p => p.id === Number(watchedProdutoId));
     if (produtoInfo) {
       const precoAtual = Number(watchedPrecoManual) > 0 ? Number(watchedPrecoManual) : produtoInfo.price;
       valorItemAtual = (Number(watchedQuantidade) || 0) * precoAtual;
@@ -98,7 +101,7 @@ const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
       toast({ title: "Produto ou quantidade inválida", status: "warning", duration: 3000, isClosable: true });
       return;
     }
-    const produtoInfo = produtos?.find(p => p.id === Number(produto_selecionado_id));
+    const produtoInfo = produtos?.dados.find(p => p.id === Number(produto_selecionado_id));
     if (!produtoInfo) return;
     if (produtosNaVenda.some(p => p.produto_id === produtoInfo.id)) {
       toast({ title: "Produto já adicionado", status: "warning", duration: 2000, isClosable: true });
@@ -125,7 +128,7 @@ const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     if (produto_selecionado_id && quantidade > 0) {
       const produtoJaNaLista = produtosNaVenda.some(p => p.produto_id === Number(produto_selecionado_id));
       if (!produtoJaNaLista) {
-        const produtoInfo = produtos?.find(p => p.id === Number(produto_selecionado_id));
+        const produtoInfo = produtos?.dados.find(p => p.id === Number(produto_selecionado_id));
         if (produtoInfo) {
           listaFinalDeProdutos.push({
             produto_id: produtoInfo.id,
@@ -165,9 +168,9 @@ const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
         <form onSubmit={handleSubmit(onSubmit)}>
           <DrawerBody>
             <VStack spacing={4} align="stretch">
-              <Flex gap={4}><FormControl isRequired isInvalid={!!errors.cliente_id}><FormLabel>Cliente</FormLabel><Select placeholder="Selecione um cliente" {...register('cliente_id', { required: 'Cliente é obrigatório' })}>{clientes?.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}</Select><FormErrorMessage>{errors.cliente_id && errors.cliente_id.message}</FormErrorMessage></FormControl><FormControl isRequired><FormLabel>Data da Venda</FormLabel><Input type="date" {...register('data_venda')} /></FormControl></Flex>
+              <Flex gap={4}><FormControl isRequired isInvalid={!!errors.cliente_id}><FormLabel>Cliente</FormLabel><Select placeholder="Selecione um cliente" {...register('cliente_id', { required: 'Cliente é obrigatório' })}>{clientes?.dados.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}</Select><FormErrorMessage>{errors.cliente_id && errors.cliente_id.message}</FormErrorMessage></FormControl><FormControl isRequired><FormLabel>Data da Venda</FormLabel><Input type="date" {...register('data_venda')} /></FormControl></Flex>
               <Flex gap={4}><FormControl isRequired><FormLabel>Opção de Pagamento</FormLabel><Select value={opcaoPagamento} onChange={(e) => setOpcaoPagamento(e.target.value as any)}><option value="À VISTA">À VISTA</option><option value="A PRAZO">A PRAZO</option></Select></FormControl><FormControl isRequired={opcaoPagamento === 'A PRAZO'}><FormLabel>Data de Vencimento</FormLabel><Input type="date" {...register('data_vencimento')} isDisabled={opcaoPagamento === 'À VISTA'} /></FormControl></Flex>
-              <Box p={4} borderWidth={1} borderRadius="md" mt={4}><Heading size="sm" mb={3}>Adicionar Produtos</Heading><Flex gap={2} align="flex-end"><FormControl flex={3}><FormLabel>Produto</FormLabel><Select placeholder="Selecione..." {...register('produto_selecionado_id')}>{produtos?.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}</Select></FormControl><FormControl flex={1}><FormLabel>Qtd/Peso</FormLabel><Controller name="quantidade" control={control} render={({ field }) => <NumberInput {...field} min={0.001}><NumberInputField /></NumberInput>} /></FormControl><FormControl flex={1}><FormLabel>Preço Manual (R$)</FormLabel><Input placeholder="Opcional" {...register('preco_manual')} /></FormControl><Button colorScheme="green" onClick={handleAddProduto}><FiPlus /></Button></Flex></Box>
+              <Box p={4} borderWidth={1} borderRadius="md" mt={4}><Heading size="sm" mb={3}>Adicionar Produtos</Heading><Flex gap={2} align="flex-end"><FormControl flex={3}><FormLabel>Produto</FormLabel><Select placeholder="Selecione..." {...register('produto_selecionado_id')}>{produtos?.dados.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}</Select></FormControl><FormControl flex={1}><FormLabel>Qtd/Peso</FormLabel><Controller name="quantidade" control={control} render={({ field }) => <NumberInput {...field} min={0.001}><NumberInputField /></NumberInput>} /></FormControl><FormControl flex={1}><FormLabel>Preço Manual (R$)</FormLabel><Input placeholder="Opcional" {...register('preco_manual')} /></FormControl><Button colorScheme="green" onClick={handleAddProduto}><FiPlus /></Button></Flex></Box>
               <VStack spacing={2} align="stretch" mt={4}>{produtosNaVenda.map(p => (<Flex key={p.produto_id} justify="space-between" align="center" p={2} borderWidth={1} borderRadius="md"><Box><Text fontWeight="bold">{p.nome}</Text><Text fontSize="sm" color="gray.500">{p.quantidade} {p.unidade_medida} x {(p.preco_manual ?? p.preco_original).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}{p.preco_manual !== undefined && <Badge ml={2} colorScheme="orange">Manual</Badge>}</Text></Box><IconButton aria-label="Remover" icon={<FiTrash2 />} size="sm" colorScheme="red" onClick={() => handleRemoveProduto(p.produto_id)} /></Flex>))}</VStack>
               <Flex justify="flex-end" mt={4}><Box textAlign="right"><Text fontSize="lg">Vendedor: {user?.nome}</Text><Heading size="lg" color="teal.500">Total: {valorTotalCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Heading></Box></Flex>
             </VStack>
@@ -179,45 +182,177 @@ const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   );
 };
 
-// --- CORREÇÃO: REINTRODUZINDO OS COMPONENTES DE TABELA ---
+// --- COMPONENTE DO FORMULÁRIO DE DESPESA ---
+const FormularioNovaDespesa = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) => {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  
+  const { register, handleSubmit, control, reset, formState: { errors } } = useForm<IDespesaForm>({
+    defaultValues: {
+      discriminacao: '',
+      tipo_saida: '',
+      valor: '',
+      data_vencimento: new Date().toISOString().split('T')[0],
+      fornecedor_id: undefined,
+    }
+  });
+
+  const { data: fornecedores } = useQuery<IFornecedor[]>({ 
+    queryKey: ['todosFornecedores'], 
+    queryFn: getFornecedores,
+    enabled: isOpen,
+  });
+
+  const mutation = useMutation({
+    mutationFn: registrarDespesa,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['despesas'] });
+      queryClient.invalidateQueries({ queryKey: ['contasAPagar'] });
+      toast({ title: "Despesa registrada com sucesso!", status: "success", duration: 3000, isClosable: true });
+      onClose();
+    },
+    onError: (error: any) => {
+      toast({ title: "Erro ao registrar despesa", description: error.response?.data?.error || error.message, status: "error", duration: 6000, isClosable: true });
+    }
+  });
+
+  useEffect(() => {
+    if (!isOpen) {
+      reset();
+    }
+  }, [isOpen, reset]);
+
+  const onSubmit: SubmitHandler<IDespesaForm> = (data) => {
+    const finalData = {
+      ...data,
+      valor: Number(data.valor),
+      fornecedor_id: data.fornecedor_id ? Number(data.fornecedor_id) : null,
+    };
+    mutation.mutate(finalData);
+  };
+
+  return (
+    <Drawer isOpen={isOpen} placement="right" onClose={onClose} size="md">
+      <DrawerOverlay />
+      <DrawerContent>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <DrawerHeader borderBottomWidth="1px">Registrar Nova Despesa</DrawerHeader>
+          <DrawerCloseButton />
+          <DrawerBody>
+            <VStack spacing={4}>
+              <FormControl isRequired isInvalid={!!errors.tipo_saida}>
+                <FormLabel>Tipo de Saída</FormLabel>
+                <Select placeholder="Selecione o tipo da despesa" {...register('tipo_saida', { required: 'Tipo é obrigatório' })}>
+                  {tiposDeSaida.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}
+                </Select>
+                <FormErrorMessage>{errors.tipo_saida?.message}</FormErrorMessage>
+              </FormControl>
+
+              <FormControl isRequired isInvalid={!!errors.valor}>
+                <FormLabel>Valor (R$)</FormLabel>
+                <Controller
+                  name="valor"
+                  control={control}
+                  rules={{ required: 'Valor é obrigatório', min: { value: 0.01, message: 'Valor deve ser maior que zero' } }}
+                  render={({ field }) => <NumberInput {...field} onChange={(_, valAsNumber) => field.onChange(valAsNumber)} value={field.value as number} min={0.01} precision={2}><NumberInputField /></NumberInput>}
+                />
+                <FormErrorMessage>{errors.valor?.message}</FormErrorMessage>
+              </FormControl>
+
+              <FormControl isRequired isInvalid={!!errors.discriminacao}>
+                <FormLabel>Discriminação (Detalhes)</FormLabel>
+                <Textarea placeholder="Detalhes da despesa (ex: compra de limões, pagamento de frete)" {...register('discriminacao', { required: 'A descrição é obrigatória' })} />
+                <FormErrorMessage>{errors.discriminacao?.message}</FormErrorMessage>
+              </FormControl>
+
+              <FormControl isRequired isInvalid={!!errors.data_vencimento}>
+                <FormLabel>Data de Vencimento</FormLabel>
+                <Input type="date" {...register('data_vencimento', { required: 'Data de vencimento é obrigatória' })} />
+                <FormErrorMessage>{errors.data_vencimento?.message}</FormErrorMessage>
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>Fornecedor/Credor (Opcional)</FormLabel>
+                <Select placeholder="Selecione um fornecedor" {...register('fornecedor_id')}>
+                  {fornecedores?.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                </Select>
+              </FormControl>
+            </VStack>
+          </DrawerBody>
+          <DrawerFooter borderTopWidth="1px">
+            <Button variant="outline" mr={3} onClick={onClose}>Cancelar</Button>
+            <Button colorScheme="red" type="submit" isLoading={mutation.isPending}>Salvar Despesa</Button>
+          </DrawerFooter>
+        </form>
+      </DrawerContent>
+    </Drawer>
+  );
+};
+
+// --- COMPONENTES DE TABELA ---
 const TabelaVendas = () => {
   const [pagina, setPagina] = useState(1);
   const { data, isLoading, isError } = useQuery({ queryKey: ['vendas', pagina], queryFn: () => getVendas(pagina, 10), placeholderData: keepPreviousData });
   if (isLoading) return <Center p={10}><Spinner size="xl" /></Center>;
   if (isError) return <Center p={10}><Text color="red.500">Não foi possível carregar as vendas.</Text></Center>;
   return (
-    <><TableContainer><Table variant="striped"><Thead><Tr><Th>Data Venda</Th><Th>Cliente</Th><Th>Pagamento</Th><Th>Vencimento</Th><Th>Status</Th><Th isNumeric>Valor Total</Th></Tr></Thead><Tbody>{data?.dados.map((venda: IVenda) => (<Tr key={venda.id}><Td>{new Date(venda.data_venda).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td><Td>{venda.cliente_nome}</Td><Td>{venda.opcao_pagamento}</Td><Td>{venda.data_vencimento ? new Date(venda.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'}</Td><Td><Badge colorScheme={venda.data_pagamento ? 'green' : 'red'}>{venda.data_pagamento ? 'Pago' : 'Pendente'}</Badge></Td><Td isNumeric>{venda.valor_total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td></Tr>))}</Tbody></Table></TableContainer><Pagination paginaAtual={data?.pagina || 1} totalPaginas={data?.totalPaginas || 1} onPageChange={setPagina} /></>
+    <>
+      <TableContainer>
+        <Table variant="striped">
+          <Thead><Tr><Th>Data Venda</Th><Th>Cliente</Th><Th>Pagamento</Th><Th>Vencimento</Th><Th>Status</Th><Th isNumeric>Valor Total</Th></Tr></Thead>
+          <Tbody>{data?.dados.map((venda: IVenda) => (<Tr key={venda.id}><Td>{new Date(venda.data_venda).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td><Td>{venda.cliente_nome}</Td><Td>{venda.opcao_pagamento}</Td><Td>{venda.data_vencimento ? new Date(venda.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'}</Td><Td><Badge colorScheme={venda.data_pagamento ? 'green' : 'red'}>{venda.data_pagamento ? 'Pago' : 'Pendente'}</Badge></Td><Td isNumeric>{venda.valor_total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td></Tr>))}</Tbody>
+        </Table>
+      </TableContainer>
+      <Pagination paginaAtual={data?.pagina || 1} totalPaginas={data?.totalPaginas || 1} onPageChange={setPagina} />
+    </>
   );
 };
 
 const TabelaDespesas = () => {
-  const [pagina, setPagina] = useState(1);
-  const { data, isLoading, isError } = useQuery({ queryKey: ['despesas', pagina], queryFn: () => getDespesas(pagina, 10), placeholderData: keepPreviousData });
+  const { data, isLoading, isError } = useQuery<IDespesa[]>({ 
+    queryKey: ['despesas'], 
+    queryFn: getDespesas 
+  });
+
   if (isLoading) return <Center p={10}><Spinner size="xl" /></Center>;
   if (isError) return <Center p={10}><Text color="red.500">Não foi possível carregar as despesas.</Text></Center>;
+  
   return (
-    <><TableContainer><Table variant="striped"><Thead><Tr><Th>Data</Th><Th>Descrição</Th><Th>Registrado por</Th><Th isNumeric>Valor</Th></Tr></Thead><Tbody>{data?.dados.map((despesa: IDespesa) => (<Tr key={despesa.id}><Td>{new Date(despesa.data_venda).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td><Td>{despesa.descricao}</Td><Td>{despesa.usuario_nome}</Td><Td isNumeric>{despesa.valor_total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td></Tr>))}</Tbody></Table></TableContainer><Pagination paginaAtual={data?.pagina || 1} totalPaginas={data?.totalPaginas || 1} onPageChange={setPagina} /></>
+    <TableContainer>
+      <Table variant="striped">
+        <Thead><Tr>
+          <Th>Vencimento</Th>
+          <Th>Discriminação</Th>
+          <Th>Tipo</Th>
+          <Th>Fornecedor</Th>
+          <Th>Status</Th>
+          <Th isNumeric>Valor</Th>
+        </Tr></Thead>
+        <Tbody>{data?.map((despesa) => (
+          <Tr key={despesa.id}>
+            <Td>{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
+            <Td>{despesa.discriminacao}</Td>
+            <Td>{despesa.tipo_saida}</Td>
+            <Td>{despesa.nome_fornecedor || 'N/A'}</Td>
+            <Td>
+              <Badge colorScheme={despesa.data_pagamento ? 'green' : 'orange'}>
+                {despesa.data_pagamento ? 'Pago' : 'Pendente'}
+              </Badge>
+            </Td>
+            <Td isNumeric>{despesa.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
+          </Tr>
+        ))}</Tbody>
+      </Table>
+    </TableContainer>
   );
 };
 
 // --- PÁGINA PRINCIPAL DE MOVIMENTAÇÕES ---
 const MovimentacoesPage = () => {
   const { isOpen: isVendaDrawerOpen, onOpen: onVendaDrawerOpen, onClose: onVendaDrawerClose } = useDisclosure();
-  const { isOpen: isDespesaModalOpen, onOpen: onDespesaModalOpen, onClose: onDespesaModalClose } = useDisclosure();
-  const toast = useToast();
+  const { isOpen: isDespesaDrawerOpen, onOpen: onDespesaDrawerOpen, onClose: onDespesaDrawerClose } = useDisclosure();
   const { user } = useAuth();
   const isAdmin = user?.perfil === 'ADMIN';
-  const queryClient = useQueryClient();
-
-  const { mutate: criarDespesa, isPending: isCreatingDespesa } = useMutation({
-    mutationFn: createDespesa,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['despesas'] });
-      toast({ title: 'Despesa registrada!', status: 'success' });
-      onDespesaModalClose();
-    },
-    onError: (error: any) => { toast({ title: 'Erro ao registrar despesa', description: error.message, status: 'error' }); }
-  });
 
   return (
     <Box p={8}>
@@ -235,7 +370,7 @@ const MovimentacoesPage = () => {
           <TabPanel>
             <Flex justify="space-between" mb={4}>
               <Heading size="md">Histórico de Despesas</Heading>
-              {isAdmin && (<Button leftIcon={<FiPlus />} colorScheme="red" onClick={onDespesaModalOpen}>Registrar Despesa</Button>)}
+              {isAdmin && (<Button leftIcon={<FiPlus />} colorScheme="red" onClick={onDespesaDrawerOpen}>Registrar Despesa</Button>)}
             </Flex>
             <TabelaDespesas />
           </TabPanel>
@@ -243,19 +378,8 @@ const MovimentacoesPage = () => {
       </Tabs>
       
       <FormularioNovaVenda isOpen={isVendaDrawerOpen} onClose={onVendaDrawerClose} />
+      <FormularioNovaDespesa isOpen={isDespesaDrawerOpen} onClose={onDespesaDrawerClose} />
       
-      <Modal isOpen={isDespesaModalOpen} onClose={onDespesaModalClose} isCentered>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Registrar Nova Despesa</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody><Text>Aqui iria o formulário de despesa.</Text></ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onDespesaModalClose}>Cancelar</Button>
-            <Button colorScheme="red" onClick={() => criarDespesa({ descricao: 'Exemplo', valor_total: 10 })} isLoading={isCreatingDespesa}>Salvar</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
     </Box>
   );
 };

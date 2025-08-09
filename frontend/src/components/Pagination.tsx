@@ -1,4 +1,5 @@
-// CORREÇÃO: Removido o 'HStack' da lista de importações.
+// frontend/src/components/Pagination.tsx
+
 import { Button, Flex, Text } from '@chakra-ui/react';
 
 interface PaginationProps {

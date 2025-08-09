@@ -1,86 +1,32 @@
+// frontend/src/pages/Clientes.tsx
+
 import {
-  Badge,
-  Box,
-  Button,
-  Center,
-  Checkbox,
-  Drawer,
-  DrawerBody,
-  DrawerContent,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerOverlay,
-  Flex,
-  FormControl,
-  FormLabel,
-  HStack,
-  Heading,
-  IconButton,
-  Input,
-  Link,
-  Spinner,
-  Stack,
-  Table,
-  TableContainer,
-  Tbody,
-  Td,
-  Text,
-  Th,
-  Thead,
-  Tr,
-  useDisclosure,
-  useToast,
+  Badge, Box, Button, Center, Drawer, DrawerBody, DrawerContent, DrawerFooter,
+  DrawerHeader, DrawerOverlay, Flex, FormControl, FormLabel, HStack, Heading,
+  IconButton, Input, Link, Spinner, Stack, Table, TableContainer, Tbody, Td,
+  Text, Th, Thead, Tr, useDisclosure, useToast, Checkbox,
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { SubmitHandler, useForm } from 'react-hook-form';
-import { FiEdit, FiPhone, FiPlus, FiTrash2 } from 'react-icons/fi'; // Adicionado FiPhone
+import { FiEdit, FiPhone, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { Pagination } from '../components/Pagination';
 import {
-  ICliente,
-  IClienteForm,
-  createCliente,
-  deleteCliente,
-  getClientes,
-  updateCliente,
+  ICliente, IClienteForm, createCliente, deleteCliente, getClientes, updateCliente,
 } from '../services/cliente.service';
 
-// --- FUNÇÃO AUXILIAR PARA FORMATAR O TELEFONE ---
 const formatarTelefone = (telefone: string): string => {
   if (!telefone) return '';
-  const digitos = telefone.replace(/\D/g, ''); // Remove tudo que não for dígito
-
-  if (digitos.length === 11) {
-    // Formato (XX) XXXXX-XXXX para celulares com 9º dígito
-    return `(${digitos.substring(0, 2)}) ${digitos.substring(2, 7)}-${digitos.substring(7)}`;
-  }
-  if (digitos.length === 10) {
-    // Formato (XX) XXXX-XXXX para telefones fixos ou celulares antigos
-    return `(${digitos.substring(0, 2)}) ${digitos.substring(2, 6)}-${digitos.substring(6)}`;
-  }
-  // Retorna o número original se não se encaixar nos padrões
+  const digitos = telefone.replace(/\D/g, '');
+  if (digitos.length === 11) return `(${digitos.substring(0, 2)}) ${digitos.substring(2, 7)}-${digitos.substring(7)}`;
+  if (digitos.length === 10) return `(${digitos.substring(0, 2)}) ${digitos.substring(2, 6)}-${digitos.substring(6)}`;
   return telefone;
 };
 
-
-// --- COMPONENTE DO FORMULÁRIO NO DRAWER ---
-const FormularioCliente = ({
-  isOpen,
-  onClose,
-  cliente,
-  onSave,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  cliente: ICliente | null;
-  onSave: (data: IClienteForm, id?: number) => void;
+const FormularioCliente = ({ isOpen, onClose, cliente, onSave }: {
+  isOpen: boolean; onClose: () => void; cliente: ICliente | null; onSave: (data: IClienteForm, id?: number) => void;
 }) => {
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<IClienteForm>();
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<IClienteForm>();
 
   useEffect(() => {
     if (isOpen) {
@@ -120,8 +66,6 @@ const FormularioCliente = ({
   );
 };
 
-
-// --- PÁGINA PRINCIPAL DE CLIENTES ---
 const ClientesPage = () => {
   const [pagina, setPagina] = useState(1);
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -243,7 +187,7 @@ const ClientesPage = () => {
           </TableContainer>
 
           <Pagination
-            pagina={data?.pagina || 1}
+            paginaAtual={data?.pagina || 1} // <-- CORREÇÃO AQUI
             totalPaginas={data?.totalPaginas || 1}
             onPageChange={(page) => setPagina(page)}
           />

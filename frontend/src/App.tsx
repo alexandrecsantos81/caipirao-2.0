@@ -1,5 +1,3 @@
-// frontend/src/App.tsx
-
 import { Routes, Route, Link as RouterLink, Navigate, Outlet } from 'react-router-dom';
 import { Box, Flex, Button, Heading, Spacer, Menu, MenuButton, MenuList, MenuItem, Spinner } from '@chakra-ui/react';
 import { ChevronDownIcon } from '@chakra-ui/icons';
@@ -11,9 +9,9 @@ import SolicitarAcessoPage from './pages/SolicitarAcessoPage';
 import ClientesPage from './pages/Clientes';
 import ProdutosPage from './pages/Produtos';
 import MovimentacoesPage from './pages/Movimentacoes';
-// CORREÇÃO: Ajustando o caminho da importação. Verifique se o nome do seu arquivo é "Dashboard.tsx" ou "DashboardPage.tsx"
-import DashboardPage from './pages/Dashboard'; // <--- TENTE ESTA IMPORTAÇÃO
+import DashboardPage from './pages/Dashboard';
 import UtilizadoresPage from './pages/UtilizadoresPage';
+import FornecedoresPage from './pages/FornecedoresPage';
 
 // --- Componente de Proteção de Rota ---
 const ProtectedRoute = () => {
@@ -44,7 +42,8 @@ const Navbar = () => {
         <Button as={RouterLink} to="/dashboard" variant="ghost" mr={2}>Dashboard</Button>
         <Button as={RouterLink} to="/movimentacoes" variant="ghost" mr={2}>Movimentações</Button>
         <Button as={RouterLink} to="/clientes" variant="ghost" mr={2}>Clientes</Button>
-        <Button as={RouterLink} to="/produtos" variant="ghost" mr={4}>Produtos</Button>
+        <Button as={RouterLink} to="/produtos" variant="ghost" mr={2}>Produtos</Button>
+        <Button as={RouterLink} to="/fornecedores" variant="ghost" mr={4}>Fornecedores</Button> {/* <--- NOVO */}
         {isAdmin && (
           <Button as={RouterLink} to="/utilizadores" variant="ghost" mr={4}>Utilizadores</Button>
         )}
@@ -84,6 +83,7 @@ function App() {
         <Route path="/movimentacoes" element={<MovimentacoesPage />} />
         <Route path="/clientes" element={<ClientesPage />} />
         <Route path="/produtos" element={<ProdutosPage />} />
+        <Route path="/fornecedores" element={<FornecedoresPage />} /> {/* <--- NOVO */}
         
         <Route element={<AdminRoute />}>
           <Route path="/utilizadores" element={<UtilizadoresPage />} />

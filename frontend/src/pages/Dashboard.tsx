@@ -1,175 +1,179 @@
-// frontend/src/pages/DashboardPage.tsx
-
 import {
-  Box, Flex, Heading, SimpleGrid, Spinner, Stat, StatLabel, StatNumber,
-  Icon, Text, useColorModeValue, Center, HStack, Input, Button, useToast,
-  VStack, Link,
-  IconButton, // <-- CORREÇÃO: Adicionando a importação que faltava
+  Box, Flex, Heading, Stat, StatLabel, StatNumber, StatHelpText, SimpleGrid,
+  Spinner, Text, VStack, HStack, Button, useDisclosure, useToast,
+  Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, ModalBody, ModalFooter,
+  FormControl, FormLabel, Input, Select
 } from '@chakra-ui/react';
-import { FaArrowUp, FaArrowDown, FaEquals, FaWhatsapp } from 'react-icons/fa';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useForm, SubmitHandler } from 'react-hook-form';
 
-import { getFinancialSummary, getProdutosMaisVendidos, IFinancialSummary, IProdutoMaisVendido, IDateFilter } from '../services/reports.service';
-import { IContaAReceber, getContasAReceber, registrarPagamento } from '../services/venda.service';
+import { IContasAPagar, quitarDespesa, IQuitacaoData } from '../services/despesa.service';
+import { getContasAPagar } from '../services/despesa.service';
+import { getUtilizadores, IUtilizador } from '../services/utilizador.service';
+import { useAuth } from '../hooks/useAuth';
 
-// --- COMPONENTES STATCARD E GRÁFICO (sem alterações) ---
-const StatCard = ({ title, stat, icon, changeType }: { title: string; stat: string; icon: React.ElementType; changeType: 'increase' | 'decrease' | 'neutral' }) => {
-    const changeColor = { increase: 'green.500', decrease: 'red.500', neutral: 'gray.500' };
-    return (
-      <Stat px={{ base: 4, md: 8 }} py={'5'} shadow={'xl'} border={'1px solid'} borderColor={useColorModeValue('gray.200', 'gray.700')} rounded={'lg'}>
-        <Flex justifyContent={'space-between'}>
-          <Box pl={{ base: 2, md: 4 }}><StatLabel fontWeight={'medium'} isTruncated>{title}</StatLabel><StatNumber fontSize={'2xl'} fontWeight={'medium'}>{stat}</StatNumber></Box>
-          <Box my={'auto'} color={changeColor[changeType]} alignContent={'center'}><Icon as={icon} w={10} h={10} /></Box>
-        </Flex>
-      </Stat>
-    );
-};
-const GraficoProdutosMaisVendidos = ({ filters }: { filters: IDateFilter }) => {
-  const { data: produtos, isLoading, isError } = useQuery<IProdutoMaisVendido[]>({
-    queryKey: ['produtosMaisVendidos', filters],
-    queryFn: () => getProdutosMaisVendidos(filters),
+// --- COMPONENTE: CARD DE CONTAS A PAGAR ---
+const CardContasAPagar = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [selectedDespesa, setSelectedDespesa] = useState<IContasAPagar | null>(null);
+  const { register, handleSubmit, setValue } = useForm<IQuitacaoData>();
+
+  // Busca as contas a pagar
+  const { data: contas, isLoading, isError } = useQuery<IContasAPagar[]>({
+    queryKey: ['contasAPagar'],
+    queryFn: getContasAPagar,
   });
-  if (isLoading) return <Center height="350px"><Spinner size="xl" /></Center>;
-  if (isError) return <Center height="350px"><Text color="red.500">Erro ao carregar gráfico.</Text></Center>;
-  if (!produtos || produtos.length === 0) return <Center height="350px"><Text>Sem dados de vendas para o período.</Text></Center>;
+
+  // Busca a lista de admins para o dropdown de responsável
+  const { data: admins, isLoading: isLoadingAdmins } = useQuery<IUtilizador[]>({
+    queryKey: ['utilizadores'],
+    queryFn: getUtilizadores,
+    select: (data) => data.filter(u => u.perfil === 'ADMIN'),
+    enabled: isOpen, // Só busca quando o modal está aberto
+  });
+
+  // Mutação para quitar a despesa
+  const quitacaoMutation = useMutation({
+    mutationFn: quitarDespesa,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contasAPagar'] });
+      queryClient.invalidateQueries({ queryKey: ['despesas'] });
+      toast({ title: 'Despesa quitada com sucesso!', status: 'success' });
+      onClose();
+    },
+    onError: (error: any) => {
+      toast({ title: 'Erro ao quitar despesa', description: error.response?.data?.error || error.message, status: 'error' });
+    }
+  });
+
+  const handleQuitarClick = (despesa: IContasAPagar) => {
+    setSelectedDespesa(despesa);
+    // Define a data de pagamento padrão como hoje
+    setValue('data_pagamento', new Date().toISOString().split('T')[0]);
+    // Define o responsável padrão como o admin logado
+    if (user) setValue('responsavel_pagamento_id', user.id);
+    onOpen();
+  };
+
+  const onConfirmarQuitacao: SubmitHandler<IQuitacaoData> = (data) => {
+    if (selectedDespesa) {
+      quitacaoMutation.mutate({ id: selectedDespesa.id, quitacaoData: data });
+    }
+  };
+
+  const formatarData = (data: string) => {
+    return new Date(data).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+  };
+
   return (
-    <ResponsiveContainer width="100%" height={350}>
-      <BarChart data={produtos} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="nome" /><YAxis allowDecimals={false} /><Tooltip formatter={(value) => [value, 'Unidades']} /><Legend /><Bar dataKey="total_vendido" fill="#319795" name="Qtd. Vendida" /></BarChart>
-    </ResponsiveContainer>
+    <Box p={5} borderWidth={1} borderRadius={8} boxShadow="sm">
+      <Heading size="md" mb={4}>Contas a Pagar (Próximos 5 dias)</Heading>
+      {isLoading && <Spinner />}
+      {isError && <Text color="red.500">Erro ao carregar contas a pagar.</Text>}
+      {!isLoading && !isError && (
+        <VStack spacing={4} align="stretch">
+          {contas && contas.length > 0 ? (
+            contas.map((conta) => (
+              <Flex key={conta.id} justify="space-between" align="center" p={3} bg="gray.50" borderRadius="md">
+                <VStack align="start" spacing={0}>
+                  <Text fontWeight="bold">{conta.nome_fornecedor || 'Despesa sem fornecedor'}</Text>
+                  <Text fontSize="sm">Vence em: {formatarData(conta.data_vencimento)}</Text>
+                </VStack>
+                <HStack>
+                  <Text fontWeight="bold" color="red.500">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(conta.valor)}
+                  </Text>
+                  {user?.perfil === 'ADMIN' && (
+                    <Button colorScheme="green" size="sm" onClick={() => handleQuitarClick(conta)}>Quitar</Button>
+                  )}
+                </HStack>
+              </Flex>
+            ))
+          ) : (
+            <Text color="gray.500">Nenhuma conta com vencimento próximo.</Text>
+          )}
+        </VStack>
+      )}
+
+      {/* Modal de Quitação */}
+      <Modal isOpen={isOpen} onClose={onClose} isCentered>
+        <ModalOverlay />
+        <ModalContent as="form" onSubmit={handleSubmit(onConfirmarQuitacao)}>
+          <ModalHeader>Quitar Despesa</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={4}>
+              <Text>Confirmar quitação para <strong>{selectedDespesa?.nome_fornecedor}</strong> no valor de <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedDespesa?.valor || 0)}</strong>?</Text>
+              <FormControl isRequired>
+                <FormLabel>Data de Pagamento</FormLabel>
+                <Input type="date" {...register('data_pagamento', { required: true })} />
+              </FormControl>
+              <FormControl isRequired>
+                <FormLabel>Responsável pelo Pagamento</FormLabel>
+                <Select 
+                  placeholder={isLoadingAdmins ? "Carregando admins..." : "Selecione um responsável"}
+                  {...register('responsavel_pagamento_id', { required: true, valueAsNumber: true })} 
+                  disabled={isLoadingAdmins}
+                >
+                  {admins?.map(admin => (
+                    <option key={admin.id} value={admin.id}>{admin.nome}</option>
+                  ))}
+                </Select>
+              </FormControl>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={onClose}>Cancelar</Button>
+            <Button colorScheme="green" type="submit" isLoading={quitacaoMutation.isPending}>Confirmar Pagamento</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    </Box>
   );
 };
 
 
-// --- COMPONENTE: CARD DE CONTAS A RECEBER ---
-const ContasAReceberCard = () => {
-    const queryClient = useQueryClient();
-    const toast = useToast();
-
-    const { data: contas, isLoading, isError } = useQuery<IContaAReceber[]>({
-        queryKey: ['contasAReceber'],
-        queryFn: getContasAReceber,
-    });
-
-    const { mutate: pagarConta, isPending: isPagando, variables: idPagando } = useMutation({
-        mutationFn: registrarPagamento,
-        onSuccess: () => {
-            toast({ title: 'Pagamento registrado!', status: 'success', duration: 3000, isClosable: true });
-            queryClient.invalidateQueries({ queryKey: ['contasAReceber'] });
-            queryClient.invalidateQueries({ queryKey: ['financialSummary'] });
-        },
-        onError: (error: any) => {
-            toast({ title: 'Erro ao registrar pagamento', description: error.message, status: 'error', duration: 5000, isClosable: true });
-        }
-    });
-
-    const openWhatsApp = (phone: string) => {
-        const cleanPhone = phone.replace(/\D/g, '');
-        window.open(`https://wa.me/55${cleanPhone}`, '_blank' );
-    };
-
-    return (
-        <Box mt={10} p={{base: 4, md: 6}} shadow={'xl'} border={'1px solid'} borderColor={useColorModeValue('gray.200', 'gray.700')} rounded={'lg'}>
-            <Heading size="md" mb={4}>Contas a Receber (Próximos 5 dias)</Heading>
-            {isLoading && <Center><Spinner /></Center>}
-            {isError && <Text color="red.500">Não foi possível carregar as contas a receber.</Text>}
-            {!isLoading && !isError && (
-                <VStack spacing={4} align="stretch">
-                    {contas && contas.length > 0 ? (
-                        contas.map(conta => (
-                            <Flex key={conta.id} justify="space-between" align="center" p={3} borderWidth={1} borderRadius="md" bg={useColorModeValue('gray.50', 'gray.700')}>
-                                <Box>
-                                    <Text fontWeight="bold">{conta.cliente_nome}</Text>
-                                    <Text fontSize="sm">Vence em: {new Date(conta.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Text>
-                                    <Text fontSize="lg" color="green.500" fontWeight="bold">{conta.valor_total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Text>
-                                </Box>
-                                <HStack>
-                                    {conta.cliente_telefone && (
-                                        <IconButton as={Link} onClick={() => openWhatsApp(conta.cliente_telefone)} icon={<FaWhatsapp />} aria-label="Chamar no WhatsApp" colorScheme="whatsapp" isRound />
-                                    )}
-                                    <Button 
-                                        colorScheme="teal" 
-                                        size="sm"
-                                        onClick={() => pagarConta(conta.id)}
-                                        isLoading={isPagando && idPagando === conta.id}
-                                    >
-                                        Registrar Pagamento
-                                    </Button>
-                                </HStack>
-                            </Flex>
-                        ))
-                    ) : (
-                        <Text color="gray.500">Nenhuma conta a receber nos próximos 5 dias.</Text>
-                    )}
-                </VStack>
-            )}
-        </Box>
-    );
-};
-
-
-// --- COMPONENTE PRINCIPAL DA PÁGINA DO DASHBOARD ---
+// --- PÁGINA PRINCIPAL DO DASHBOARD ---
 const DashboardPage = () => {
-  const toast = useToast();
-  const [dateFilters, setDateFilters] = useState<IDateFilter>({});
-  const [tempFilters, setTempFilters] = useState<IDateFilter>({ de: '', ate: '' });
-
-  const { data: summaryData, isLoading: isLoadingSummary, isError: isErrorSummary, error: summaryError } = useQuery<IFinancialSummary, Error>({
-    queryKey: ['financialSummary', dateFilters],
-    queryFn: () => getFinancialSummary(dateFilters),
-  });
-
-  const handleFilter = () => {
-    if (tempFilters.de && tempFilters.ate) {
-        setDateFilters(tempFilters);
-    } else {
-        toast({ title: "Datas incompletas", status: "warning", duration: 3000, isClosable: true });
-    }
-  };
-
-  const formatCurrency = (value: number | undefined) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value ?? 0);
-
-  if (isErrorSummary) {
-    return (
-      <Flex justify="center" align="center" height="80vh">
-        <Box textAlign="center">
-          <Heading color="red.500">Acesso Negado ou Erro</Heading>
-          <Text mt={4}>Você precisa ser administrador ou houve um problema ao buscar os dados.</Text>
-          <Text fontSize="sm" color="gray.500" mt={2}>Detalhes: {summaryError?.message}</Text>
-        </Box>
-      </Flex>
-    );
-  }
-
   return (
-    <Box maxW="7xl" mx={'auto'} pt={5} px={{ base: 2, sm: 12, md: 17 }}>
-      <Flex justify="space-between" align="center" mb={4} wrap="wrap">
-        <Heading mb={{ base: 4, md: 0 }}>Dashboard Financeiro</Heading>
-        <HStack spacing={2}>
-            <Input type="date" value={tempFilters.de} onChange={(e) => setTempFilters({...tempFilters, de: e.target.value})} />
-            <Text>até</Text>
-            <Input type="date" value={tempFilters.ate} onChange={(e) => setTempFilters({...tempFilters, ate: e.target.value})} />
-            <Button colorScheme="teal" onClick={handleFilter}>Filtrar</Button>
-        </HStack>
-      </Flex>
+    <Box p={8}>
+      <Heading mb={6}>Dashboard</Heading>
+      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
+        {/* Cards existentes (placeholders) */}
+        <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm">
+          <StatLabel>Total de Vendas (Mês)</StatLabel>
+          <StatNumber>N/D</StatNumber>
+          <StatHelpText>A ser implementado</StatHelpText>
+        </Stat>
+        <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm">
+          <StatLabel>Novos Clientes (Mês)</StatLabel>
+          <StatNumber>N/D</StatNumber>
+          <StatHelpText>A ser implementado</StatHelpText>
+        </Stat>
+        <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm">
+          <StatLabel>Contas a Receber</StatLabel>
+          <StatNumber>N/D</StatNumber>
+          <StatHelpText>A ser implementado</StatHelpText>
+        </Stat>
+        <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm">
+          <StatLabel>Produtos em Baixo Estoque</StatLabel>
+          <StatNumber>N/D</StatNumber>
+          <StatHelpText>A ser implementado</StatHelpText>
+        </Stat>
+      </SimpleGrid>
 
-      {isLoadingSummary ? (
-        <Center p={10}><Spinner size="xl" /></Center>
-      ) : (
-        <SimpleGrid columns={{ base: 1, md: 3 }} spacing={{ base: 5, lg: 8 }}>
-            <StatCard title={'Receita Total'} stat={formatCurrency(summaryData?.receitaTotal)} icon={FaArrowUp} changeType="increase" />
-            <StatCard title={'Despesa Total'} stat={formatCurrency(summaryData?.despesaTotal)} icon={FaArrowDown} changeType="decrease" />
-            <StatCard title={'Saldo (Lucro)'} stat={formatCurrency(summaryData?.saldo)} icon={FaEquals} changeType="neutral" />
-        </SimpleGrid>
-      )}
-
-      <ContasAReceberCard />
-
-      <Box mt={10} p={{base: 4, md: 6}} shadow={'xl'} border={'1px solid'} borderColor={useColorModeValue('gray.200', 'gray.700')} rounded={'lg'}>
-        <Heading size="md" mb={4}>Produtos Mais Vendidos</Heading>
-        <GraficoProdutosMaisVendidos filters={dateFilters} />
-      </Box>
+      {/* Nova Seção de Cards */}
+      <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6} mt={8}>
+        <CardContasAPagar />
+        <Box p={5} borderWidth={1} borderRadius={8} boxShadow="sm">
+            <Heading size="md" mb={4}>Contas a Receber</Heading>
+            <Text color="gray.500">(Card de contas a receber será implementado aqui)</Text>
+        </Box>
+      </SimpleGrid>
     </Box>
   );
 };

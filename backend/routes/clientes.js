@@ -1,26 +1,28 @@
-// backend/routes/clientes.js
-
 const express = require('express');
 const router = express.Router();
+const { verifyToken } = require('../middleware/authMiddleware'); // Middleware para proteger as rotas
 
-// 1. Importa as funções do nosso novo controller
+// Importa as funções do controller.
+// Usamos a desestruturação para pegar cada função pelo nome exato.
 const {
-    createCliente,
     getClientes,
-    getClienteById,
+    createCliente,
     updateCliente,
     deleteCliente
 } = require('../controllers/clienteController');
 
-// 2. Associa cada rota à sua função correspondente no controller
-router.post('/', createCliente);
-router.get('/', getClientes);
-router.get('/:id', getClienteById);
-router.put('/:id', updateCliente);
-router.delete('/:id', deleteCliente);
+// Aplica o middleware de verificação de token para todas as rotas neste arquivo.
+// Ninguém pode acessar as rotas de clientes sem estar logado.
+router.use(verifyToken);
 
-// Uma forma mais organizada e encadeada de escrever as rotas
-// router.route('/').get(getClientes).post(createCliente);
-// router.route('/:id').get(getClienteById).put(updateCliente).delete(deleteCliente);
+// Define as rotas para o endpoint principal ('/api/clientes')
+router.route('/')
+    .get(getClientes)      // Rota para GET /api/clientes -> Chama a função getClientes
+    .post(createCliente);  // Rota para POST /api/clientes -> Chama a função createCliente
+
+// Define as rotas para endpoints com um ID específico (ex: '/api/clientes/123')
+router.route('/:id')
+    .put(updateCliente)    // Rota para PUT /api/clientes/:id -> Chama a função updateCliente
+    .delete(deleteCliente);// Rota para DELETE /api/clientes/:id -> Chama a função deleteCliente
 
 module.exports = router;
