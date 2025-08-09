@@ -12,7 +12,7 @@ import DashboardPage from './pages/Dashboard';
 import UtilizadoresPage from './pages/UtilizadoresPage';
 import FornecedoresPage from './pages/FornecedoresPage';
 import { Sidebar } from './components/Sidebar';
-import { Header } from './components/Header'; // <-- 1. Importar o Header
+import { Header } from './components/Header';
 
 // --- Componente de Proteção de Rota ---
 const ProtectedRoute = () => {
@@ -34,26 +34,22 @@ const AdminRoute = () => {
 
 // --- Componente de Layout Principal (ATUALIZADO) ---
 const Layout = () => {
-  // 2. Controlar o estado da sidebar (aberta/fechada)
   const { isOpen: isSidebarOpen, onToggle: onToggleSidebar } = useDisclosure({ defaultIsOpen: true });
 
   return (
     <Grid
       templateAreas={`"nav header" "nav main"`}
-      // 3. A largura da sidebar agora é dinâmica
       gridTemplateColumns={isSidebarOpen ? '240px 1fr' : '72px 1fr'}
       gridTemplateRows={'auto 1fr'}
       h='100vh'
-      bg="gray.50"
-      transition="grid-template-columns 0.2s ease-in-out" // Animação suave
+      // A propriedade 'bg' foi removida daqui para ser controlada pelo tema global.
+      transition="grid-template-columns 0.2s ease-in-out"
     >
       <GridItem area={'nav'}>
-        {/* 4. Passar o estado para a Sidebar */}
         <Sidebar isCollapsed={!isSidebarOpen} />
       </GridItem>
 
       <GridItem area={'header'}>
-        {/* 5. Passar a função de toggle para o Header */}
         <Header onToggleSidebar={onToggleSidebar} />
       </GridItem>
 

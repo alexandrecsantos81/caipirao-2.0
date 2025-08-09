@@ -1,5 +1,3 @@
-// frontend/src/services/utilizador.service.ts
-
 import axios from 'axios';
 
 // Configuração do cliente Axios
@@ -20,7 +18,6 @@ apiClient.interceptors.request.use(
 
 // --- INTERFACES ---
 
-// Interface para os dados de um utilizador, como retornado pela API
 export interface IUtilizador {
   id: number;
   nome: string;
@@ -31,7 +28,6 @@ export interface IUtilizador {
   status: 'ATIVO' | 'INATIVO';
 }
 
-// Interface para o formulário de criação de um novo utilizador (pelo Admin)
 export interface ICreateUtilizadorForm {
   nome: string;
   email: string;
@@ -41,53 +37,64 @@ export interface ICreateUtilizadorForm {
   perfil: 'VENDEDOR' | 'GERENTE' | 'ADMINISTRATIVO' | 'ADMIN';
 }
 
-// Interface para o formulário de solicitação de acesso (público)
-export interface ISolicitacaoAcessoForm {
-    nome: string;
-    email: string;
-    telefone: string;
+// NOVA INTERFACE para o formulário de edição
+export interface IUpdateUtilizadorForm {
+  nome: string;
+  email: string;
+  telefone: string;
+  nickname: string;
+  perfil: 'VENDEDOR' | 'GERENTE' | 'ADMINISTRATIVO' | 'ADMIN';
+  status: 'ATIVO' | 'INATIVO';
 }
 
-// Interface para a resposta da ativação de um utilizador
+export interface ISolicitacaoAcessoForm {
+  nome: string;
+  email: string;
+  telefone: string;
+}
+
 export interface IAtivacaoResponse {
-    message: string;
-    utilizador: IUtilizador;
-    senhaProvisoria: string;
+  message: string;
+  utilizador: IUtilizador;
+  senhaProvisoria: string;
 }
 
 // --- FUNÇÕES DO SERVIÇO ---
 
-/**
- * @description Busca a lista completa de utilizadores. (Requer Admin)
- */
 export const getUtilizadores = async (): Promise<IUtilizador[]> => {
   const response = await apiClient.get('/utilizadores');
   return response.data;
 };
 
-/**
- * @description Cria um novo utilizador diretamente. (Requer Admin)
- */
 export const createUtilizador = async (data: ICreateUtilizadorForm): Promise<IUtilizador> => {
-    const response = await apiClient.post('/utilizadores', data);
-    return response.data;
+  const response = await apiClient.post('/utilizadores', data);
+  return response.data;
 }
 
-/**
- * @description Envia uma solicitação de acesso. (Público)
- */
 export const solicitarAcesso = async (data: ISolicitacaoAcessoForm): Promise<any> => {
-    // Esta chamada não precisa do token, então usamos axios diretamente
-    const response = await axios.post(`${API_URL}/utilizadores/solicitar-acesso`, data);
-    return response.data;
+  const response = await axios.post(`${API_URL}/utilizadores/solicitar-acesso`, data);
+  return response.data;
+}
+
+export const ativarUtilizador = async ({ id, perfil }: { id: number, perfil: string }): Promise<IAtivacaoResponse> => {
+  const response = await apiClient.put(`/utilizadores/${id}/ativar`, { perfil });
+  return response.data;
 }
 
 /**
- * @description Ativa um utilizador inativo, definindo um perfil e gerando uma senha. (Requer Admin)
- * @param id - O ID do utilizador a ser ativado.
- * @param perfil - O perfil a ser atribuído ao utilizador.
+ * @description Atualiza os dados de um utilizador existente. (Requer Admin)
+ * @param id - O ID do utilizador a ser atualizado.
+ * @param data - Os novos dados do utilizador.
  */
-export const ativarUtilizador = async ({ id, perfil }: { id: number, perfil: string }): Promise<IAtivacaoResponse> => {
-    const response = await apiClient.put(`/utilizadores/${id}/ativar`, { perfil });
+export const updateUtilizador = async ({ id, data }: { id: number, data: IUpdateUtilizadorForm }): Promise<IUtilizador> => {
+    const response = await apiClient.put(`/utilizadores/${id}`, data);
     return response.data;
-}
+};
+
+/**
+ * @description Deleta um utilizador. (Requer Admin)
+ * @param id - O ID do utilizador a ser deletado.
+ */
+export const deleteUtilizador = async (id: number): Promise<void> => {
+    await apiClient.delete(`/utilizadores/${id}`);
+};

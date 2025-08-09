@@ -1,6 +1,6 @@
 import {
   Box, VStack, Heading, Link as ChakraLink, Text, Divider, Avatar, HStack, Tag, Icon, Tooltip, useColorModeValue,
-} from '@chakra-ui/react'; // <-- AQUI ESTÁ A CORREÇÃO
+} from '@chakra-ui/react';
 import { NavLink as RouterLink, useLocation } from 'react-router-dom';
 import {
   FiHome, FiShoppingCart, FiUsers, FiBox, FiDollarSign, FiLogOut, FiTruck,
@@ -18,6 +18,11 @@ const NavItem = ({ icon, label, to, isCollapsed }: NavItemProps) => {
   const location = useLocation();
   const isActive = location.pathname === to;
 
+  // Define cores dinâmicas para o estado ativo e inativo
+  const activeBg = useColorModeValue('teal.400', 'teal.500');
+  const inactiveColor = useColorModeValue('gray.600', 'gray.400');
+  const hoverBg = useColorModeValue('teal.300', 'teal.600');
+
   return (
     <Tooltip label={isCollapsed ? label : ''} placement="right">
       <ChakraLink
@@ -30,10 +35,11 @@ const NavItem = ({ icon, label, to, isCollapsed }: NavItemProps) => {
         borderRadius="lg"
         role="group"
         cursor="pointer"
-        bg={isActive ? 'teal.400' : 'transparent'}
-        color={isActive ? 'white' : 'gray.600'}
-        _hover={{ bg: 'teal.300', color: 'white' }}
+        bg={isActive ? activeBg : 'transparent'}
+        color={isActive ? 'white' : inactiveColor}
+        _hover={{ bg: hoverBg, color: 'white', transform: 'translateX(2px)' }} // Efeito de hover aprimorado
         fontWeight="medium"
+        transition="all 0.2s ease"
       >
         <Icon as={icon} mr={isCollapsed ? 0 : 4} fontSize="20" />
         {!isCollapsed && label}
@@ -50,20 +56,27 @@ export const Sidebar = ({ isCollapsed }: SidebarProps) => {
   const { user, logout } = useAuth();
   const isAdmin = user?.perfil === 'ADMIN';
 
+  // Cores dinâmicas para o fundo da sidebar e bordas
+  const bgColor = useColorModeValue('white', 'gray.800');
+  const borderColor = useColorModeValue('gray.200', 'gray.700');
+  const textColor = useColorModeValue('gray.800', 'whiteAlpha.900');
+  const linkColor = useColorModeValue('gray.600', 'gray.300');
+  const logoutHoverBg = useColorModeValue('red.400', 'red.500');
+
   return (
     <Box
       as="nav"
       pos="fixed"
       h="full"
       w={isCollapsed ? '72px' : '240px'}
-      bg={useColorModeValue('white', 'gray.800')}
+      bg={bgColor}
       borderRight="1px"
-      borderColor={useColorModeValue('gray.200', 'gray.700')}
+      borderColor={borderColor}
       transition="width 0.2s ease-in-out"
     >
       <VStack h="full" justify="space-between" py={5}>
         <VStack align="stretch" w="full">
-          <Heading size="md" p={4} mb={4} textAlign="center">
+          <Heading size="md" p={4} mb={4} textAlign="center" color={textColor}>
             {isCollapsed ? 'C' : 'Caipirão 3.0'}
           </Heading>
           <NavItem icon={FiHome} label="Dashboard" to="/dashboard" isCollapsed={isCollapsed} />
@@ -77,13 +90,13 @@ export const Sidebar = ({ isCollapsed }: SidebarProps) => {
         </VStack>
 
         <VStack align="stretch" w="full" spacing={4}>
-          <Divider />
+          <Divider borderColor={borderColor} />
           <Box px={3}>
             <HStack justify={isCollapsed ? 'center' : 'flex-start'}>
               <Avatar size="sm" name={user?.nome} />
               {!isCollapsed && (
                 <VStack align="start" spacing={0}>
-                  <Text fontWeight="bold" fontSize="sm">{user?.nome}</Text>
+                  <Text fontWeight="bold" fontSize="sm" color={textColor}>{user?.nome}</Text>
                   <Tag size="sm" colorScheme="red" variant="solid">{user?.perfil}</Tag>
                 </VStack>
               )}
@@ -96,8 +109,9 @@ export const Sidebar = ({ isCollapsed }: SidebarProps) => {
               alignItems="center"
               justifyContent={isCollapsed ? 'center' : 'flex-start'}
               p={3} mx={3} borderRadius="lg" role="group" cursor="pointer"
-              _hover={{ bg: 'teal.300', color: 'white' }}
-              fontWeight="medium" color="gray.600"
+              _hover={{ bg: logoutHoverBg, color: 'white' }}
+              fontWeight="medium" color={linkColor}
+              transition="all 0.2s ease"
             >
               <Icon as={FiLogOut} mr={isCollapsed ? 0 : 4} fontSize="20" />
               {!isCollapsed && 'Sair'}
