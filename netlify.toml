@@ -1,0 +1,21 @@
+# Configurações de Build para o Netlify
+[build]
+  # Comando que o Netlify executará para construir o site
+  command = "npm run build"
+  
+  # Diretório onde o Netlify publicará os arquivos do site
+  publish = "frontend/dist"
+  
+  # Diretório base para o build (onde o Netlify deve rodar o 'npm run build')
+  base = "frontend"
+
+# Regra de redirecionamento para Single Page Applications (SPA)
+[[redirects]]
+  # Captura qualquer rota que não seja um arquivo real
+  from = "/*"
+  
+  # Serve o index.html principal
+  to = "/index.html"
+  
+  # Responde com o status 200 (OK), essencial para o roteador do React
+  status = 200
