@@ -3,7 +3,9 @@ import {
   Th, Thead, Tr, useDisclosure, useToast, VStack, HStack,
   Drawer, DrawerBody, DrawerCloseButton, DrawerContent, DrawerFooter, DrawerHeader, DrawerOverlay,
   FormControl, FormLabel, Input, FormErrorMessage,
-  Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay
+  Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay,
+  useBreakpointValue, // 1. IMPORTAR HOOKS
+  Divider,
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
@@ -15,12 +17,14 @@ import {
 } from '../services/fornecedor.service';
 import { useAuth } from '../hooks/useAuth';
 
-// --- COMPONENTE: FORMULÁRIO DE FORNECEDOR (NO DRAWER) ---
-// Adicionamos 'export' para que ele possa ser usado em outras páginas (como MovimentacoesPage)
+// --- COMPONENTE: FORMULÁRIO DE FORNECEDOR (ATUALIZADO PARA RESPONSIVIDADE) ---
 export const FormularioFornecedor = ({ isOpen, onClose, fornecedor }: { isOpen: boolean; onClose: () => void; fornecedor: IFornecedor | null; }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { register, handleSubmit, reset, formState: { errors }, setValue } = useForm<IFornecedorForm>();
+
+  // 2. HOOKS PARA AJUSTES RESPONSIVOS
+  const drawerSize = useBreakpointValue({ base: 'full', md: 'md' });
 
   useEffect(() => {
     if (fornecedor) {
@@ -56,7 +60,7 @@ export const FormularioFornecedor = ({ isOpen, onClose, fornecedor }: { isOpen: 
   };
 
   return (
-    <Drawer isOpen={isOpen} placement="right" onClose={onClose} size="md">
+    <Drawer isOpen={isOpen} placement="right" onClose={onClose} size={drawerSize}>
       <DrawerOverlay />
       <DrawerContent>
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -81,7 +85,7 @@ export const FormularioFornecedor = ({ isOpen, onClose, fornecedor }: { isOpen: 
   );
 };
 
-// --- PÁGINA PRINCIPAL DE GESTÃO DE FORNECEDORES ---
+// --- PÁGINA PRINCIPAL DE GESTÃO DE FORNECEDORES (ATUALIZADA PARA RESPONSIVIDADE) ---
 const FornecedoresPage = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -90,6 +94,9 @@ const FornecedoresPage = () => {
   const { isOpen: isConfirmModalOpen, onOpen: onConfirmModalOpen, onClose: onConfirmModalClose } = useDisclosure();
   
   const [selectedFornecedor, setSelectedFornecedor] = useState<IFornecedor | null>(null);
+
+  // 3. HOOK PARA RESPONSIVIDADE
+  const isMobile = useBreakpointValue({ base: true, md: false });
 
   const { data: fornecedores, isLoading, isError } = useQuery<IFornecedor[]>({
     queryKey: ['fornecedores'],
@@ -133,46 +140,74 @@ const FornecedoresPage = () => {
   if (isError) return <Box p={8} textAlign="center"><Text color="red.500">Erro ao carregar fornecedores.</Text></Box>;
 
   return (
-    <Box p={8}>
-      <Flex justify="space-between" align="center" mb={6}>
-        <Heading></Heading>
-        <Button leftIcon={<FiPlus />} colorScheme="teal" onClick={handleAddClick}>Adicionar Fornecedor</Button>
+    <Box p={{ base: 4, md: 8 }}>
+      <Flex justify="space-between" align="center" mb={6} direction={{ base: 'column', md: 'row' }} gap={4}>
+        <Heading textAlign={{ base: 'center', md: 'left' }}>Gestão de Fornecedores</Heading>
+        <Button leftIcon={<FiPlus />} colorScheme="teal" onClick={handleAddClick} w={{ base: 'full', md: 'auto' }}>Adicionar Fornecedor</Button>
       </Flex>
 
-      <TableContainer>
-        <Table variant="striped">
-          <Thead>
-            <Tr>
-              <Th>Nome</Th>
-              <Th>CNPJ/CPF</Th>
-              <Th>Contato</Th>
-              <Th>Ações</Th>
-            </Tr>
-          </Thead>
-          <Tbody>
-            {fornecedores?.map((fornecedor) => (
-              <Tr key={fornecedor.id}>
-                <Td fontWeight="medium">{fornecedor.nome}</Td>
-                <Td>{fornecedor.cnpj_cpf || 'N/A'}</Td>
-                <Td>
-                  <VStack align="start" spacing={0}>
-                    <Text>{fornecedor.email || '---'}</Text>
-                    <Text fontSize="sm" color="gray.500">{fornecedor.telefone || '---'}</Text>
-                  </VStack>
-                </Td>
-                <Td>
-                  <HStack>
-                    <IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleEditClick(fornecedor)} />
-                    {user?.perfil === 'ADMIN' && (
-                      <IconButton aria-label="Excluir" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDeleteClick(fornecedor)} />
-                    )}
-                  </HStack>
-                </Td>
+      {/* 4. RENDERIZAÇÃO CONDICIONAL */}
+      {isMobile ? (
+        <VStack spacing={4} align="stretch">
+          {fornecedores?.map((fornecedor) => (
+            <Box key={fornecedor.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
+              <Flex justify="space-between" align="center">
+                <Heading size="sm" noOfLines={1}>{fornecedor.nome}</Heading>
+                <HStack spacing={1}>
+                  <IconButton aria-label="Editar" icon={<FiEdit />} size="sm" onClick={() => handleEditClick(fornecedor)} />
+                  {user?.perfil === 'ADMIN' && (
+                    <IconButton aria-label="Excluir" icon={<FiTrash2 />} colorScheme="red" size="sm" onClick={() => handleDeleteClick(fornecedor)} />
+                  )}
+                </HStack>
+              </Flex>
+              <Divider my={2} />
+              <HStack justify="space-between">
+                <Text fontSize="sm" color="gray.500">CNPJ/CPF:</Text>
+                <Text>{fornecedor.cnpj_cpf || 'Não informado'}</Text>
+              </HStack>
+              <HStack justify="space-between">
+                <Text fontSize="sm" color="gray.500">Telefone:</Text>
+                <Text>{fornecedor.telefone || 'Não informado'}</Text>
+              </HStack>
+            </Box>
+          ))}
+        </VStack>
+      ) : (
+        <TableContainer>
+          <Table variant="striped">
+            <Thead>
+              <Tr>
+                <Th>Nome</Th>
+                <Th>CNPJ/CPF</Th>
+                <Th>Contato</Th>
+                <Th>Ações</Th>
               </Tr>
-            ))}
-          </Tbody>
-        </Table>
-      </TableContainer>
+            </Thead>
+            <Tbody>
+              {fornecedores?.map((fornecedor) => (
+                <Tr key={fornecedor.id}>
+                  <Td fontWeight="medium">{fornecedor.nome}</Td>
+                  <Td>{fornecedor.cnpj_cpf || 'N/A'}</Td>
+                  <Td>
+                    <VStack align="start" spacing={0}>
+                      <Text>{fornecedor.email || '---'}</Text>
+                      <Text fontSize="sm" color="gray.500">{fornecedor.telefone || '---'}</Text>
+                    </VStack>
+                  </Td>
+                  <Td>
+                    <HStack>
+                      <IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleEditClick(fornecedor)} />
+                      {user?.perfil === 'ADMIN' && (
+                        <IconButton aria-label="Excluir" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDeleteClick(fornecedor)} />
+                      )}
+                    </HStack>
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        </TableContainer>
+      )}
 
       <Modal isOpen={isConfirmModalOpen} onClose={onConfirmModalClose} isCentered>
         <ModalOverlay />

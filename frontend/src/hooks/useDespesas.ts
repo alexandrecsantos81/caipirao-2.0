@@ -1,7 +1,7 @@
 // frontend/src/hooks/useDespesas.ts
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getDespesas, createDespesa, ICreateDespesa, IDespesa } from '../services/despesas.service';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { getDespesas, createDespesa, IDespesa, ICreateDespesa, IPaginatedResponse } from '../services/despesas.service';
 
 // A "chave" que o React Query usará para identificar e cachear os dados de despesas.
 const DESPESAS_QUERY_KEY = ['despesas'];
@@ -10,10 +10,19 @@ const DESPESAS_QUERY_KEY = ['despesas'];
  * Custom Hook para buscar a lista de despesas.
  * Ele gerencia o fetching, caching, loading e estados de erro.
  */
-export const useDespesas = () => {
-  return useQuery<IDespesa[], Error>({
-    queryKey: DESPESAS_QUERY_KEY,
-    queryFn: getDespesas, // A função que realmente busca os dados
+export const useDespesas = (pagina: number, limite: number) => {
+  return useQuery<IPaginatedResponse<IDespesa>, Error>({
+    // A chave da query agora inclui a página e o limite para cachear cada página individualmente
+    queryKey: ['despesas', pagina, limite],
+    
+    // A queryFn agora usa o contexto para pegar os parâmetros da queryKey
+    queryFn: ({ queryKey }) => {
+      const [, page, limit] = queryKey;
+      return getDespesas(page as number, limit as number);
+    },
+    
+    // Mantém os dados da página anterior visíveis enquanto a nova página carrega
+    placeholderData: keepPreviousData,
   });
 };
 
@@ -26,7 +35,7 @@ export const useCreateDespesa = () => {
   const queryClient = useQueryClient();
 
   return useMutation<IDespesa, Error, ICreateDespesa>({
-    mutationFn: createDespesa, // A função que envia os dados para a API
+    mutationFn: createDespesa, // A função que realmente faz a chamada à API
     
     // Em caso de sucesso na criação...
     onSuccess: () => {

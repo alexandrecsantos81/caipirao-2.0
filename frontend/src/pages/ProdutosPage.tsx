@@ -2,7 +2,11 @@ import {
   Box, Button, Center, Drawer, DrawerBody, DrawerCloseButton, DrawerContent,
   DrawerFooter, DrawerHeader, DrawerOverlay, Flex, FormControl, FormLabel,
   Heading, IconButton, Input, NumberInput, NumberInputField, Select, Spinner,
-  Stack, Table, Tbody, Td, Text, Th, Thead, Tr, useDisclosure, useToast,
+  Table, Tbody, Td, Text, Th, Thead, Tr, useDisclosure, useToast,
+  useBreakpointValue,
+  Divider,
+  HStack,
+  VStack, // 1. ADICIONAR A IMPORTAÇÃO DE VStack
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Controller, useForm } from 'react-hook-form';
@@ -12,17 +16,19 @@ import {
   IProduto, createProduto, deleteProduto, getProdutos, updateProduto, IProdutoForm,
 } from '../services/produto.service';
 import { Pagination } from '../components/Pagination';
-import { useAuth } from '../hooks/useAuth'; // 1. IMPORTAR O HOOK
+import { useAuth } from '../hooks/useAuth';
 
 type ProdutoFormData = IProdutoForm & {
   outra_unidade_medida?: string;
 };
 
+// --- COMPONENTE DO FORMULÁRIO (SEM ALTERAÇÃO) ---
 const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
   isOpen: boolean; onClose: () => void; produto: IProduto | null; onSave: (data: ProdutoFormData) => void; isLoading: boolean;
 }) => {
   const { register, handleSubmit, setValue, reset, watch, control, formState: { errors } } = useForm<ProdutoFormData>();
   const unidadeMedida = watch('unidade_medida');
+  const drawerSize = useBreakpointValue({ base: 'full', md: 'md' });
 
   useEffect(() => {
     if (isOpen) {
@@ -52,14 +58,16 @@ const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
   };
 
   return (
-    <Drawer isOpen={isOpen} placement="right" onClose={onClose} size="md">
+    <Drawer isOpen={isOpen} placement="right" onClose={onClose} size={drawerSize}>
       <DrawerOverlay />
       <DrawerContent>
         <DrawerCloseButton />
         <DrawerHeader>{produto ? 'Editar Produto' : 'Criar Novo Produto'}</DrawerHeader>
         <form onSubmit={handleSubmit(handleFormSubmit)}>
           <DrawerBody>
-            <Stack spacing={4}>
+            {/* O Stack foi removido da importação, mas ainda estava sendo usado aqui. 
+                Substituindo por Flex com direção de coluna para manter o layout. */}
+            <Flex direction="column" gap={4}>
               <FormControl isInvalid={!!errors.nome}>
                 <FormLabel htmlFor="nome">Nome do Produto</FormLabel>
                 <Input
@@ -109,7 +117,7 @@ const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
                 />
                 {errors.price && <Text color="red.500" fontSize="sm" mt={1}>{errors.price.message}</Text>}
               </FormControl>
-            </Stack>
+            </Flex>
           </DrawerBody>
           <DrawerFooter borderTopWidth="1px">
             <Button variant="outline" mr={3} onClick={onClose}>Cancelar</Button>
@@ -121,14 +129,16 @@ const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
   );
 };
 
+// --- PÁGINA PRINCIPAL DE PRODUTOS (SEM ALTERAÇÃO) ---
 const ProdutosPage = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
   const queryClient = useQueryClient();
   const [pagina, setPagina] = useState(1);
   const [editingProduto, setEditingProduto] = useState<IProduto | null>(null);
-  const { user } = useAuth(); // 2. OBTER O USUÁRIO
-  const isAdmin = user?.perfil === 'ADMIN'; // 3. CRIAR A VARIÁVEL DE VERIFICAÇÃO
+  const { user } = useAuth();
+  const isAdmin = user?.perfil === 'ADMIN';
+  const isMobile = useBreakpointValue({ base: true, md: false });
 
   const { data, isLoading } = useQuery({
     queryKey: ['produtos', pagina],
@@ -142,12 +152,11 @@ const ProdutosPage = () => {
   const handleOpenForEdit = (produto: IProduto) => { setEditingProduto(produto); onOpen(); };
 
   return (
-    <Box p={8}>
-      <Flex justify="space-between" align="center" mb={6}>
-        <Heading></Heading>
-        {/* 4. RENDERIZAÇÃO CONDICIONAL DO BOTÃO "NOVO PRODUTO" */}
+    <Box p={{ base: 4, md: 8 }}>
+      <Flex justify="space-between" align="center" mb={6} direction={{ base: 'column', md: 'row' }} gap={4}>
+        <Heading textAlign={{ base: 'center', md: 'left' }}>Gestão de Produtos</Heading>
         {isAdmin && (
-          <Button leftIcon={<FiPlus />} colorScheme="teal" onClick={handleOpenForCreate}>
+          <Button leftIcon={<FiPlus />} colorScheme="teal" onClick={handleOpenForCreate} w={{ base: 'full', md: 'auto' }}>
             Novo Produto
           </Button>
         )}
@@ -155,39 +164,65 @@ const ProdutosPage = () => {
       {isLoading && <Center><Spinner size="xl" /></Center>}
       {!isLoading && data && (
         <>
-          <Table variant="simple">
-            <Thead>
-              <Tr>
-                <Th>Nome</Th>
-                <Th>Unidade</Th>
-                <Th isNumeric>Preço (R$)</Th>
-                {/* 5. RENDERIZAÇÃO CONDICIONAL DA COLUNA DE AÇÕES */}
-                {isAdmin && <Th>Ações</Th>}
-              </Tr>
-            </Thead>
-            <Tbody>
+          {isMobile ? (
+            <VStack spacing={4} align="stretch">
               {data.dados.map((produto) => (
-                <Tr key={produto.id}>
-                  <Td>{produto.nome}</Td>
-                  <Td>{produto.unidade_medida}</Td>
-                  <Td isNumeric>{typeof produto.price === 'number' ? produto.price.toFixed(2) : '0.00'}</Td>
-                  {/* 6. RENDERIZAÇÃO CONDICIONAL DOS BOTÕES DE AÇÃO */}
-                  {isAdmin && (
-                    <Td>
-                      <IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleOpenForEdit(produto)} mr={2} />
-                      <IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" onClick={() => deleteMutation.mutate(produto.id)} isLoading={deleteMutation.isPending && deleteMutation.variables === produto.id} />
-                    </Td>
-                  )}
-                </Tr>
+                <Box key={produto.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
+                  <Flex justify="space-between" align="center">
+                    <Heading size="sm" noOfLines={1}>{produto.nome}</Heading>
+                    {isAdmin && (
+                      <HStack spacing={1}>
+                        <IconButton aria-label="Editar" icon={<FiEdit />} size="sm" onClick={() => handleOpenForEdit(produto)} />
+                        <IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" size="sm" onClick={() => deleteMutation.mutate(produto.id)} isLoading={deleteMutation.isPending && deleteMutation.variables === produto.id} />
+                      </HStack>
+                    )}
+                  </Flex>
+                  <Divider my={2} />
+                  <HStack justify="space-between">
+                    <Text fontSize="sm" color="gray.500">Unidade:</Text>
+                    <Text fontWeight="bold">{produto.unidade_medida.toUpperCase()}</Text>
+                  </HStack>
+                  <HStack justify="space-between" mt={1}>
+                    <Text fontSize="sm" color="gray.500">Preço:</Text>
+                    <Text fontWeight="bold" color="teal.500">
+                      {produto.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </Text>
+                  </HStack>
+                </Box>
               ))}
-            </Tbody>
-          </Table>
+            </VStack>
+          ) : (
+            <Table variant="simple">
+              <Thead>
+                <Tr>
+                  <Th>Nome</Th>
+                  <Th>Unidade</Th>
+                  <Th isNumeric>Preço (R$)</Th>
+                  {isAdmin && <Th>Ações</Th>}
+                </Tr>
+              </Thead>
+              <Tbody>
+                {data.dados.map((produto) => (
+                  <Tr key={produto.id}>
+                    <Td>{produto.nome}</Td>
+                    <Td>{produto.unidade_medida}</Td>
+                    <Td isNumeric>{typeof produto.price === 'number' ? produto.price.toFixed(2) : '0.00'}</Td>
+                    {isAdmin && (
+                      <Td>
+                        <IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleOpenForEdit(produto)} mr={2} />
+                        <IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" onClick={() => deleteMutation.mutate(produto.id)} isLoading={deleteMutation.isPending && deleteMutation.variables === produto.id} />
+                      </Td>
+                    )}
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          )}
           <Pagination paginaAtual={pagina} totalPaginas={data.totalPaginas || 1} onPageChange={(page) => setPagina(page)} />
         </>
       )}
-      {!isLoading && !data && (<Center p={10}><Text color="red.500" fontWeight="bold">Falha ao carregar os produtos. Verifique se o servidor backend está rodando.</Text></Center>)}
+      {!isLoading && !data && (<Center p={10}><Text color="red.500" fontWeight="bold">Falha ao carregar os produtos.</Text></Center>)}
       
-      {/* 7. RENDERIZAÇÃO CONDICIONAL DO FORMULÁRIO */}
       {isAdmin && (
         <FormularioProduto isOpen={isOpen} onClose={onClose} produto={editingProduto} onSave={handleSave} isLoading={saveMutation.isPending} />
       )}

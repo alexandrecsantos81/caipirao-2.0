@@ -5,6 +5,10 @@ import {
   FormControl, FormLabel, Input, Select, FormErrorMessage, Switch, Tooltip,
   AlertDialog, AlertDialogBody, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogOverlay,
   Center,
+  useBreakpointValue,
+  Divider,
+  Icon, // Adicionado
+  Heading, // Adicionado
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FiEdit, FiPlus, FiTrash2 } from 'react-icons/fi';
@@ -18,11 +22,14 @@ import {
 } from '../services/utilizador.service';
 import { useAuth } from '../hooks/useAuth';
 
-// --- COMPONENTE: FORMULÁRIO DE ADICIONAR UTILIZADOR (sem alterações) ---
+// --- COMPONENTE: FORMULÁRIO DE ADICIONAR UTILIZADOR (ATUALIZADO) ---
 const FormularioAdicionarUtilizador = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ICreateUtilizadorForm>();
+
+  // 2. HOOK PARA AJUSTE RESPONSIVO
+  const drawerSize = useBreakpointValue({ base: 'full', md: 'md' });
 
   const mutation = useMutation({
     mutationFn: createUtilizador,
@@ -47,7 +54,7 @@ const FormularioAdicionarUtilizador = ({ isOpen, onClose }: { isOpen: boolean; o
   };
 
   return (
-    <Drawer isOpen={isOpen} placement="right" onClose={onClose} size="md">
+    <Drawer isOpen={isOpen} placement="right" onClose={onClose} size={drawerSize}>
       <DrawerOverlay />
       <DrawerContent>
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -73,15 +80,13 @@ const FormularioAdicionarUtilizador = ({ isOpen, onClose }: { isOpen: boolean; o
   );
 };
 
-
-// --- COMPONENTE: FORMULÁRIO DE EDITAR UTILIZADOR ---
+// --- COMPONENTE: FORMULÁRIO DE EDITAR UTILIZADOR (ATUALIZADO) ---
 const FormularioEditarUtilizador = ({ isOpen, onClose, utilizador }: { isOpen: boolean; onClose: () => void; utilizador: IUtilizador | null; }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
-  // ======================= INÍCIO DA CORREÇÃO =======================
-  // A função 'reset' foi removida, pois não estava sendo utilizada.
   const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<IUpdateUtilizadorForm>();
-  // ======================== FIM DA CORREÇÃO =========================
+
+  const drawerSize = useBreakpointValue({ base: 'full', md: 'md' });
 
   useEffect(() => {
     if (utilizador) {
@@ -113,7 +118,7 @@ const FormularioEditarUtilizador = ({ isOpen, onClose, utilizador }: { isOpen: b
   };
 
   return (
-    <Drawer isOpen={isOpen} placement="right" onClose={onClose} size="md">
+    <Drawer isOpen={isOpen} placement="right" onClose={onClose} size={drawerSize}>
       <DrawerOverlay />
       <DrawerContent>
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -138,7 +143,7 @@ const FormularioEditarUtilizador = ({ isOpen, onClose, utilizador }: { isOpen: b
   );
 };
 
-// --- PÁGINA PRINCIPAL DE GESTÃO DE UTILIZADORES (sem alterações) ---
+// --- PÁGINA PRINCIPAL DE GESTÃO DE UTILIZADORES (ATUALIZADA) ---
 const UtilizadoresPage = () => {
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
@@ -149,6 +154,9 @@ const UtilizadoresPage = () => {
   
   const [selectedUser, setSelectedUser] = useState<IUtilizador | null>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
+
+  // 3. HOOK PARA RESPONSIVIDADE
+  const isMobile = useBreakpointValue({ base: true, md: false });
 
   const { data: utilizadores, isLoading, isError } = useQuery<IUtilizador[]>({
     queryKey: ['utilizadores'],
@@ -210,47 +218,67 @@ const UtilizadoresPage = () => {
   if (isError) return <Center p={10}><Text color="red.500">Erro ao carregar utilizadores.</Text></Center>;
 
   return (
-    <Box>
-      <Flex justify="flex-end" align="center" mb={6}>
-        <Button leftIcon={<FiPlus />} colorScheme="teal" onClick={onAddDrawerOpen}>
+    <Box p={{ base: 4, md: 8 }}>
+      <Flex justify="space-between" align="center" mb={6} direction={{ base: 'column', md: 'row' }} gap={4}>
+        <Heading textAlign={{ base: 'center', md: 'left' }}>Gestão de Utilizadores</Heading>
+        <Button leftIcon={<FiPlus />} colorScheme="teal" onClick={onAddDrawerOpen} w={{ base: 'full', md: 'auto' }}>
           Adicionar Utilizador
         </Button>
       </Flex>
 
-      <TableContainer>
-        <Table variant="striped">
-          <Thead><Tr><Th>Nome</Th><Th>Contato</Th><Th>Perfil</Th><Th>Status</Th><Th>Ações</Th></Tr></Thead>
-          <Tbody>
-            {utilizadores?.map((user) => (
-              <Tr key={user.id}>
-                <Td fontWeight="medium">{user.nome}</Td>
-                <Td><VStack align="start" spacing={0}><Text>{user.email}</Text><Text fontSize="sm" color="gray.500">{user.telefone}</Text></VStack></Td>
-                <Td>{user.perfil}</Td>
-                <Td>{getStatusTag(user.status, user.perfil)}</Td>
-                <Td>
-                  <HStack spacing={2}>
-                    {/* ======================= INÍCIO DA CORREÇÃO ======================= */}
-                    <Tooltip label={user.status === 'ATIVO' ? 'Desativar usuário' : 'Ativar usuário'} hasArrow>
-                      {/* Envolvemos o Switch em uma div para corrigir o bug do tooltip persistente */}
-                      <Box as="div" display="inline-block">
-                        <Switch
-                          isChecked={user.status === 'ATIVO'}
-                          onChange={() => updateStatusMutation.mutate(user)}
-                          isDisabled={user.id === currentUser?.id}
-                        />
-                      </Box>
-                    </Tooltip>
-                    {/* ======================== FIM DA CORREÇÃO ========================= */}
-                    <Tooltip label="WhatsApp" hasArrow><IconButton as={Link} href={`https://wa.me/55${user.telefone.replace(/\D/g, '' )}`} target="_blank" aria-label="WhatsApp" icon={<FaWhatsapp />} variant="ghost" /></Tooltip>
-                    <Tooltip label="Editar" hasArrow><IconButton aria-label="Editar" icon={<FiEdit />} variant="ghost" onClick={() => handleEditClick(user)} /></Tooltip>
-                    <Tooltip label="Excluir" hasArrow><IconButton aria-label="Excluir" icon={<FiTrash2 />} variant="ghost" colorScheme="red" onClick={() => handleDeleteClick(user)} isDisabled={user.id === currentUser?.id} /></Tooltip>
-                  </HStack>
-                </Td>
-              </Tr>
-            ))}
-          </Tbody>
-        </Table>
-      </TableContainer>
+      {/* 4. RENDERIZAÇÃO CONDICIONAL */}
+      {isMobile ? (
+        <VStack spacing={4} align="stretch">
+          {utilizadores?.map((user) => (
+            <Box key={user.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
+              <Flex justify="space-between" align="center">
+                <Heading size="sm" noOfLines={1}>{user.nome}</Heading>
+                {getStatusTag(user.status, user.perfil)}
+              </Flex>
+              <Text fontSize="sm" color="gray.400">{user.perfil}</Text>
+              <Divider my={2} />
+              <HStack justify="space-between">
+                <Text fontSize="sm" color="gray.500">Email:</Text>
+                <Text noOfLines={1}>{user.email}</Text>
+              </HStack>
+              <HStack justify="space-between">
+                <Text fontSize="sm" color="gray.500">Telefone:</Text>
+                <Text>{user.telefone}</Text>
+              </HStack>
+              <HStack mt={4} justify="space-around" bg="gray.700" p={2} borderRadius="md">
+                <Tooltip label={user.status === 'ATIVO' ? 'Desativar' : 'Ativar'}><Box><Switch isChecked={user.status === 'ATIVO'} onChange={() => updateStatusMutation.mutate(user)} isDisabled={user.id === currentUser?.id} /></Box></Tooltip>
+                <Tooltip label="WhatsApp"><IconButton as={Link} href={`https://wa.me/55${user.telefone.replace(/\D/g, ''  )}`} target="_blank" aria-label="WhatsApp" icon={<FaWhatsapp />} variant="ghost" /></Tooltip>
+                <Tooltip label="Editar"><IconButton aria-label="Editar" icon={<FiEdit />} variant="ghost" onClick={() => handleEditClick(user)} /></Tooltip>
+                <Tooltip label="Excluir"><IconButton aria-label="Excluir" icon={<FiTrash2 />} variant="ghost" colorScheme="red" onClick={() => handleDeleteClick(user)} isDisabled={user.id === currentUser?.id} /></Tooltip>
+              </HStack>
+            </Box>
+          ))}
+        </VStack>
+      ) : (
+        <TableContainer>
+          <Table variant="striped">
+            <Thead><Tr><Th>Nome</Th><Th>Contato</Th><Th>Perfil</Th><Th>Status</Th><Th>Ações</Th></Tr></Thead>
+            <Tbody>
+              {utilizadores?.map((user) => (
+                <Tr key={user.id}>
+                  <Td fontWeight="medium">{user.nome}</Td>
+                  <Td><VStack align="start" spacing={0}><Text>{user.email}</Text><Text fontSize="sm" color="gray.500">{user.telefone}</Text></VStack></Td>
+                  <Td>{user.perfil}</Td>
+                  <Td>{getStatusTag(user.status, user.perfil)}</Td>
+                  <Td>
+                    <HStack spacing={2}>
+                      <Tooltip label={user.status === 'ATIVO' ? 'Desativar usuário' : 'Ativar usuário'} hasArrow><Box><Switch isChecked={user.status === 'ATIVO'} onChange={() => updateStatusMutation.mutate(user)} isDisabled={user.id === currentUser?.id} /></Box></Tooltip>
+                      <Tooltip label="WhatsApp" hasArrow><IconButton as={Link} href={`https://wa.me/55${user.telefone.replace(/\D/g, ''  )}`} target="_blank" aria-label="WhatsApp" icon={<FaWhatsapp />} variant="ghost" /></Tooltip>
+                      <Tooltip label="Editar" hasArrow><IconButton aria-label="Editar" icon={<FiEdit />} variant="ghost" onClick={() => handleEditClick(user)} /></Tooltip>
+                      <Tooltip label="Excluir" hasArrow><IconButton aria-label="Excluir" icon={<FiTrash2 />} variant="ghost" colorScheme="red" onClick={() => handleDeleteClick(user)} isDisabled={user.id === currentUser?.id} /></Tooltip>
+                    </HStack>
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        </TableContainer>
+      )}
 
       <FormularioAdicionarUtilizador isOpen={isAddDrawerOpen} onClose={onAddDrawerClose} />
       <FormularioEditarUtilizador isOpen={isEditDrawerOpen} onClose={onEditDrawerClose} utilizador={selectedUser} />

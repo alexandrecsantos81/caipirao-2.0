@@ -1,12 +1,14 @@
-// src/pages/RelatoriosPage.tsx
-
 import { useState } from 'react';
 import {
-  Box, Button, Flex, Heading, Input, Stack, Text, Tabs, TabList, TabPanels, Tab, TabPanel, Select,
+  Box, Button, Flex, Heading, Input, Text, Tabs, TabList, TabPanels, Tab, TabPanel, Select,
+  SimpleGrid,
+  useColorModeValue, // 1. ADICIONAR a importação que faltava
 } from '@chakra-ui/react';
 import {
-  startOfMonth, endOfMonth, subDays, startOfQuarter, endOfQuarter, startOfYear, endOfYear, format,
+  startOfMonth, endOfMonth, subDays, startOfQuarter, startOfYear, endOfYear, format,
+  endOfQuarter, // 2. ADICIONAR a importação que faltava
 } from 'date-fns';
+// O resto das importações permanece o mesmo...
 import { useSalesSummary, useProductRanking, useClientRanking, useClientAnalysis, useSellerProductivity } from '@/hooks/useReports';
 import { ReportKPIs } from '@/components/ReportKPIs';
 import { SalesEvolutionChart } from '@/components/SalesEvolutionChart';
@@ -14,6 +16,7 @@ import { ProductRankingTable } from '@/components/ProductRankingTable';
 import { ClientRankingTable } from '@/components/ClientRankingTable';
 import { ClientAnalysis } from '@/components/ClientAnalysis';
 import { SellerProductivityTable } from '@/components/SellerProductivityTable';
+
 
 const formatDateForAPI = (date: Date): string => format(date, 'yyyy-MM-dd');
 
@@ -39,42 +42,42 @@ const RelatoriosPage = () => {
   const { data: sellerProductivityData, isLoading: isLoadingSellerProductivity } = useSellerProductivity(filters, activeTab === 4);
 
   return (
-    <Box>
+    <Box p={{ base: 4, md: 8 }}>
       <Heading as="h1" mb={2}>Relatórios Gerenciais</Heading>
       <Text color="gray.500" mb={6}>Selecione um período para visualizar os relatórios de desempenho do negócio.</Text>
 
-      <Stack spacing={4} p={4} borderWidth={1} borderRadius="md" mb={6} bg="gray.700">
-        <Heading size="md">Filtrar por Período</Heading>
-        <Flex wrap="wrap" gap={2}>
+      <Box p={4} borderWidth={1} borderRadius="md" mb={6} bg={useColorModeValue('gray.50', 'gray.700')}>
+        <Heading size="md" mb={4}>Filtrar por Período</Heading>
+        <SimpleGrid columns={{ base: 2, md: 4 }} spacing={2} mb={4}>
           <Button onClick={() => handleSetPeriod(startOfMonth(today), endOfMonth(today))}>Este Mês</Button>
           <Button onClick={() => handleSetPeriod(subDays(today, 30), today)}>Últimos 30 dias</Button>
           <Button onClick={() => handleSetPeriod(startOfQuarter(today), endOfQuarter(today))}>Este Trimestre</Button>
           <Button onClick={() => handleSetPeriod(startOfYear(today), endOfYear(today))}>Este Ano</Button>
-        </Flex>
-        <Flex gap={4} align="center">
-          <Box>
+        </SimpleGrid>
+        
+        <Flex gap={4} align="flex-end" direction={{ base: 'column', md: 'row' }}>
+          <Box flex={1} w="full">
             <Text fontSize="sm" mb={1}>Data de Início</Text>
-            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} bg="gray.800" />
+            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} bg={useColorModeValue('white', 'gray.800')} />
           </Box>
-          <Box>
+          <Box flex={1} w="full">
             <Text fontSize="sm" mb={1}>Data de Fim</Text>
-            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} bg="gray.800" />
+            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} bg={useColorModeValue('white', 'gray.800')} />
           </Box>
-          <Button colorScheme="teal" mt={6}>Exportar</Button>
+          <Button colorScheme="teal" w={{ base: 'full', md: 'auto' }}>Exportar</Button>
         </Flex>
-      </Stack>
+      </Box>
 
       <Tabs isFitted variant="enclosed-colored" onChange={(index) => setActiveTab(index)}>
-        <TabList>
+        <TabList overflowX="auto" overflowY="hidden" sx={{ '&::-webkit-scrollbar': { display: 'none' }, 'scrollbarWidth': 'none' }}>
           <Tab>Vendas Gerais</Tab>
-          <Tab>Ranking de Produtos</Tab>
-          <Tab>Ranking de Clientes</Tab>
-          <Tab>Análise de Clientes</Tab>
+          <Tab>Produtos</Tab>
+          <Tab>Clientes</Tab>
+          <Tab>Análise</Tab>
           <Tab>Produtividade</Tab>
         </TabList>
         <TabPanels>
           <TabPanel>
-            {/* AQUI ESTÁ A CORREÇÃO */}
             <ReportKPIs kpis={salesSummaryData?.kpis} isLoading={isLoadingSalesSummary} />
             <SalesEvolutionChart data={salesSummaryData?.evolucaoVendas} isLoading={isLoadingSalesSummary} />
           </TabPanel>

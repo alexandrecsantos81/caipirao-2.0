@@ -1,7 +1,6 @@
 // frontend/src/services/despesas.service.ts
 
 import axios from 'axios';
-import { IPaginatedResponse } from './cliente.service'; // Reutilizando a interface de paginação
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 const apiClient = axios.create({ baseURL: API_URL } );
@@ -20,13 +19,24 @@ apiClient.interceptors.request.use(
 
 // --- INTERFACES ---
 
+/**
+ * Interface genérica para respostas paginadas da API.
+ * Exportada para ser reutilizada por outros hooks.
+ */
+export interface IPaginatedResponse<T> {
+  dados: T[];
+  total: number;
+  pagina: number;
+  limite: number;
+  totalPaginas: number;
+}
+
 // Interface para o objeto Despesa retornado pela API
 export interface IDespesa {
   id: number;
   descricao: string;
   valor_total: number;
-  // CORREÇÃO: Alterado de 'data_movimentacao' para 'data_venda' para corresponder ao backend.
-  data_venda: string; 
+  data_venda: string;
   usuario_nome?: string;
 }
 
@@ -34,7 +44,7 @@ export interface IDespesa {
 export interface ICreateDespesa {
   descricao: string;
   valor_total: number;
-  data_movimentacao?: string; // Opcional, para consistência
+  data_movimentacao?: string;
 }
 
 // --- FUNÇÕES DO SERVIÇO ---
@@ -43,7 +53,6 @@ export interface ICreateDespesa {
  * @description Busca uma lista paginada de despesas.
  */
 export const getDespesas = async (pagina = 1, limite = 10): Promise<IPaginatedResponse<IDespesa>> => {
-  // A rota no backend é /movimentacoes/despesas
   const response = await apiClient.get('/movimentacoes/despesas', {
     params: { pagina, limite },
   });
@@ -54,7 +63,6 @@ export const getDespesas = async (pagina = 1, limite = 10): Promise<IPaginatedRe
  * @description Envia os dados de uma nova despesa para a API.
  */
 export const createDespesa = async (despesaData: ICreateDespesa): Promise<IDespesa> => {
-  // A rota no backend é /movimentacoes/despesas
   const response = await apiClient.post('/movimentacoes/despesas', despesaData);
   return response.data;
 };

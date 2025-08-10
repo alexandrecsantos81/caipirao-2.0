@@ -3,8 +3,11 @@ import {
   Input, NumberInput, NumberInputField, Select, Spinner, Tab, TabList, TabPanel,
   TabPanels, Table, TableContainer, Tabs, Tbody, Td, Text, Th, Thead, Tr,
   useDisclosure, useToast, VStack, Badge, FormErrorMessage,
-  Drawer, DrawerBody, DrawerCloseButton, DrawerContent, DrawerFooter, DrawerHeader, DrawerOverlay, Textarea,
+  Drawer, DrawerBody, DrawerCloseButton, DrawerContent, DrawerFooter, DrawerHeader, DrawerOverlay,
   AlertDialog, AlertDialogBody, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogOverlay, HStack,
+  useBreakpointValue,
+  Divider,
+  Textarea,
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useEffect, useState, useMemo, useRef } from 'react';
@@ -28,14 +31,17 @@ interface ProdutoVendaItem {
   unidade_medida: string;
   preco_original: number;
 }
-
-// --- COMPONENTE DO FORMULÁRIO DE VENDA ---
+// --- COMPONENTE DO FORMULÁRIO DE VENDA (ATUALIZADO PARA RESPONSIVIDADE) ---
 const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boolean; onClose: () => void; vendaParaEditar: IVenda | null }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { user } = useAuth();
   const [produtosNaVenda, setProdutosNaVenda] = useState<ProdutoVendaItem[]>([]);
   const [opcaoPagamento, setOpcaoPagamento] = useState<'À VISTA' | 'A PRAZO'>('À VISTA');
+
+  // Hooks para ajustes responsivos
+  const drawerSize = useBreakpointValue({ base: 'full', md: 'xl' });
+  const flexDir = useBreakpointValue<'column' | 'row'>({ base: 'column', md: 'row' });
 
   const { control, register, handleSubmit, watch, reset, setValue, getValues, formState: { errors } } = useForm({
     defaultValues: {
@@ -148,7 +154,7 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
   };
 
   return (
-    <Drawer isOpen={isOpen} placement="right" onClose={onClose} size="xl">
+    <Drawer isOpen={isOpen} placement="right" onClose={onClose} size={drawerSize}>
       <DrawerOverlay />
       <DrawerContent>
         <DrawerHeader borderBottomWidth="1px">{vendaParaEditar ? 'Editar Venda' : 'Registrar Nova Venda'}</DrawerHeader>
@@ -156,9 +162,23 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
         <form onSubmit={handleSubmit(onSubmit)}>
           <DrawerBody>
             <VStack spacing={4} align="stretch">
-              <Flex gap={4}><FormControl isRequired isInvalid={!!errors.cliente_id}><FormLabel>Cliente</FormLabel><Select placeholder="Selecione um cliente" {...register('cliente_id', { required: 'Cliente é obrigatório' })}>{clientes?.dados.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}</Select><FormErrorMessage>{errors.cliente_id && errors.cliente_id.message}</FormErrorMessage></FormControl><FormControl isRequired><FormLabel>Data da Venda</FormLabel><Input type="date" {...register('data_venda')} /></FormControl></Flex>
-              <Flex gap={4}><FormControl isRequired><FormLabel>Opção de Pagamento</FormLabel><Select value={opcaoPagamento} onChange={(e) => setOpcaoPagamento(e.target.value as any)}><option value="À VISTA">À VISTA</option><option value="A PRAZO">A PRAZO</option></Select></FormControl><FormControl isRequired={opcaoPagamento === 'A PRAZO'}><FormLabel>Data de Vencimento</FormLabel><Input type="date" {...register('data_vencimento')} isDisabled={opcaoPagamento === 'À VISTA'} /></FormControl></Flex>
-              <Box p={4} borderWidth={1} borderRadius="md" mt={4}><Heading size="sm" mb={3}>Adicionar Produtos</Heading><Flex gap={2} align="flex-end"><FormControl flex={3}><FormLabel>Produto</FormLabel><Select placeholder="Selecione..." {...register('produto_selecionado_id')}>{produtos?.dados.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}</Select></FormControl><FormControl flex={1}><FormLabel>Qtd/Peso</FormLabel><Controller name="quantidade" control={control} render={({ field }) => <NumberInput {...field} min={0.001}><NumberInputField /></NumberInput>} /></FormControl><FormControl flex={1}><FormLabel>Preço Manual (R$)</FormLabel><Input placeholder="Opcional" {...register('preco_manual')} /></FormControl><Button colorScheme="green" onClick={handleAddProduto}><FiPlus /></Button></Flex></Box>
+              <Flex direction={flexDir} gap={4}>
+                <FormControl isRequired isInvalid={!!errors.cliente_id} flex={1}><FormLabel>Cliente</FormLabel><Select placeholder="Selecione um cliente" {...register('cliente_id', { required: 'Cliente é obrigatório' })}>{clientes?.dados.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}</Select><FormErrorMessage>{errors.cliente_id && errors.cliente_id.message}</FormErrorMessage></FormControl>
+                <FormControl isRequired flex={1}><FormLabel>Data da Venda</FormLabel><Input type="date" {...register('data_venda')} /></FormControl>
+              </Flex>
+              <Flex direction={flexDir} gap={4}>
+                <FormControl isRequired flex={1}><FormLabel>Opção de Pagamento</FormLabel><Select value={opcaoPagamento} onChange={(e) => setOpcaoPagamento(e.target.value as any)}><option value="À VISTA">À VISTA</option><option value="A PRAZO">A PRAZO</option></Select></FormControl>
+                <FormControl isRequired={opcaoPagamento === 'A PRAZO'} flex={1}><FormLabel>Data de Vencimento</FormLabel><Input type="date" {...register('data_vencimento')} isDisabled={opcaoPagamento === 'À VISTA'} /></FormControl>
+              </Flex>
+              <Box p={4} borderWidth={1} borderRadius="md" mt={4}>
+                <Heading size="sm" mb={3}>Adicionar Produtos</Heading>
+                <Flex direction={flexDir} gap={2} align="flex-end">
+                  <FormControl flex={3}><FormLabel>Produto</FormLabel><Select placeholder="Selecione..." {...register('produto_selecionado_id')}>{produtos?.dados.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}</Select></FormControl>
+                  <FormControl flex={1}><FormLabel>Qtd/Peso</FormLabel><Controller name="quantidade" control={control} render={({ field }) => <NumberInput {...field} min={0.001}><NumberInputField /></NumberInput>} /></FormControl>
+                  <FormControl flex={1}><FormLabel>Preço Manual (R$)</FormLabel><Input placeholder="Opcional" {...register('preco_manual')} /></FormControl>
+                  <Button colorScheme="green" onClick={handleAddProduto} alignSelf={{ base: 'stretch', md: 'flex-end' }}><FiPlus /></Button>
+                </Flex>
+              </Box>
               <VStack spacing={2} align="stretch" mt={4}>{produtosNaVenda.map(p => (<Flex key={p.produto_id} justify="space-between" align="center" p={2} borderWidth={1} borderRadius="md"><Box><Text fontWeight="bold">{p.nome}</Text><Text fontSize="sm" color="gray.500">{p.quantidade} {p.unidade_medida} x {(p.preco_manual ?? p.preco_original).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}{p.preco_manual !== undefined && <Badge ml={2} colorScheme="orange">Manual</Badge>}</Text></Box><IconButton aria-label="Remover" icon={<FiTrash2 />} size="sm" colorScheme="red" onClick={() => handleRemoveProduto(p.produto_id)} /></Flex>))}</VStack>
               <Flex justify="flex-end" mt={4}><Box textAlign="right"><Text fontSize="lg">Vendedor: {user?.nome}</Text><Heading size="lg" color="teal.500">Total: {valorTotalCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Heading></Box></Flex>
             </VStack>
@@ -170,11 +190,13 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
   );
 };
 
-// --- COMPONENTE DO FORMULÁRIO DE DESPESA ---
+// --- COMPONENTE DO FORMULÁRIO DE DESPESA (ATUALIZADO PARA RESPONSIVIDADE) ---
 const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen: boolean; onClose: () => void; despesaParaEditar: IDespesa | null }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
   
+  const drawerSize = useBreakpointValue({ base: 'full', md: 'md' });
+
   const { register, handleSubmit, control, reset, formState: { errors } } = useForm<IDespesaForm>();
 
   const { data: fornecedores } = useQuery<IFornecedor[]>({ queryKey: ['todosFornecedores'], queryFn: getFornecedores, enabled: isOpen });
@@ -214,7 +236,7 @@ const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen:
   };
 
   return (
-    <Drawer isOpen={isOpen} placement="right" onClose={onClose} size="md">
+    <Drawer isOpen={isOpen} placement="right" onClose={onClose} size={drawerSize}>
       <DrawerOverlay />
       <DrawerContent>
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -236,13 +258,53 @@ const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen:
   );
 };
 
-// --- COMPONENTES DE TABELA (ATUALIZADOS) ---
+// --- COMPONENTES DE TABELA (JÁ RESPONSIVOS) ---
 const TabelaVendas = ({ onEdit, onDelete }: { onEdit: (venda: IVenda) => void; onDelete: (id: number) => void; }) => {
   const [pagina, setPagina] = useState(1);
   const { data, isLoading, isError } = useQuery({ queryKey: ['vendas', pagina], queryFn: () => getVendas(pagina, 10), placeholderData: keepPreviousData });
   
+  const isMobile = useBreakpointValue({ base: true, md: false });
+
   if (isLoading) return <Center p={10}><Spinner size="xl" /></Center>;
   if (isError) return <Center p={10}><Text color="red.500">Não foi possível carregar as vendas.</Text></Center>;
+
+  if (isMobile) {
+    return (
+      <>
+        <VStack spacing={4} align="stretch" mt={4}>
+          {data?.dados.map((venda: IVenda) => (
+            <Box key={venda.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
+              <Flex justify="space-between" align="center">
+                <Heading size="sm" noOfLines={1}>{venda.cliente_nome}</Heading>
+                <HStack spacing={1}>
+                  <IconButton aria-label="Editar" icon={<FiEdit />} size="sm" onClick={() => onEdit(venda)} />
+                  <IconButton aria-label="Excluir" icon={<FiTrash2 />} size="sm" colorScheme="red" onClick={() => onDelete(venda.id)} />
+                </HStack>
+              </Flex>
+              <Divider my={2} />
+              <HStack justify="space-between">
+                <Text fontSize="sm" color="gray.500">Data:</Text>
+                <Text>{new Date(venda.data_venda).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Text>
+              </HStack>
+              <HStack justify="space-between">
+                <Text fontSize="sm" color="gray.500">Status:</Text>
+                <Badge colorScheme={venda.data_pagamento ? 'green' : 'red'}>
+                  {venda.data_pagamento ? 'Pago' : 'Pendente'}
+                </Badge>
+              </HStack>
+              <HStack justify="space-between" mt={2}>
+                <Text fontWeight="bold">Total:</Text>
+                <Text fontWeight="bold" color="teal.500">
+                  {venda.valor_total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </Text>
+              </HStack>
+            </Box>
+          ))}
+        </VStack>
+        <Pagination paginaAtual={data?.pagina || 1} totalPaginas={data?.totalPaginas || 1} onPageChange={setPagina} />
+      </>
+    );
+  }
 
   return (
     <>
@@ -271,10 +333,50 @@ const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => v
   const { data, isLoading, isError } = useQuery<IDespesa[]>({ queryKey: ['despesas'], queryFn: getDespesas });
   const { user } = useAuth();
   const isAdmin = user?.perfil === 'ADMIN';
+  
+  const isMobile = useBreakpointValue({ base: true, md: false });
 
   if (isLoading) return <Center p={10}><Spinner size="xl" /></Center>;
   if (isError) return <Center p={10}><Text color="red.500">Não foi possível carregar as despesas.</Text></Center>;
   
+  if (isMobile) {
+    return (
+      <VStack spacing={4} align="stretch" mt={4}>
+        {data?.map((despesa) => (
+          <Box key={despesa.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
+            <Flex justify="space-between" align="center">
+              <Heading size="sm" noOfLines={1}>{despesa.discriminacao}</Heading>
+              {isAdmin && (
+                <HStack spacing={1}>
+                  <IconButton aria-label="Editar" icon={<FiEdit />} size="sm" onClick={() => onEdit(despesa)} />
+                  <IconButton aria-label="Excluir" icon={<FiTrash2 />} size="sm" colorScheme="red" onClick={() => onDelete(despesa.id)} />
+                </HStack>
+              )}
+            </Flex>
+            <Text fontSize="sm" color="gray.400" mt={1}>{despesa.tipo_saida}</Text>
+            <Divider my={2} />
+            <HStack justify="space-between">
+              <Text fontSize="sm" color="gray.500">Vencimento:</Text>
+              <Text>{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Text>
+            </HStack>
+            <HStack justify="space-between">
+              <Text fontSize="sm" color="gray.500">Status:</Text>
+              <Badge colorScheme={despesa.data_pagamento ? 'green' : 'orange'}>
+                {despesa.data_pagamento ? 'Pago' : 'Pendente'}
+              </Badge>
+            </HStack>
+            <HStack justify="space-between" mt={2}>
+              <Text fontWeight="bold">Valor:</Text>
+              <Text fontWeight="bold" color="red.500">
+                {despesa.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              </Text>
+            </HStack>
+          </Box>
+        ))}
+      </VStack>
+    );
+  }
+
   return (
     <TableContainer>
       <Table variant="striped">
@@ -340,7 +442,7 @@ const MovimentacoesPage = () => {
         </TabList>
         <TabPanels>
           <TabPanel>
-            <Flex justify="space-between" mb={4}>
+            <Flex justify="space-between" mb={4} direction={{ base: 'column', md: 'row' }} gap={4}>
               <Heading size="md">Histórico de Vendas</Heading>
               <Button leftIcon={<FiPlus />} colorScheme="teal" onClick={handleAddNewVenda}>Registrar Venda</Button>
             </Flex>
@@ -349,7 +451,7 @@ const MovimentacoesPage = () => {
           
           {isAdmin && (
             <TabPanel>
-              <Flex justify="space-between" mb={4}>
+              <Flex justify="space-between" mb={4} direction={{ base: 'column', md: 'row' }} gap={4}>
                 <Heading size="md">Histórico de Despesas</Heading>
                 <Button leftIcon={<FiPlus />} colorScheme="red" onClick={handleAddNewDespesa}>Registrar Despesa</Button>
               </Flex>
