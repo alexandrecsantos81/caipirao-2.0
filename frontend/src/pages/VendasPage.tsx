@@ -10,12 +10,10 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AddIcon, DeleteIcon } from '@chakra-ui/icons';
 
-// CORREÇÃO: Importando os tipos e funções corretos
 import { getVendas, createVenda, deleteVenda, INovaVenda, IVenda } from '../services/venda.service';
 import { getClientes, ICliente, IPaginatedResponse } from '../services/cliente.service';
 import { getProdutos, IProduto } from '../services/produto.service';
 
-// --- COMPONENTE DO FORMULÁRIO (LÓGICA INTERNA CORRIGIDA) ---
 const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -25,14 +23,13 @@ const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const [produtoSelecionado, setProdutoSelecionado] = useState<number | ''>('');
   const [quantidade, setQuantidade] = useState<number>(1);
 
-  // CORREÇÃO: useQuery com sintaxe correta e tipagem explícita dos dados retornados
   const { data: clientesData } = useQuery<IPaginatedResponse<ICliente>>({ 
-    queryKey: ['clientes', 1, 1000], // Busca até 1000 clientes para o select
+    queryKey: ['clientes', 1, 1000],
     queryFn: ({ queryKey }) => getClientes(queryKey[1] as number, queryKey[2] as number) 
   });
 
   const { data: produtosData } = useQuery<IPaginatedResponse<IProduto>>({ 
-    queryKey: ['produtos', 1, 1000], // Busca até 1000 produtos para o select
+    queryKey: ['produtos', 1, 1000],
     queryFn: ({ queryKey }) => getProdutos(queryKey[1] as number, queryKey[2] as number) 
   });
 
@@ -50,7 +47,6 @@ const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 
   const handleAddProduto = () => {
     if (!produtoSelecionado || quantidade <= 0) return;
-    // CORREÇÃO: Acessa o array 'dados' do objeto retornado
     const produto = produtosData?.dados.find(p => p.id === produtoSelecionado);
     if (!produto) return;
 
@@ -77,16 +73,25 @@ const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     return produtosVenda.reduce((total, item) => total + (item.quantidade * item.valor_unitario), 0);
   };
 
+  // --- FUNÇÃO CORRIGIDA ---
   const handleSubmit = () => {
     if (!clienteId || produtosVenda.length === 0) {
       toast({ title: "Preencha todos os campos", description: "Selecione um cliente e adicione pelo menos um produto.", status: "error", duration: 3000, isClosable: true });
       return;
     }
 
+    // O objeto agora corresponde à interface INovaVenda
+    const hoje = new Date().toISOString();
+
     const novaVenda: INovaVenda = {
       cliente_id: Number(clienteId),
-      valor_total: calcularValorTotal(),
-      produtos: produtosVenda.map(({ produto_id, quantidade, valor_unitario }) => ({ produto_id, quantidade, valor_unitario }))
+      data_venda: hoje,
+      opcao_pagamento: 'À VISTA', // Valor padrão, idealmente viria de um input no formulário
+      data_vencimento: hoje, // Valor padrão, idealmente viria de um input no formulário
+      produtos: produtosVenda.map(({ produto_id, quantidade }) => ({
+        produto_id,
+        quantidade,
+      }))
     };
 
     mutation.mutate(novaVenda);
@@ -111,7 +116,6 @@ const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             <FormControl isRequired>
               <FormLabel>Cliente</FormLabel>
               <Select placeholder="Selecione um cliente" value={clienteId} onChange={(e) => setClienteId(Number(e.target.value))}>
-                {/* CORREÇÃO: Acessa o array 'dados' */}
                 {clientesData?.dados.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </Select>
             </FormControl>
@@ -121,7 +125,6 @@ const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
               <FormControl flex="3">
                 <FormLabel>Produto</FormLabel>
                 <Select placeholder="Selecione um produto" value={produtoSelecionado} onChange={(e) => setProdutoSelecionado(Number(e.target.value))}>
-                  {/* CORREÇÃO: Acessa o array 'dados' e usa 'price' */}
                   {produtosData?.dados.map(p => <option key={p.id} value={p.id}>{p.nome} - {p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</option>)}
                 </Select>
               </FormControl>
@@ -159,15 +162,13 @@ const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   );
 };
 
-// --- COMPONENTE PRINCIPAL DA PÁGINA ---
 const VendasPage = () => {
   const toast = useToast();
   const queryClient = useQueryClient();
   const { isOpen, onOpen, onClose } = useDisclosure();
 
-  // CORREÇÃO: Tipagem explícita para o retorno do useQuery
   const { data: vendasData, isLoading, isError } = useQuery<IPaginatedResponse<IVenda>>({ 
-    queryKey: ['vendas', 1, 100], // Busca as 100 vendas mais recentes
+    queryKey: ['vendas', 1, 100],
     queryFn: ({ queryKey }) => getVendas(queryKey[1] as number, queryKey[2] as number) 
   });
 
@@ -215,10 +216,8 @@ const VendasPage = () => {
               </Tr>
             </Thead>
             <Tbody>
-              {/* CORREÇÃO: Acessa o array 'dados' */}
               {vendasData.dados.map((venda) => (
                 <Tr key={venda.id}>
-                  {/* CORREÇÃO: Usa 'data_venda' para corresponder à API */}
                   <Td>{new Date(venda.data_venda).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
                   <Td>{venda.cliente_nome}</Td>
                   <Td>{venda.usuario_nome}</Td>
@@ -236,5 +235,4 @@ const VendasPage = () => {
   );
 };
 
-// Renomeado para VendasPage para evitar conflito com o nome do componente
 export default VendasPage;
