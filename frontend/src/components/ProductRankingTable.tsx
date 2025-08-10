@@ -1,7 +1,8 @@
-// src/components/ProductRankingTable.tsx
+// frontend/src/components/ProductRankingTable.tsx
 
 import {
-  Table, Thead, Tbody, Tr, Th, Td, TableContainer, Skeleton, Text, Box, Center
+  Table, Thead, Tbody, Tr, Th, Td, TableContainer, Skeleton, Text, Center
+  // A importação 'Box' foi removida daqui
 } from '@chakra-ui/react';
 import { IProductRankingItem } from '@/services/report.service';
 
@@ -10,13 +11,11 @@ interface ProductRankingTableProps {
   isLoading: boolean;
 }
 
-// Função para formatar valores como moeda
 const formatCurrency = (value: number) => {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
 export const ProductRankingTable = ({ data, isLoading }: ProductRankingTableProps) => {
-  // Se estiver carregando, mostramos 10 linhas de esqueleto
   if (isLoading) {
     return (
       <TableContainer>
@@ -44,7 +43,6 @@ export const ProductRankingTable = ({ data, isLoading }: ProductRankingTableProp
     );
   }
 
-  // Se não houver dados após o carregamento
   if (!data || data.length === 0) {
     return (
       <Center p={10}>
@@ -53,7 +51,6 @@ export const ProductRankingTable = ({ data, isLoading }: ProductRankingTableProp
     );
   }
 
-  // Renderiza a tabela com os dados reais
   return (
     <TableContainer>
       <Table variant="striped">
