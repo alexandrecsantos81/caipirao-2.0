@@ -1,21 +1,35 @@
 const { Pool, types } = require('pg');
-require('dotenv').config();
+
+// Só carrega as variáveis do .env se NÃO estivermos em produção
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
+}
 
 // Converte os tipos NUMERIC (código 1700) do banco para float no JavaScript
 types.setTypeParser(1700, (val) => {
   return parseFloat(val);
 });
 
-// Determina a string de conexão. Usa a DATABASE_URL em produção (Render)
-// ou monta uma string a partir das variáveis de ambiente locais para desenvolvimento.
-const connectionString = process.env.DATABASE_URL || 
-                         `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_DATABASE}`;
+let pool;
 
-const pool = new Pool({
-  connectionString: connectionString,
-  // Adiciona a configuração SSL apenas se a DATABASE_URL estiver presente (ambiente de produção)
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
-});
+// Lógica de conexão explícita para produção
+if (process.env.DATABASE_URL) {
+  pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+      rejectUnauthorized: false
+    }
+  });
+} else {
+  // Lógica de conexão para desenvolvimento local
+  pool = new Pool({
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST,
+    database: process.env.DB_DATABASE,
+    password: process.env.DB_PASSWORD,
+    port: process.env.DB_PORT,
+  });
+}
 
 pool.on('connect', () => {
   console.log(`Conexão com o PostgreSQL bem-sucedida: ${new Date().toLocaleString()}`);
