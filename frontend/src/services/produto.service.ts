@@ -2,7 +2,7 @@ import axios from 'axios';
 import { IPaginatedResponse } from './cliente.service';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-const apiClient = axios.create({ baseURL: API_URL } );
+const apiClient = axios.create({ baseURL: API_URL }  );
 
 apiClient.interceptors.request.use(
   (config) => {
@@ -13,35 +13,49 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Interface atualizada para refletir a estrutura CORRETA do banco de dados
+// Interface para a estrutura de um produto
 export interface IProduto {
   id: number;
   nome: string;
   unidade_medida: string;
-  price: number; // <<< CORREÇÃO PRINCIPAL: de 'preco' para 'price'
+  price: number;
   quantidade_em_estoque: number;
+  custo_medio?: number; // Adicionado para refletir o schema
   criado_em?: string;
 }
 
-export type IProdutoForm = Omit<IProduto, 'id' | 'quantidade_em_estoque' | 'criado_em'>;
+// Interface para o formulário de criação/edição de produto
+export type IProdutoForm = Omit<IProduto, 'id' | 'quantidade_em_estoque' | 'custo_medio' | 'criado_em'>;
 
-// Funções do serviço (sem alterações na lógica, apenas nos tipos)
+// Interface para o formulário de entrada de estoque
+export interface IEntradaEstoqueForm {
+  quantidade_adicionada: number;
+  custo_total: number;
+  observacao?: string;
+}
+
+// --- FUNÇÕES DO SERVIÇO ---
+
 export const getProdutos = async (pagina = 1, limite = 10): Promise<IPaginatedResponse<IProduto>> => {
   const response = await apiClient.get('/produtos', { params: { pagina, limite } });
   return response.data;
 };
+
 export const createProduto = async (produtoData: IProdutoForm): Promise<IProduto> => {
   const response = await apiClient.post('/produtos', produtoData);
   return response.data;
 };
+
 export const updateProduto = async (id: number, produtoData: IProdutoForm): Promise<IProduto> => {
   const response = await apiClient.put(`/produtos/${id}`, produtoData);
   return response.data;
 };
+
 export const deleteProduto = async (id: number): Promise<void> => {
   await apiClient.delete(`/produtos/${id}`);
 };
-export const addEstoqueProduto = async ({ id, quantidade }: { id: number; quantidade: number }): Promise<IProduto> => {
-  const response = await apiClient.post(`/produtos/${id}/adicionar-estoque`, { quantidade });
+
+export const registrarEntradaEstoque = async ({ id, data }: { id: number; data: IEntradaEstoqueForm }): Promise<IProduto> => {
+  const response = await apiClient.post(`/produtos/${id}/entradas-estoque`, data);
   return response.data;
 };

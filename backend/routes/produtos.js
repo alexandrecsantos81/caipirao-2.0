@@ -32,11 +32,11 @@ router.put('/:id', verifyToken, checkAdmin, produtoController.updateProduto);
 router.delete('/:id', verifyToken, checkAdmin, produtoController.deleteProduto);
 
 /**
- * @route   POST /api/produtos/:id/adicionar-estoque
- * @desc    Adiciona uma quantidade ao estoque de um produto existente.
+ * @route   POST /api/produtos/:id/entradas-estoque
+ * @desc    Registra uma nova entrada de estoque para um produto.
  * @access  Restrito (somente ADMIN)
  */
-router.post('/:id/adicionar-estoque', verifyToken, checkAdmin, produtoController.addEstoque);
+router.post('/:id/entradas-estoque', verifyToken, checkAdmin, produtoController.registrarEntradaEstoque);
 
 
 module.exports = router;

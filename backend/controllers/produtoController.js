@@ -38,22 +38,18 @@ const getProdutos = async (req, res) => {
  */
 const createProduto = async (req, res) => {
   try {
-    // CORREÇÃO: Extrair 'price' em vez de 'preco'
     const { nome, unidade_medida, price } = req.body;
 
-    // CORREÇÃO: Validar a variável 'price'
     if (!nome || price === undefined || price === null || !unidade_medida) {
       return res.status(400).json({ msg: 'Nome, preço e unidade de medida são obrigatórios.' });
     }
 
-    // A variável já é um número, mas parseFloat não prejudica.
     const precoNumerico = parseFloat(price);
 
     if (isNaN(precoNumerico) || precoNumerico < 0) {
       return res.status(400).json({ msg: 'O preço fornecido é inválido.' });
     }
 
-    // CORREÇÃO: Usar a coluna 'price' do banco de dados
     const novoProduto = await pool.query(
       'INSERT INTO produtos (nome, unidade_medida, price) VALUES ($1, $2, $3) RETURNING *',
       [nome, unidade_medida, precoNumerico]
@@ -74,10 +70,8 @@ const createProduto = async (req, res) => {
 const updateProduto = async (req, res) => {
   try {
     const { id } = req.params;
-    // CORREÇÃO: Extrair 'price' em vez de 'preco'
     const { nome, unidade_medida, price } = req.body;
 
-    // CORREÇÃO: Validar a variável 'price'
     if (!nome || price === undefined || price === null || !unidade_medida) {
       return res.status(400).json({ msg: 'Nome, preço e unidade de medida são obrigatórios.' });
     }
@@ -88,7 +82,6 @@ const updateProduto = async (req, res) => {
       return res.status(400).json({ msg: 'O preço fornecido é inválido.' });
     }
 
-    // CORREÇÃO: Usar a coluna 'price' do banco de dados
     const produtoAtualizado = await pool.query(
       'UPDATE produtos SET nome = $1, unidade_medida = $2, price = $3 WHERE id = $4 RETURNING *',
       [nome, unidade_medida, precoNumerico, id]
@@ -130,41 +123,56 @@ const deleteProduto = async (req, res) => {
 };
 
 /**
- * @desc    Adiciona uma quantidade ao estoque de um produto existente.
- * @route   POST /api/produtos/:id/adicionar-estoque
+ * @desc    Registra uma entrada de estoque para um produto e atualiza sua quantidade.
+ * @route   POST /api/produtos/:id/entradas-estoque
  * @access  Restrito (Admin)
  */
-const addEstoque = async (req, res) => {
+const registrarEntradaEstoque = async (req, res) => {
+  const { id: produto_id } = req.params;
+  const { quantidade_adicionada, custo_total, observacao } = req.body;
+  const utilizador_id = req.user.id; // Pega o ID do usuário logado
+
+  if (!quantidade_adicionada || quantidade_adicionada <= 0 || custo_total === undefined || custo_total < 0) {
+    return res.status(400).json({ error: 'Quantidade adicionada e custo total são obrigatórios e devem ser valores positivos.' });
+  }
+
+  const client = await pool.connect();
   try {
-    const { id } = req.params;
-    const { quantidade } = req.body;
+    await client.query('BEGIN');
 
-    if (typeof quantidade !== 'number') {
-      return res.status(400).json({ msg: 'A quantidade deve ser um número.' });
-    }
-
-    const produtoAtualizado = await pool.query(
+    // 1. Atualiza a quantidade em estoque do produto
+    const produtoAtualizado = await client.query(
       'UPDATE produtos SET quantidade_em_estoque = quantidade_em_estoque + $1 WHERE id = $2 RETURNING *',
-      [quantidade, id]
+      [quantidade_adicionada, produto_id]
     );
 
-    if (produtoAtualizado.rows.length === 0) {
-      return res.status(404).json({ msg: 'Produto não encontrado.' });
+    if (produtoAtualizado.rowCount === 0) {
+      throw new Error('Produto não encontrado.');
     }
 
-    res.json(produtoAtualizado.rows[0]);
+    // 2. Insere o registro na nova tabela de histórico de entradas
+    await client.query(
+      `INSERT INTO entradas_estoque (produto_id, utilizador_id, quantidade_adicionada, custo_total, observacao)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [produto_id, utilizador_id, quantidade_adicionada, custo_total, observacao]
+    );
 
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Erro no servidor');
+    await client.query('COMMIT');
+    res.status(200).json(produtoAtualizado.rows[0]);
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Erro ao registrar entrada de estoque:', error);
+    res.status(500).json({ error: error.message || 'Erro interno do servidor.' });
+  } finally {
+    client.release();
   }
 };
 
-
 module.exports = {
   getProdutos,
-  createProduto, // <- Corrigida
-  updateProduto, // <- Corrigida
+  createProduto,
+  updateProduto,
   deleteProduto,
-  addEstoque,
+  registrarEntradaEstoque,
 };
