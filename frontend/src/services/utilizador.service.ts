@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { IPaginatedResponse } from '@/types/common.types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 const apiClient = axios.create({ baseURL: API_URL } );
@@ -38,7 +39,6 @@ export interface IUpdateUtilizadorForm {
   status: UserStatus;
 }
 
-// --- NOVA INTERFACE PARA O FORMULÁRIO DE CRIAÇÃO ---
 export interface ICreateUtilizadorForm {
   nome: string;
   email: string;
@@ -62,12 +62,13 @@ export interface IAtivacaoResponse {
 
 // --- FUNÇÕES DO SERVIÇO ---
 
-export const getUtilizadores = async (): Promise<IUtilizador[]> => {
-  const response = await apiClient.get('/utilizadores');
+export const getUtilizadores = async (pagina = 1, limite = 10): Promise<IPaginatedResponse<IUtilizador>> => {
+  const response = await apiClient.get('/utilizadores', {
+    params: { pagina, limite }
+  });
   return response.data;
 };
 
-// --- NOVA FUNÇÃO PARA CRIAR USUÁRIO PELO ADMIN ---
 export const createUtilizador = async (data: ICreateUtilizadorForm): Promise<IUtilizador> => {
   const response = await apiClient.post('/utilizadores', data);
   return response.data;

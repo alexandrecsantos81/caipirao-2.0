@@ -13,7 +13,6 @@ import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tansta
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { Controller, useForm, SubmitHandler } from 'react-hook-form';
 import { FiPlus, FiTrash2, FiEdit } from 'react-icons/fi';
-
 import { Pagination } from '../components/Pagination';
 import { ICliente, getClientes } from '../services/cliente.service';
 import { IDespesa, IDespesaForm, registrarDespesa, getDespesas, tiposDeSaida, updateDespesa, deleteDespesa } from '../services/despesa.service';
@@ -32,17 +31,16 @@ interface ProdutoVendaItem {
   unidade_medida: string;
   preco_original: number;
 }
-// --- COMPONENTE DO FORMULÁRIO DE VENDA (ATUALIZADO PARA RESPONSIVIDADE) ---
+
+// --- COMPONENTE DO FORMULÁRIO DE VENDA (SEM MUDANÇAS) ---
 const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boolean; onClose: () => void; vendaParaEditar: IVenda | null }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { user } = useAuth();
   const [produtosNaVenda, setProdutosNaVenda] = useState<ProdutoVendaItem[]>([]);
   const [opcaoPagamento, setOpcaoPagamento] = useState<'À VISTA' | 'A PRAZO'>('À VISTA');
-
-  // Hooks para ajustes responsivos
   const drawerSize = useBreakpointValue({ base: 'full', md: 'xl' });
-  const flexDir = useBreakpointValue<'column' | 'row'>({ base: 'column', md: 'row' });
+  const flexDir = useBreakpointValue<'column' |'row'>({ base: 'column', md: 'row' });
 
   const { control, register, handleSubmit, watch, reset, setValue, getValues, formState: { errors } } = useForm({
     defaultValues: {
@@ -50,10 +48,8 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
       produto_selecionado_id: '', quantidade: 1, preco_manual: '',
     },
   });
-
   const { data: clientes } = useQuery<IPaginatedResponse<ICliente>>({ queryKey: ['todosClientes'], queryFn: () => getClientes(1, 1000), enabled: isOpen });
   const { data: produtos } = useQuery<IPaginatedResponse<IProduto>>({ queryKey: ['todosProdutos'], queryFn: () => getProdutos(1, 1000), enabled: isOpen });
-
   const dataVendaValue = watch('data_venda');
 
   const valorTotalCalculado = useMemo(() => {
@@ -62,7 +58,7 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
       return total + (item.quantidade * preco);
     }, 0);
   }, [produtosNaVenda]);
-
+  
   const mutation = useMutation({
     mutationFn: (data: { vendaData: INovaVenda, id?: number }) => 
       data.id ? updateVenda({ id: data.id, data: data.vendaData }) : createVenda(data.vendaData),
@@ -163,16 +159,16 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
         <form onSubmit={handleSubmit(onSubmit)}>
           <DrawerBody>
             <VStack spacing={4} align="stretch">
-              <Flex direction={flexDir} gap={4}>
+               <Flex direction={flexDir} gap={4}>
                 <FormControl isRequired isInvalid={!!errors.cliente_id} flex={1}><FormLabel>Cliente</FormLabel><Select placeholder="Selecione um cliente" {...register('cliente_id', { required: 'Cliente é obrigatório' })}>{clientes?.dados.map((c: ICliente) => <option key={c.id} value={c.id}>{c.nome}</option>)}</Select><FormErrorMessage>{errors.cliente_id && errors.cliente_id.message}</FormErrorMessage></FormControl>
                 <FormControl isRequired flex={1}><FormLabel>Data da Venda</FormLabel><Input type="date" {...register('data_venda')} /></FormControl>
               </Flex>
               <Flex direction={flexDir} gap={4}>
-                <FormControl isRequired flex={1}><FormLabel>Opção de Pagamento</FormLabel><Select value={opcaoPagamento} onChange={(e) => setOpcaoPagamento(e.target.value as any)}><option value="À VISTA">À VISTA</option><option value="A PRAZO">A PRAZO</option></Select></FormControl>
+                 <FormControl isRequired flex={1}><FormLabel>Opção de Pagamento</FormLabel><Select value={opcaoPagamento} onChange={(e) => setOpcaoPagamento(e.target.value as any)}><option value="À VISTA">À VISTA</option><option value="A PRAZO">A PRAZO</option></Select></FormControl>
                 <FormControl isRequired={opcaoPagamento === 'A PRAZO'} flex={1}><FormLabel>Data de Vencimento</FormLabel><Input type="date" {...register('data_vencimento')} isDisabled={opcaoPagamento === 'À VISTA'} /></FormControl>
               </Flex>
               <Box p={4} borderWidth={1} borderRadius="md" mt={4}>
-                <Heading size="sm" mb={3}>Adicionar Produtos</Heading>
+                 <Heading size="sm" mb={3}>Adicionar Produtos</Heading>
                 <Flex direction={flexDir} gap={2} align="flex-end">
                   <FormControl flex={3}><FormLabel>Produto</FormLabel><Select placeholder="Selecione..." {...register('produto_selecionado_id')}>{produtos?.dados.map((p: IProduto) => <option key={p.id} value={p.id}>{p.nome}</option>)}</Select></FormControl>
                   <FormControl flex={1}><FormLabel>Qtd/Peso</FormLabel><Controller name="quantidade" control={control} render={({ field }) => <NumberInput {...field} min={0.001}><NumberInputField /></NumberInput>} /></FormControl>
@@ -186,22 +182,20 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
           </DrawerBody>
           <DrawerFooter borderTopWidth="1px"><Button variant="outline" mr={3} onClick={onClose}>Cancelar</Button><Button colorScheme="teal" type="submit" isLoading={mutation.isPending}>Salvar Venda</Button></DrawerFooter>
         </form>
-      </DrawerContent>
+       </DrawerContent>
     </Drawer>
   );
 };
 
-// --- COMPONENTE DO FORMULÁRIO DE DESPESA (ATUALIZADO PARA RESPONSIVIDADE) ---
+// --- COMPONENTE DO FORMULÁRIO DE DESPESA (SEM MUDANÇAS) ---
 const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen: boolean; onClose: () => void; despesaParaEditar: IDespesa | null }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
   
   const drawerSize = useBreakpointValue({ base: 'full', md: 'md' });
-
   const { register, handleSubmit, control, reset, formState: { errors } } = useForm<IDespesaForm>();
-
-  const { data: fornecedores } = useQuery<IFornecedor[]>({ queryKey: ['todosFornecedores'], queryFn: getFornecedores, enabled: isOpen });
-
+  const { data: fornecedores } = useQuery<IPaginatedResponse<IFornecedor>>({ queryKey: ['todosFornecedores'], queryFn: () => getFornecedores(1, 1000), enabled: isOpen });
+  
   const mutation = useMutation({
     mutationFn: (data: { despesaData: IDespesaForm, id?: number }) =>
       data.id ? updateDespesa({ id: data.id, data: data.despesaData }) : registrarDespesa(data.despesaData),
@@ -249,7 +243,7 @@ const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen:
               <FormControl isRequired isInvalid={!!errors.valor}><FormLabel>Valor (R$)</FormLabel><Controller name="valor" control={control} rules={{ required: 'Valor é obrigatório', min: { value: 0.01, message: 'Valor deve ser maior que zero' } }} render={({ field }) => <NumberInput {...field} onChange={(_, valAsNumber) => field.onChange(valAsNumber)} value={field.value as number} min={0.01} precision={2}><NumberInputField /></NumberInput>} /><FormErrorMessage>{errors.valor?.message}</FormErrorMessage></FormControl>
               <FormControl isRequired isInvalid={!!errors.discriminacao}><FormLabel>Discriminação (Detalhes)</FormLabel><Textarea placeholder="Detalhes da despesa..." {...register('discriminacao', { required: 'A descrição é obrigatória' })} /><FormErrorMessage>{errors.discriminacao?.message}</FormErrorMessage></FormControl>
               <FormControl isRequired isInvalid={!!errors.data_vencimento}><FormLabel>Data de Vencimento</FormLabel><Input type="date" {...register('data_vencimento', { required: 'Data de vencimento é obrigatória' })} /><FormErrorMessage>{errors.data_vencimento?.message}</FormErrorMessage></FormControl>
-              <FormControl><FormLabel>Fornecedor/Credor (Opcional)</FormLabel><Select placeholder="Selecione um fornecedor" {...register('fornecedor_id')}>{fornecedores?.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}</Select></FormControl>
+              <FormControl><FormLabel>Fornecedor/Credor (Opcional)</FormLabel><Select placeholder="Selecione um fornecedor" {...register('fornecedor_id')}>{fornecedores?.dados.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}</Select></FormControl>
             </VStack>
           </DrawerBody>
           <DrawerFooter borderTopWidth="1px"><Button variant="outline" mr={3} onClick={onClose}>Cancelar</Button><Button colorScheme="red" type="submit" isLoading={mutation.isPending}>Salvar Despesa</Button></DrawerFooter>
@@ -258,16 +252,16 @@ const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen:
     </Drawer>
   );
 };
-// --- COMPONENTES DE TABELA (JÁ RESPONSIVOS) ---
+
+// --- COMPONENTE TABELA VENDAS (SEM MUDANÇAS) ---
 const TabelaVendas = ({ onEdit, onDelete }: { onEdit: (venda: IVenda) => void; onDelete: (id: number) => void; }) => {
   const [pagina, setPagina] = useState(1);
   const { data, isLoading, isError } = useQuery({ queryKey: ['vendas', pagina], queryFn: () => getVendas(pagina, 10), placeholderData: keepPreviousData });
-  
   const isMobile = useBreakpointValue({ base: true, md: false });
 
   if (isLoading) return <Center p={10}><Spinner size="xl" /></Center>;
   if (isError) return <Center p={10}><Text color="red.500">Não foi possível carregar as vendas.</Text></Center>;
-
+  
   if (isMobile) {
     return (
       <>
@@ -295,7 +289,7 @@ const TabelaVendas = ({ onEdit, onDelete }: { onEdit: (venda: IVenda) => void; o
               <HStack justify="space-between" mt={2}>
                 <Text fontWeight="bold">Total:</Text>
                 <Text fontWeight="bold" color="teal.500">
-                  {venda.valor_total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                 {venda.valor_total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </Text>
               </HStack>
             </Box>
@@ -321,7 +315,7 @@ const TabelaVendas = ({ onEdit, onDelete }: { onEdit: (venda: IVenda) => void; o
               <IconButton aria-label="Editar" icon={<FiEdit />} size="sm" onClick={() => onEdit(venda)} />
               <IconButton aria-label="Excluir" icon={<FiTrash2 />} size="sm" colorScheme="red" onClick={() => onDelete(venda.id)} />
             </HStack></Td>
-          </Tr>))}</Tbody>
+           </Tr>))}</Tbody>
         </Table>
       </TableContainer>
       <Pagination paginaAtual={data?.pagina || 1} totalPaginas={data?.totalPaginas || 1} onPageChange={setPagina} />
@@ -329,83 +323,93 @@ const TabelaVendas = ({ onEdit, onDelete }: { onEdit: (venda: IVenda) => void; o
   );
 };
 
+// --- COMPONENTE TABELA DESPESAS (COM MUDANÇAS) ---
 const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => void; onDelete: (id: number) => void; }) => {
-  const { data, isLoading, isError } = useQuery<IDespesa[]>({ queryKey: ['despesas'], queryFn: getDespesas });
+  const [pagina, setPagina] = useState(1); // 1. Adicionar estado de paginação
+  const { data, isLoading, isError } = useQuery({ // 2. Alterar a query
+    queryKey: ['despesas', pagina], 
+    queryFn: () => getDespesas(pagina, 10),
+    placeholderData: keepPreviousData,
+  });
   const { user } = useAuth();
   const isAdmin = user?.perfil === 'ADMIN';
-  
   const isMobile = useBreakpointValue({ base: true, md: false });
 
   if (isLoading) return <Center p={10}><Spinner size="xl" /></Center>;
   if (isError) return <Center p={10}><Text color="red.500">Não foi possível carregar as despesas.</Text></Center>;
   
   if (isMobile) {
-    return (
-      <VStack spacing={4} align="stretch" mt={4}>
-        {data?.map((despesa) => (
-          <Box key={despesa.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
-            <Flex justify="space-between" align="center">
-              <Heading size="sm" noOfLines={1}>{despesa.discriminacao}</Heading>
-              {isAdmin && (
-                <HStack spacing={1}>
-                  <IconButton aria-label="Editar" icon={<FiEdit />} size="sm" onClick={() => onEdit(despesa)} />
-                  <IconButton aria-label="Excluir" icon={<FiTrash2 />} size="sm" colorScheme="red" onClick={() => onDelete(despesa.id)} />
-                </HStack>
-              )}
-            </Flex>
-            <Text fontSize="sm" color="gray.400" mt={1}>{despesa.tipo_saida}</Text>
-            <Divider my={2} />
-            <HStack justify="space-between">
-              <Text fontSize="sm" color="gray.500">Vencimento:</Text>
-              <Text>{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Text>
-            </HStack>
-            <HStack justify="space-between">
-              <Text fontSize="sm" color="gray.500">Status:</Text>
-              <Badge colorScheme={despesa.data_pagamento ? 'green' : 'orange'}>
-                {despesa.data_pagamento ? 'Pago' : 'Pendente'}
-              </Badge>
-            </HStack>
-            <HStack justify="space-between" mt={2}>
-              <Text fontWeight="bold">Valor:</Text>
-              <Text fontWeight="bold" color="red.500">
-                {despesa.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-              </Text>
-            </HStack>
-          </Box>
-        ))}
-      </VStack>
+    return ( // 3. Adicionar fragmento e paginação
+      <>
+        <VStack spacing={4} align="stretch" mt={4}>
+          {data?.dados.map((despesa) => ( // 4. Mapear sobre data.dados
+            <Box key={despesa.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
+              <Flex justify="space-between" align="center">
+                <Heading size="sm" noOfLines={1}>{despesa.discriminacao}</Heading>
+                {isAdmin && (
+                   <HStack spacing={1}>
+                    <IconButton aria-label="Editar" icon={<FiEdit />} size="sm" onClick={() => onEdit(despesa)} />
+                    <IconButton aria-label="Excluir" icon={<FiTrash2 />} size="sm" colorScheme="red" onClick={() => onDelete(despesa.id)} />
+                  </HStack>
+                )}
+              </Flex>
+               <Text fontSize="sm" color="gray.400" mt={1}>{despesa.tipo_saida}</Text>
+              <Divider my={2} />
+              <HStack justify="space-between">
+                <Text fontSize="sm" color="gray.500">Vencimento:</Text>
+                <Text>{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Text>
+              </HStack>
+              <HStack justify="space-between">
+                <Text fontSize="sm" color="gray.500">Status:</Text>
+                <Badge colorScheme={despesa.data_pagamento ? 'green' : 'orange'}>
+                  {despesa.data_pagamento ? 'Pago' : 'Pendente'}
+                </Badge>
+              </HStack>
+              <HStack justify="space-between" mt={2}>
+                <Text fontWeight="bold">Valor:</Text>
+                <Text fontWeight="bold" color="red.500">
+                  {despesa.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </Text>
+              </HStack>
+            </Box>
+          ))}
+        </VStack>
+        <Pagination paginaAtual={data?.pagina || 1} totalPaginas={data?.totalPaginas || 1} onPageChange={setPagina} />
+      </>
     );
   }
 
-  return (
-    <TableContainer>
-      <Table variant="striped">
-        <Thead><Tr><Th>Vencimento</Th><Th>Discriminação</Th><Th>Tipo</Th><Th>Status</Th><Th isNumeric>Valor</Th>{isAdmin && <Th>Ações</Th>}</Tr></Thead>
-        <Tbody>{data?.map((despesa) => (
-          <Tr key={despesa.id}>
-            <Td>{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
-            <Td>{despesa.discriminacao}</Td>
-            <Td>{despesa.tipo_saida}</Td>
-            <Td><Badge colorScheme={despesa.data_pagamento ? 'green' : 'orange'}>{despesa.data_pagamento ? 'Pago' : 'Pendente'}</Badge></Td>
-            <Td isNumeric>{despesa.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
-            {isAdmin && (<Td><HStack spacing={2}>
-              <IconButton aria-label="Editar" icon={<FiEdit />} size="sm" onClick={() => onEdit(despesa)} />
-              <IconButton aria-label="Excluir" icon={<FiTrash2 />} size="sm" colorScheme="red" onClick={() => onDelete(despesa.id)} />
-            </HStack></Td>)}
-          </Tr>
-        ))}</Tbody>
-      </Table>
-    </TableContainer>
+  return ( // 3. Adicionar fragmento e paginação
+    <>
+      <TableContainer>
+        <Table variant="striped">
+          <Thead><Tr><Th>Vencimento</Th><Th>Discriminação</Th><Th>Tipo</Th><Th>Status</Th><Th isNumeric>Valor</Th>{isAdmin && <Th>Ações</Th>}</Tr></Thead>
+          <Tbody>{data?.dados.map((despesa) => ( // 4. Mapear sobre data.dados
+            <Tr key={despesa.id}>
+              <Td>{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
+              <Td>{despesa.discriminacao}</Td>
+              <Td>{despesa.tipo_saida}</Td>
+              <Td><Badge colorScheme={despesa.data_pagamento ? 'green' : 'orange'}>{despesa.data_pagamento ? 'Pago' : 'Pendente'}</Badge></Td>
+              <Td isNumeric>{despesa.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
+              {isAdmin && (<Td><HStack spacing={2}>
+                <IconButton aria-label="Editar" icon={<FiEdit />} size="sm" onClick={() => onEdit(despesa)} />
+                <IconButton aria-label="Excluir" icon={<FiTrash2 />} size="sm" colorScheme="red" onClick={() => onDelete(despesa.id)} />
+              </HStack></Td>)}
+             </Tr>
+          ))}</Tbody>
+        </Table>
+      </TableContainer>
+      <Pagination paginaAtual={data?.pagina || 1} totalPaginas={data?.totalPaginas || 1} onPageChange={setPagina} />
+    </>
   );
 };
 
-// --- PÁGINA PRINCIPAL DE MOVIMENTAÇÕES ---
+// --- PÁGINA PRINCIPAL DE MOVIMENTAÇÕES (SEM MUDANÇAS) ---
 const MovimentacoesPage = () => {
   const { user } = useAuth();
   const isAdmin = user?.perfil === 'ADMIN';
   const queryClient = useQueryClient();
   const toast = useToast();
-
   const { isOpen: isVendaDrawerOpen, onOpen: onVendaDrawerOpen, onClose: onVendaDrawerClose } = useDisclosure();
   const { isOpen: isDespesaDrawerOpen, onOpen: onDespesaDrawerOpen, onClose: onDespesaDrawerClose } = useDisclosure();
   const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure();
@@ -417,13 +421,13 @@ const MovimentacoesPage = () => {
 
   const deleteVendaMutation = useMutation({ mutationFn: deleteVenda, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['vendas'] }); toast({ title: 'Venda excluída!', status: 'success' }); onConfirmClose(); } });
   const deleteDespesaMutation = useMutation({ mutationFn: deleteDespesa, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['despesas'] }); toast({ title: 'Despesa excluída!', status: 'success' }); onConfirmClose(); } });
-
+  
   const handleEditVenda = (venda: IVenda) => { setVendaParaEditar(venda); onVendaDrawerOpen(); };
   const handleEditDespesa = (despesa: IDespesa) => { setDespesaParaEditar(despesa); onDespesaDrawerOpen(); };
   const handleAddNewVenda = () => { setVendaParaEditar(null); onVendaDrawerOpen(); };
   const handleAddNewDespesa = () => { setDespesaParaEditar(null); onDespesaDrawerOpen(); };
-
   const handleDeleteClick = (id: number, tipo: 'venda' | 'despesa') => { setItemParaDeletar({ id, tipo }); onConfirmOpen(); };
+  
   const handleConfirmDelete = () => {
     if (!itemParaDeletar) return;
     if (itemParaDeletar.tipo === 'venda') {
@@ -443,14 +447,14 @@ const MovimentacoesPage = () => {
         <TabPanels>
           <TabPanel>
             <Flex justify="space-between" mb={4} direction={{ base: 'column', md: 'row' }} gap={4}>
-              <Heading size="md">Histórico de Vendas</Heading>
+               <Heading size="md">Histórico de Vendas</Heading>
               <Button leftIcon={<FiPlus />} colorScheme="teal" onClick={handleAddNewVenda}>Registrar Venda</Button>
             </Flex>
             <TabelaVendas onEdit={handleEditVenda} onDelete={(id) => handleDeleteClick(id, 'venda')} />
           </TabPanel>
           
           {isAdmin && (
-            <TabPanel>
+           <TabPanel>
               <Flex justify="space-between" mb={4} direction={{ base: 'column', md: 'row' }} gap={4}>
                 <Heading size="md">Histórico de Despesas</Heading>
                 <Button leftIcon={<FiPlus />} colorScheme="red" onClick={handleAddNewDespesa}>Registrar Despesa</Button>
@@ -468,7 +472,7 @@ const MovimentacoesPage = () => {
       )}
 
       <AlertDialog isOpen={isConfirmOpen} leastDestructiveRef={cancelRef} onClose={onConfirmClose}>
-        <AlertDialogOverlay><AlertDialogContent>
+         <AlertDialogOverlay><AlertDialogContent>
           <AlertDialogHeader fontSize="lg" fontWeight="bold">Confirmar Exclusão</AlertDialogHeader>
           <AlertDialogBody>Tem certeza que deseja excluir este lançamento? Esta ação não pode ser desfeita.</AlertDialogBody>
           <AlertDialogFooter>

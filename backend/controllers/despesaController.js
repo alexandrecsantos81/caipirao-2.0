@@ -1,11 +1,12 @@
 const pool = require('../db');
 
-// @desc    Registrar uma nova despesa
-// @route   POST /api/despesas
-// @access  Protegido
+/**
+ * @desc    Registrar uma nova despesa
+ * @route   POST /api/despesas
+ * @access  Protegido (Admin)
+ */
 const registrarDespesa = async (req, res) => {
     const { tipo_saida, valor, discriminacao, data_vencimento, fornecedor_id } = req.body;
-
     if (!tipo_saida || !valor || !discriminacao || !data_vencimento) {
         return res.status(400).json({ error: 'Campos obrigatórios: tipo, valor, discriminação e vencimento.' });
     }
@@ -24,29 +25,52 @@ const registrarDespesa = async (req, res) => {
     }
 };
 
-// @desc    Listar despesas (com filtros)
-// @route   GET /api/despesas
-// @access  Protegido
+/**
+ * @desc    Listar despesas com paginação
+ * @route   GET /api/despesas
+ * @access  Protegido
+ */
 const getDespesas = async (req, res) => {
+    const { pagina = 1, limite = 10 } = req.query;
+
     try {
-        const resultado = await pool.query(`
+        const totalPromise = pool.query('SELECT COUNT(*) FROM despesas');
+
+        const offset = (pagina - 1) * limite;
+        const despesasPromise = pool.query(`
             SELECT 
                 d.*, 
                 f.nome as nome_fornecedor 
             FROM despesas d
             LEFT JOIN fornecedores f ON d.fornecedor_id = f.id
             ORDER BY d.data_vencimento DESC
-        `);
-        res.status(200).json(resultado.rows);
+            LIMIT $1 OFFSET $2
+        `, [limite, offset]);
+        
+        const [totalResult, despesasResult] = await Promise.all([totalPromise, despesasPromise]);
+
+        const totalItens = parseInt(totalResult.rows[0].count, 10);
+        const totalPaginas = Math.ceil(totalItens / limite);
+
+        res.status(200).json({
+            dados: despesasResult.rows,
+            total: totalItens,
+            pagina: parseInt(pagina, 10),
+            limite: parseInt(limite, 10),
+            totalPaginas,
+        });
+
     } catch (error) {
         console.error('Erro ao buscar despesas:', error);
         res.status(500).json({ error: 'Erro interno do servidor.' });
     }
 };
 
-// @desc    Quitar uma despesa
-// @route   PUT /api/despesas/:id/quitar
-// @access  Protegido (Admin)
+/**
+ * @desc    Quitar uma despesa
+ * @route   PUT /api/despesas/:id/quitar
+ * @access  Protegido (Admin)
+ */
 const quitarDespesa = async (req, res) => {
     const { id } = req.params;
     const { data_pagamento, responsavel_pagamento_id } = req.body;
@@ -57,7 +81,6 @@ const quitarDespesa = async (req, res) => {
     }
     
     const responsavelId = responsavel_pagamento_id || userIdFromToken;
-
     try {
         const despesaQuitada = await pool.query(
             `UPDATE despesas 
@@ -78,9 +101,11 @@ const quitarDespesa = async (req, res) => {
     }
 };
 
-// @desc    Listar despesas a pagar (para o card de notificações)
-// @route   GET /api/despesas/a-pagar
-// @access  Protegido
+/**
+ * @desc    Listar despesas a pagar (para o card de notificações)
+ * @route   GET /api/despesas/a-pagar
+ * @access  Protegido
+ */
 const getDespesasAPagar = async (req, res) => {
     try {
         const resultado = await pool.query(`
@@ -110,7 +135,6 @@ const getDespesasAPagar = async (req, res) => {
 const updateDespesa = async (req, res) => {
     const { id } = req.params;
     const { tipo_saida, valor, discriminacao, data_vencimento, fornecedor_id } = req.body;
-
     if (!tipo_saida || !valor || !discriminacao || !data_vencimento) {
         return res.status(400).json({ error: 'Campos obrigatórios: tipo, valor, discriminação e vencimento.' });
     }
@@ -153,7 +177,6 @@ const deleteDespesa = async (req, res) => {
     }
 };
 
-// CORREÇÃO: Garantindo que todas as funções sejam exportadas.
 module.exports = {
     registrarDespesa,
     getDespesas,

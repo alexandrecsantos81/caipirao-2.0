@@ -9,7 +9,6 @@ const crypto = require('crypto');
  */
 const createUtilizadorByAdmin = async (req, res) => {
     const { nome, email, telefone, nickname, senha, perfil } = req.body;
-
     if (!nome || !email || !nickname || !senha || !perfil) {
         return res.status(400).json({ error: 'Todos os campos são obrigatórios: nome, email, nickname, senha e perfil.' });
     }
@@ -24,7 +23,6 @@ const createUtilizadorByAdmin = async (req, res) => {
              RETURNING id, nome, email, telefone, nickname, perfil, status`,
             [nome, email, telefone, nickname, senhaCriptografada, perfil]
         );
-
         res.status(201).json(novoUtilizador.rows[0]);
     } catch (error) {
         if (error.code === '23505') { // Violação de chave única
@@ -43,7 +41,6 @@ const createUtilizadorByAdmin = async (req, res) => {
  */
 const solicitarAcesso = async (req, res) => {
     const { nome, email, telefone } = req.body;
-
     if (!nome || !email || !telefone) {
         return res.status(400).json({ error: 'Nome, email e telefone são obrigatórios.' });
     }
@@ -55,7 +52,6 @@ const solicitarAcesso = async (req, res) => {
              RETURNING id, nome, email, status`,
             [nome, email, telefone]
         );
-
         res.status(201).json({ 
             message: 'Solicitação de acesso enviada com sucesso! Um administrador irá revisar seus dados.',
             solicitacao: novaSolicitacao.rows[0]
@@ -86,7 +82,6 @@ const ativarUtilizador = async (req, res) => {
         const senhaProvisoria = crypto.randomBytes(4).toString('hex');
         const salt = await bcrypt.genSalt(10);
         const senhaCriptografada = await bcrypt.hash(senhaProvisoria, salt);
-
         const resultado = await pool.query(
             `UPDATE utilizadores
              SET status = 'ATIVO', perfil = $1, senha = $2
@@ -105,7 +100,6 @@ const ativarUtilizador = async (req, res) => {
             utilizador: utilizadorAtivado,
             senhaProvisoria: senhaProvisoria
         });
-
     } catch (error) {
         console.error('Erro ao ativar utilizador:', error);
         res.status(500).json({ error: 'Erro interno do servidor.' });
@@ -113,18 +107,38 @@ const ativarUtilizador = async (req, res) => {
 };
 
 /**
- * @desc    Admin busca todos os utilizadores.
+ * @desc    Admin busca todos os utilizadores com paginação
  * @route   GET /api/utilizadores
  * @access  Admin
  */
 const getUtilizadores = async (req, res) => {
+    const { pagina = 1, limite = 10 } = req.query;
+    
     try {
-        const resultado = await pool.query(
+        const totalPromise = pool.query('SELECT COUNT(*) FROM utilizadores');
+        
+        const offset = (pagina - 1) * limite;
+        const utilizadoresPromise = pool.query(
             `SELECT id, nome, email, telefone, nickname, perfil, status 
              FROM utilizadores 
-             ORDER BY nome ASC`
+             ORDER BY nome ASC
+             LIMIT $1 OFFSET $2`,
+             [limite, offset]
         );
-        res.status(200).json(resultado.rows);
+
+        const [totalResult, utilizadoresResult] = await Promise.all([totalPromise, utilizadoresPromise]);
+        
+        const totalItens = parseInt(totalResult.rows[0].count, 10);
+        const totalPaginas = Math.ceil(totalItens / limite);
+
+        res.status(200).json({
+            dados: utilizadoresResult.rows,
+            total: totalItens,
+            pagina: parseInt(pagina, 10),
+            limite: parseInt(limite, 10),
+            totalPaginas,
+        });
+
     } catch (error) {
         console.error('Erro ao buscar utilizadores:', error);
         res.status(500).json({ error: 'Erro interno do servidor.' });
@@ -139,7 +153,6 @@ const getUtilizadores = async (req, res) => {
 const updateUtilizador = async (req, res) => {
     const { id } = req.params;
     const { nome, email, telefone, nickname, perfil, status } = req.body;
-
     if (!nome || !email || !perfil || !status) {
         return res.status(400).json({ error: 'Campos obrigatórios: nome, email, perfil e status.' });
     }
@@ -186,7 +199,7 @@ const deleteUtilizador = async (req, res) => {
 };
 
 module.exports = {
-    createUtilizadorByAdmin, // <-- Adicionada
+    createUtilizadorByAdmin,
     solicitarAcesso,
     ativarUtilizador,
     getUtilizadores,

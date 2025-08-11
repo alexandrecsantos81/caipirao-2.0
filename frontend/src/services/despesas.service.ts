@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { IPaginatedResponse } from '@/types/common.types'; // Importação centralizada
+import { IPaginatedResponse } from '@/types/common.types';
 
 // Configuração do cliente Axios
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -20,8 +20,8 @@ apiClient.interceptors.request.use(
 // --- INTERFACES ---
 
 export const tiposDeSaida = [
-    "Insumos de Produção", "Mão de Obra", "Materiais e Embalagens",
-    "Despesas Operacionais", "Encargos e Tributos", "Despesas Administrativas",
+    "Insumos de Produção", "Mão de Obra", "Materiais e Embalagens", 
+    "Despesas Operacionais", "Encargos e Tributos", "Despesas Administrativas", 
     "Financeiras", "Remuneração de Sócios", "Outros"
 ] as const;
 
@@ -101,9 +101,11 @@ export const quitarDespesa = async ({ id, quitacaoData }: { id: number, quitacao
 };
 
 /**
- * @description Busca a lista completa de despesas.
+ * @description Busca a lista paginada de despesas.
  */
-export const getDespesas = async (): Promise<IDespesa[]> => {
-    const response = await apiClient.get('/');
+export const getDespesas = async (pagina = 1, limite = 10): Promise<IPaginatedResponse<IDespesa>> => {
+    const response = await apiClient.get('/', {
+        params: { pagina, limite }
+    });
     return response.data;
 };

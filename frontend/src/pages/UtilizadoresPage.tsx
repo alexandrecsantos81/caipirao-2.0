@@ -7,30 +7,26 @@ import {
   Center,
   useBreakpointValue,
   Divider,
-  Icon, // Adicionado
-  Heading, // Adicionado
+  Heading,
 } from '@chakra-ui/react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { FiEdit, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { useState, useRef, useEffect } from 'react';
-
 import {
   IUtilizador, IUpdateUtilizadorForm, getUtilizadores, updateUtilizador, deleteUtilizador,
   ICreateUtilizadorForm, createUtilizador,
 } from '../services/utilizador.service';
 import { useAuth } from '../hooks/useAuth';
+import { Pagination } from '../components/Pagination'; // 1. Importar
 
-// --- COMPONENTE: FORMULÁRIO DE ADICIONAR UTILIZADOR (ATUALIZADO) ---
+// --- COMPONENTES DE FORMULÁRIO (SEM MUDANÇAS) ---
 const FormularioAdicionarUtilizador = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ICreateUtilizadorForm>();
-
-  // 2. HOOK PARA AJUSTE RESPONSIVO
   const drawerSize = useBreakpointValue({ base: 'full', md: 'md' });
-
   const mutation = useMutation({
     mutationFn: createUtilizador,
     onSuccess: () => {
@@ -42,17 +38,14 @@ const FormularioAdicionarUtilizador = ({ isOpen, onClose }: { isOpen: boolean; o
       toast({ title: 'Erro ao criar utilizador', description: error.response?.data?.error || error.message, status: 'error', duration: 5000, isClosable: true });
     }
   });
-
   useEffect(() => {
     if (!isOpen) {
       reset();
     }
   }, [isOpen, reset]);
-
   const onSubmit: SubmitHandler<ICreateUtilizadorForm> = (data) => {
     mutation.mutate(data);
   };
-
   return (
     <Drawer isOpen={isOpen} placement="right" onClose={onClose} size={drawerSize}>
       <DrawerOverlay />
@@ -79,15 +72,11 @@ const FormularioAdicionarUtilizador = ({ isOpen, onClose }: { isOpen: boolean; o
     </Drawer>
   );
 };
-
-// --- COMPONENTE: FORMULÁRIO DE EDITAR UTILIZADOR (ATUALIZADO) ---
 const FormularioEditarUtilizador = ({ isOpen, onClose, utilizador }: { isOpen: boolean; onClose: () => void; utilizador: IUtilizador | null; }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<IUpdateUtilizadorForm>();
-
   const drawerSize = useBreakpointValue({ base: 'full', md: 'md' });
-
   useEffect(() => {
     if (utilizador) {
       setValue('nome', utilizador.nome);
@@ -100,7 +89,6 @@ const FormularioEditarUtilizador = ({ isOpen, onClose, utilizador }: { isOpen: b
       setValue('status', utilizador.status);
     }
   }, [utilizador, setValue]);
-
   const mutation = useMutation({
     mutationFn: (data: IUpdateUtilizadorForm) => updateUtilizador({ id: utilizador!.id, data }),
     onSuccess: () => {
@@ -112,11 +100,9 @@ const FormularioEditarUtilizador = ({ isOpen, onClose, utilizador }: { isOpen: b
       toast({ title: 'Erro ao atualizar', description: error.response?.data?.error || error.message, status: 'error', duration: 5000, isClosable: true });
     }
   });
-
   const onSubmit: SubmitHandler<IUpdateUtilizadorForm> = (data) => {
     mutation.mutate(data);
   };
-
   return (
     <Drawer isOpen={isOpen} placement="right" onClose={onClose} size={drawerSize}>
       <DrawerOverlay />
@@ -143,7 +129,7 @@ const FormularioEditarUtilizador = ({ isOpen, onClose, utilizador }: { isOpen: b
   );
 };
 
-// --- PÁGINA PRINCIPAL DE GESTÃO DE UTILIZADORES (ATUALIZADA) ---
+// --- PÁGINA PRINCIPAL DE GESTÃO DE UTILIZADORES ---
 const UtilizadoresPage = () => {
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
@@ -153,14 +139,15 @@ const UtilizadoresPage = () => {
   const { isOpen: isDeleteAlertOpen, onOpen: onDeleteAlertOpen, onClose: onDeleteAlertClose } = useDisclosure();
   
   const [selectedUser, setSelectedUser] = useState<IUtilizador | null>(null);
+  const [pagina, setPagina] = useState(1); // 2. Adicionar estado de paginação
   const cancelRef = useRef<HTMLButtonElement>(null);
-
-  // 3. HOOK PARA RESPONSIVIDADE
   const isMobile = useBreakpointValue({ base: true, md: false });
 
-  const { data: utilizadores, isLoading, isError } = useQuery<IUtilizador[]>({
-    queryKey: ['utilizadores'],
-    queryFn: getUtilizadores,
+  // 3. Atualizar a query
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['utilizadores', pagina],
+    queryFn: () => getUtilizadores(pagina, 10),
+    placeholderData: keepPreviousData
   });
 
   const updateStatusMutation = useMutation({
@@ -197,12 +184,10 @@ const UtilizadoresPage = () => {
     setSelectedUser(user);
     onEditDrawerOpen();
   };
-
   const handleDeleteClick = (user: IUtilizador) => {
     setSelectedUser(user);
     onDeleteAlertOpen();
   };
-
   const handleConfirmDelete = () => {
     if (selectedUser) {
       deleteMutation.mutate(selectedUser.id);
@@ -225,11 +210,11 @@ const UtilizadoresPage = () => {
           Adicionar Utilizador
         </Button>
       </Flex>
-
-      {/* 4. RENDERIZAÇÃO CONDICIONAL */}
+      
+      {/* 4. Mapear sobre 'data.dados' */}
       {isMobile ? (
         <VStack spacing={4} align="stretch">
-          {utilizadores?.map((user) => (
+          {data?.dados.map((user) => (
             <Box key={user.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
               <Flex justify="space-between" align="center">
                 <Heading size="sm" noOfLines={1}>{user.nome}</Heading>
@@ -246,7 +231,7 @@ const UtilizadoresPage = () => {
                 <Text>{user.telefone}</Text>
               </HStack>
               <HStack mt={4} justify="space-around" bg="gray.700" p={2} borderRadius="md">
-                <Tooltip label={user.status === 'ATIVO' ? 'Desativar' : 'Ativar'}><Box><Switch isChecked={user.status === 'ATIVO'} onChange={() => updateStatusMutation.mutate(user)} isDisabled={user.id === currentUser?.id} /></Box></Tooltip>
+                 <Tooltip label={user.status === 'ATIVO' ? 'Desativar' : 'Ativar'}><Box><Switch isChecked={user.status === 'ATIVO'} onChange={() => updateStatusMutation.mutate(user)} isDisabled={user.id === currentUser?.id} /></Box></Tooltip>
                 <Tooltip label="WhatsApp"><IconButton as={Link} href={`https://wa.me/55${user.telefone.replace(/\D/g, ''  )}`} target="_blank" aria-label="WhatsApp" icon={<FaWhatsapp />} variant="ghost" /></Tooltip>
                 <Tooltip label="Editar"><IconButton aria-label="Editar" icon={<FiEdit />} variant="ghost" onClick={() => handleEditClick(user)} /></Tooltip>
                 <Tooltip label="Excluir"><IconButton aria-label="Excluir" icon={<FiTrash2 />} variant="ghost" colorScheme="red" onClick={() => handleDeleteClick(user)} isDisabled={user.id === currentUser?.id} /></Tooltip>
@@ -259,7 +244,7 @@ const UtilizadoresPage = () => {
           <Table variant="striped">
             <Thead><Tr><Th>Nome</Th><Th>Contato</Th><Th>Perfil</Th><Th>Status</Th><Th>Ações</Th></Tr></Thead>
             <Tbody>
-              {utilizadores?.map((user) => (
+               {data?.dados.map((user) => (
                 <Tr key={user.id}>
                   <Td fontWeight="medium">{user.nome}</Td>
                   <Td><VStack align="start" spacing={0}><Text>{user.email}</Text><Text fontSize="sm" color="gray.500">{user.telefone}</Text></VStack></Td>
@@ -276,9 +261,16 @@ const UtilizadoresPage = () => {
                 </Tr>
               ))}
             </Tbody>
-          </Table>
+           </Table>
         </TableContainer>
       )}
+
+      {/* 5. Adicionar o componente de Paginação */}
+      <Pagination
+        paginaAtual={data?.pagina || 1}
+        totalPaginas={data?.totalPaginas || 1}
+        onPageChange={setPagina}
+      />
 
       <FormularioAdicionarUtilizador isOpen={isAddDrawerOpen} onClose={onAddDrawerClose} />
       <FormularioEditarUtilizador isOpen={isEditDrawerOpen} onClose={onEditDrawerClose} utilizador={selectedUser} />

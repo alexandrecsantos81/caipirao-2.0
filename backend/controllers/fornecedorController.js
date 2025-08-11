@@ -1,21 +1,46 @@
 const pool = require('../db');
 
-// @desc    Listar todos os fornecedores
-// @route   GET /api/fornecedores
-// @access  Protegido
+/**
+ * @desc    Listar todos os fornecedores com paginação
+ * @route   GET /api/fornecedores
+ * @access  Protegido
+ */
 const getFornecedores = async (req, res) => {
+    const { pagina = 1, limite = 10 } = req.query;
+
     try {
-        const resultado = await pool.query('SELECT * FROM fornecedores ORDER BY nome ASC');
-        res.status(200).json(resultado.rows);
+        const totalPromise = pool.query('SELECT COUNT(*) FROM fornecedores');
+        
+        const offset = (pagina - 1) * limite;
+        const fornecedoresPromise = pool.query(
+            'SELECT * FROM fornecedores ORDER BY nome ASC LIMIT $1 OFFSET $2',
+            [limite, offset]
+        );
+
+        const [totalResult, fornecedoresResult] = await Promise.all([totalPromise, fornecedoresPromise]);
+
+        const totalItens = parseInt(totalResult.rows[0].count, 10);
+        const totalPaginas = Math.ceil(totalItens / limite);
+
+        res.status(200).json({
+            dados: fornecedoresResult.rows,
+            total: totalItens,
+            pagina: parseInt(pagina, 10),
+            limite: parseInt(limite, 10),
+            totalPaginas,
+        });
+
     } catch (error) {
         console.error('Erro ao buscar fornecedores:', error);
         res.status(500).json({ error: 'Erro interno do servidor.' });
     }
 };
 
-// @desc    Criar um novo fornecedor
-// @route   POST /api/fornecedores
-// @access  Protegido
+/**
+ * @desc    Criar um novo fornecedor
+ * @route   POST /api/fornecedores
+ * @access  Protegido
+ */
 const createFornecedor = async (req, res) => {
     const { nome, cnpj_cpf, telefone, email, endereco } = req.body;
     if (!nome) {
@@ -36,9 +61,11 @@ const createFornecedor = async (req, res) => {
     }
 };
 
-// @desc    Atualizar um fornecedor
-// @route   PUT /api/fornecedores/:id
-// @access  Protegido
+/**
+ * @desc    Atualizar um fornecedor
+ * @route   PUT /api/fornecedores/:id
+ * @access  Protegido
+ */
 const updateFornecedor = async (req, res) => {
     const { id } = req.params;
     const { nome, cnpj_cpf, telefone, email, endereco } = req.body;
@@ -63,9 +90,11 @@ const updateFornecedor = async (req, res) => {
     }
 };
 
-// @desc    Deletar um fornecedor
-// @route   DELETE /api/fornecedores/:id
-// @access  Protegido (Admin)
+/**
+ * @desc    Deletar um fornecedor
+ * @route   DELETE /api/fornecedores/:id
+ * @access  Protegido (Admin)
+ */
 const deleteFornecedor = async (req, res) => {
     const { id } = req.params;
     try {

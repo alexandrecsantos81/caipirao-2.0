@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { IPaginatedResponse } from '@/types/common.types';
 
 // Configuração do cliente Axios
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -30,14 +31,15 @@ export interface IFornecedor {
 // Para formulários, os campos opcionais podem ser string vazia
 export type IFornecedorForm = Omit<IFornecedor, 'id'>;
 
-
 // --- FUNÇÕES DO SERVIÇO ---
 
 /**
- * @description Busca a lista completa de fornecedores.
+ * @description Busca a lista paginada de fornecedores.
  */
-export const getFornecedores = async (): Promise<IFornecedor[]> => {
-  const response = await apiClient.get('/');
+export const getFornecedores = async (pagina = 1, limite = 10): Promise<IPaginatedResponse<IFornecedor>> => {
+  const response = await apiClient.get('/', {
+    params: { pagina, limite },
+  });
   return response.data;
 };
 
