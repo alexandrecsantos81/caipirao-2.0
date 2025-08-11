@@ -21,7 +21,7 @@ import RelatoriosPage from '@/pages/RelatoriosPage';
 import SolicitarAcessoPage from '@/pages/SolicitarAcessoPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 
-// Componente de Layout Principal
+// Componente de Layout Principal (sem alterações)
 const MainLayout = ({ children }: { children: React.ReactNode }) => {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const isMobile = useBreakpointValue({ base: true, md: false });
@@ -56,48 +56,49 @@ function App() {
   const { isAuthenticated } = useAuth();
   const location = useLocation();
 
-  // Lista de rotas que NÃO devem usar o layout principal
   const publicRoutes = ['/login', '/solicitar-acesso'];
   const useMainLayout = isAuthenticated && !publicRoutes.includes(location.pathname);
 
-  // Se a rota não usa o layout principal, renderiza apenas as rotas públicas
-  if (!useMainLayout) {
-    return (
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/solicitar-acesso" element={<SolicitarAcessoPage />} />
-        {/* Se o usuário tentar acessar uma rota protegida sem estar logado,
-            o ProtectedRoute o redirecionará para /login */}
-        <Route path="*" element={
-          <ProtectedRoute> 
-            <NotFoundPage />
-          </ProtectedRoute>
-        } />
-      </Routes>
-    );
-  }
-
-  // Se usa o layout principal, renderiza o layout com as rotas protegidas dentro
   return (
-    <MainLayout>
-      <Routes>
-        <Route element={<ProtectedRoute />}>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/movimentacoes" element={<MovimentacoesPage />} />
-          <Route path="/clientes" element={<ClientesPage />} />
-          <Route path="/produtos" element={<ProdutosPage />} />
-          
-          <Route element={<AdminRoute />}>
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/relatorios" element={<RelatoriosPage />} />
-            <Route path="/fornecedores" element={<FornecedoresPage />} />
-            <Route path="/utilizadores" element={<UtilizadoresPage />} />
-          </Route>
+    <Routes>
+      {/* Rotas Públicas que não usam o MainLayout */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/solicitar-acesso" element={<SolicitarAcessoPage />} />
+
+      {/* Rotas Protegidas que usam o MainLayout */}
+      <Route 
+        path="/" 
+        element={
+          useMainLayout ? (
+            <MainLayout>
+              <Outlet /> {/* O Outlet renderizará as rotas aninhadas */}
+            </MainLayout>
+          ) : (
+            <ProtectedRoute /> // Se não estiver logado, redireciona para /login
+          )
+        }
+      >
+        {/* Rotas filhas que serão renderizadas dentro do MainLayout */}
+        <Route index element={<DashboardPage />} /> {/* Rota padrão para / */}
+        <Route path="movimentacoes" element={<MovimentacoesPage />} />
+        <Route path="clientes" element={<ClientesPage />} />
+        <Route path="produtos" element={<ProdutosPage />} />
+        
+        {/* Rotas de Admin aninhadas */}
+        <Route element={<AdminRoute />}>
+          <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="relatorios" element={<RelatoriosPage />} />
+          <Route path="fornecedores" element={<FornecedoresPage />} />
+          <Route path="utilizadores" element={<UtilizadoresPage />} />
         </Route>
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-    </MainLayout>
+      </Route>
+
+      {/* Rota 404 para qualquer caminho não correspondido */}
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
   );
 }
 
+// CORREÇÃO: Importar o Outlet do react-router-dom
+import { Outlet } from 'react-router-dom';
 export default App;
