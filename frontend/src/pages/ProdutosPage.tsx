@@ -130,7 +130,7 @@ const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
 };
 
 
-// --- PÁGINA PRINCIPAL DE PRODUTOS (COM INTEGRAÇÃO DO NOVO MODAL) ---
+// --- PÁGINA PRINCIPAL DE PRODUTOS (COM CORREÇÃO DOS HOOKS) ---
 const ProdutosPage = () => {
   const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
   const { isOpen: isEstoqueOpen, onOpen: onEstoqueOpen, onClose: onEstoqueClose } = useDisclosure();
@@ -148,9 +148,9 @@ const ProdutosPage = () => {
     queryFn: () => getProdutos(pagina, 10),
   });
   
+  // CORREÇÃO: Mover todos os hooks para o nível superior, fora de qualquer condição.
   const deleteMutation = useMutation({ mutationFn: deleteProduto, onSuccess: async () => { toast({ title: 'Produto deletado!', status: 'success', duration: 3000, isClosable: true }); await queryClient.invalidateQueries({ queryKey: ['produtos'] }); }, onError: (error: any) => { toast({ title: 'Erro ao deletar.', description: error.message, status: 'error', duration: 5000, isClosable: true }); } });
   const saveMutation = useMutation({ mutationFn: (data: { formData: IProdutoForm; id?: number }) => (data.id ? updateProduto(data.id, data.formData) : createProduto(data.formData)), onSuccess: async () => { toast({ title: `Produto salvo com sucesso!`, status: 'success', duration: 3000, isClosable: true }); await queryClient.invalidateQueries({ queryKey: ['produtos'] }); onFormClose(); }, onError: (error: any) => { toast({ title: `Erro ao salvar produto.`, description: error.message, status: 'error', duration: 5000, isClosable: true }); } });
-  
   const entradaEstoqueMutation = useMutation({
     mutationFn: (data: { id: number; formData: IEntradaEstoqueForm }) => registrarEntradaEstoque({ id: data.id, data: data.formData }),
     onSuccess: async () => {
