@@ -1,9 +1,7 @@
-// src/services/report.service.ts
-
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-const apiClient = axios.create({ baseURL: API_URL } );
+const apiClient = axios.create({ baseURL: API_URL }  );
 
 apiClient.interceptors.request.use(
   (config) => {
@@ -67,12 +65,22 @@ export interface IClientAnalysisResponse {
   inativos: IClientAnalysisItem[];
 }
 
-// NOVA INTERFACE PARA A PRODUTIVIDADE DO VENDEDOR
 export interface ISellerProductivityItem {
   vendedorId: number;
   nome: string;
   numeroDeVendas: number;
   valorTotalVendido: number;
+}
+
+// NOVA INTERFACE PARA O RELATÓRIO DE ENTRADA DE ESTOQUE
+export interface IStockEntryReportItem {
+  id: number;
+  data_entrada: string;
+  produto_nome: string;
+  responsavel_nome: string;
+  quantidade_adicionada: number;
+  custo_total: number;
+  observacao: string | null;
 }
 
 
@@ -104,13 +112,16 @@ export const getClientAnalysis = async (): Promise<IClientAnalysisResponse> => {
   return response.data;
 };
 
-// NOVA FUNÇÃO PARA BUSCAR A PRODUTIVIDADE DOS VENDEDORES
-/**
- * @description Busca o ranking de produtividade dos vendedores.
- * @param filter - Objeto com as datas de início e fim.
- */
 export const getSellerProductivity = async (filter: IReportDateFilter): Promise<ISellerProductivityItem[]> => {
   const response = await apiClient.get('/reports/seller-productivity', {
+    params: filter,
+  });
+  return response.data;
+};
+
+// NOVA FUNÇÃO PARA BUSCAR O RELATÓRIO DE ENTRADAS DE ESTOQUE
+export const getStockEntriesReport = async (filter: IReportDateFilter): Promise<IStockEntryReportItem[]> => {
+  const response = await apiClient.get('/reports/stock-entries', {
     params: filter,
   });
   return response.data;

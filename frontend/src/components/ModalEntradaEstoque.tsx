@@ -15,6 +15,7 @@ import {
   FormErrorMessage,
   Textarea,
   Text,
+  Input, // Adicionar Input para o campo de data
 } from '@chakra-ui/react';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { IEntradaEstoqueForm, IProduto } from '../services/produto.service';
@@ -28,22 +29,40 @@ interface ModalEntradaEstoqueProps {
   isLoading: boolean;
 }
 
+// Adicionar o campo 'data_entrada' à interface do formulário
+interface IEntradaEstoqueFormComData extends IEntradaEstoqueForm {
+  data_entrada: string;
+}
+
 export const ModalEntradaEstoque = ({ isOpen, onClose, onSubmit, produto, isLoading }: ModalEntradaEstoqueProps) => {
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitSuccessful },
     reset,
-  } = useForm<IEntradaEstoqueForm>();
+  } = useForm<IEntradaEstoqueFormComData>();
 
-  // Limpa o formulário sempre que ele for fechado ou quando um envio for bem-sucedido
+  // Limpa o formulário e define a data atual sempre que ele for aberto ou um envio for bem-sucedido
   useEffect(() => {
     if (!isOpen || isSubmitSuccessful) {
-      reset({ quantidade_adicionada: undefined, custo_total: undefined, observacao: '' });
+      reset({
+        quantidade_adicionada: undefined,
+        custo_total: undefined,
+        observacao: '',
+        data_entrada: new Date().toISOString().split('T')[0], // Define a data atual
+      });
+    } else if (isOpen) {
+      // Garante que a data seja definida ao abrir o modal
+      reset({
+        data_entrada: new Date().toISOString().split('T')[0],
+        quantidade_adicionada: undefined,
+        custo_total: undefined,
+        observacao: '',
+      });
     }
   }, [isOpen, isSubmitSuccessful, reset]);
 
-  const handleFormSubmit: SubmitHandler<IEntradaEstoqueForm> = (data) => {
+  const handleFormSubmit: SubmitHandler<IEntradaEstoqueFormComData> = (data) => {
     onSubmit({
       ...data,
       quantidade_adicionada: Number(data.quantidade_adicionada),
@@ -63,6 +82,16 @@ export const ModalEntradaEstoque = ({ isOpen, onClose, onSubmit, produto, isLoad
               <Text alignSelf="flex-start">
                 Você está adicionando estoque para o produto: <strong>{produto?.nome}</strong>
               </Text>
+
+              <FormControl isRequired isInvalid={!!errors.data_entrada}>
+                <FormLabel>Data da Entrada</FormLabel>
+                <Input
+                  type="date"
+                  {...register('data_entrada', { required: 'A data é obrigatória' })}
+                />
+                <FormErrorMessage>{errors.data_entrada?.message}</FormErrorMessage>
+              </FormControl>
+
               <FormControl isRequired isInvalid={!!errors.quantidade_adicionada}>
                 <FormLabel>Quantidade Adicionada ({produto?.unidade_medida})</FormLabel>
                 <NumberInput min={0.001} precision={3}>

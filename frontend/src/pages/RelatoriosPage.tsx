@@ -1,22 +1,28 @@
-import { useState } from 'react';
 import {
   Box, Button, Flex, Heading, Input, Text, Tabs, TabList, TabPanels, Tab, TabPanel, Select,
   SimpleGrid,
-  useColorModeValue, // 1. ADICIONAR a importação que faltava
+  useColorModeValue,
 } from '@chakra-ui/react';
 import {
   startOfMonth, endOfMonth, subDays, startOfQuarter, startOfYear, endOfYear, format,
-  endOfQuarter, // 2. ADICIONAR a importação que faltava
+  endOfQuarter,
 } from 'date-fns';
-// O resto das importações permanece o mesmo...
-import { useSalesSummary, useProductRanking, useClientRanking, useClientAnalysis, useSellerProductivity } from '@/hooks/useReports';
+import { useState } from 'react';
+import { 
+  useSalesSummary, 
+  useProductRanking, 
+  useClientRanking, 
+  useClientAnalysis, 
+  useSellerProductivity,
+  useStockEntriesReport // Importar o novo hook
+} from '@/hooks/useReports';
 import { ReportKPIs } from '@/components/ReportKPIs';
 import { SalesEvolutionChart } from '@/components/SalesEvolutionChart';
 import { ProductRankingTable } from '@/components/ProductRankingTable';
 import { ClientRankingTable } from '@/components/ClientRankingTable';
 import { ClientAnalysis } from '@/components/ClientAnalysis';
 import { SellerProductivityTable } from '@/components/SellerProductivityTable';
-
+import { StockEntriesTable } from '@/components/StockEntriesTable'; // Importar o novo componente de tabela
 
 const formatDateForAPI = (date: Date): string => format(date, 'yyyy-MM-dd');
 
@@ -35,11 +41,14 @@ const RelatoriosPage = () => {
   const filters = { startDate, endDate };
   const productFilters = { ...filters, orderBy: productOrderBy };
 
+  // Hooks para buscar os dados de cada relatório
   const { data: salesSummaryData, isLoading: isLoadingSalesSummary } = useSalesSummary(filters, activeTab === 0);
   const { data: productRankingData, isLoading: isLoadingProductRanking } = useProductRanking(productFilters, activeTab === 1);
   const { data: clientRankingData, isLoading: isLoadingClientRanking } = useClientRanking(filters, activeTab === 2);
   const { data: clientAnalysisData, isLoading: isLoadingClientAnalysis } = useClientAnalysis(activeTab === 3);
   const { data: sellerProductivityData, isLoading: isLoadingSellerProductivity } = useSellerProductivity(filters, activeTab === 4);
+  // Hook para o novo relatório de estoque
+  const { data: stockEntriesData, isLoading: isLoadingStockEntries } = useStockEntriesReport(filters, activeTab === 5);
 
   return (
     <Box p={{ base: 4, md: 8 }}>
@@ -75,6 +84,7 @@ const RelatoriosPage = () => {
           <Tab>Clientes</Tab>
           <Tab>Análise</Tab>
           <Tab>Produtividade</Tab>
+          <Tab>Estoque</Tab> {/* <-- NOVA ABA ADICIONADA */}
         </TabList>
         <TabPanels>
           <TabPanel>
@@ -105,6 +115,10 @@ const RelatoriosPage = () => {
           </TabPanel>
           <TabPanel>
             <SellerProductivityTable data={sellerProductivityData} isLoading={isLoadingSellerProductivity} />
+          </TabPanel>
+          {/* NOVO PAINEL PARA A ABA DE ESTOQUE */}
+          <TabPanel>
+            <StockEntriesTable data={stockEntriesData} isLoading={isLoadingStockEntries} />
           </TabPanel>
         </TabPanels>
       </Tabs>
