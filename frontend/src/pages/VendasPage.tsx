@@ -1,5 +1,3 @@
-// frontend/src/pages/VendasPage.tsx
-
 import { useState } from 'react';
 import {
   Box, Button, Heading, Spinner, Table, Thead, Tbody, Tr, Th, Td, TableContainer,
@@ -11,8 +9,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AddIcon, DeleteIcon } from '@chakra-ui/icons';
 
 import { getVendas, createVenda, deleteVenda, INovaVenda, IVenda } from '../services/venda.service';
-import { getClientes, ICliente, IPaginatedResponse } from '../services/cliente.service';
+import { getClientes, ICliente } from '../services/cliente.service';
 import { getProdutos, IProduto } from '../services/produto.service';
+import { IPaginatedResponse } from '@/types/common.types'; // <-- CORREÇÃO PRINCIPAL AQUI
 
 const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) => {
   const queryClient = useQueryClient();
@@ -73,21 +72,19 @@ const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     return produtosVenda.reduce((total, item) => total + (item.quantidade * item.valor_unitario), 0);
   };
 
-  // --- FUNÇÃO CORRIGIDA ---
   const handleSubmit = () => {
     if (!clienteId || produtosVenda.length === 0) {
       toast({ title: "Preencha todos os campos", description: "Selecione um cliente e adicione pelo menos um produto.", status: "error", duration: 3000, isClosable: true });
       return;
     }
 
-    // O objeto agora corresponde à interface INovaVenda
     const hoje = new Date().toISOString();
 
     const novaVenda: INovaVenda = {
       cliente_id: Number(clienteId),
       data_venda: hoje,
-      opcao_pagamento: 'À VISTA', // Valor padrão, idealmente viria de um input no formulário
-      data_vencimento: hoje, // Valor padrão, idealmente viria de um input no formulário
+      opcao_pagamento: 'À VISTA',
+      data_vencimento: hoje,
       produtos: produtosVenda.map(({ produto_id, quantidade }) => ({
         produto_id,
         quantidade,
@@ -116,7 +113,7 @@ const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             <FormControl isRequired>
               <FormLabel>Cliente</FormLabel>
               <Select placeholder="Selecione um cliente" value={clienteId} onChange={(e) => setClienteId(Number(e.target.value))}>
-                {clientesData?.dados.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                {clientesData?.dados.map((c: ICliente) => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </Select>
             </FormControl>
 
@@ -125,7 +122,7 @@ const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
               <FormControl flex="3">
                 <FormLabel>Produto</FormLabel>
                 <Select placeholder="Selecione um produto" value={produtoSelecionado} onChange={(e) => setProdutoSelecionado(Number(e.target.value))}>
-                  {produtosData?.dados.map(p => <option key={p.id} value={p.id}>{p.nome} - {p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</option>)}
+                  {produtosData?.dados.map((p: IProduto) => <option key={p.id} value={p.id}>{p.nome} - {p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</option>)}
                 </Select>
               </FormControl>
               <FormControl flex="1">
@@ -139,7 +136,7 @@ const FormularioNovaVenda = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 
             <Box width="100%" mt={4}>
               <Heading size="sm">Produtos na Venda</Heading>
-              {produtosVenda.map(p => (
+              {produtosVenda.map((p) => (
                 <HStack key={p.produto_id} justify="space-between" p={2} borderWidth={1} borderRadius="md" mt={2}>
                   <Text>{p.nome} (Qtd: {p.quantidade})</Text>
                   <IconButton aria-label="Remover produto" icon={<DeleteIcon />} size="sm" colorScheme="red" onClick={() => handleRemoveProduto(p.produto_id)} />
@@ -216,7 +213,7 @@ const VendasPage = () => {
               </Tr>
             </Thead>
             <Tbody>
-              {vendasData.dados.map((venda) => (
+              {vendasData.dados.map((venda: IVenda) => (
                 <Tr key={venda.id}>
                   <Td>{new Date(venda.data_venda).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
                   <Td>{venda.cliente_nome}</Td>

@@ -30,14 +30,7 @@ export interface ICliente {
   status?: 'Ativo' | 'Inativo'; // Campo de status adicionado
 }
 
-export interface IPaginatedResponse<T> {
-  dados: T[];
-  total: number;
-  pagina: number;
-  limite: number;
-  totalPaginas: number;
-}
-
+import { IPaginatedResponse } from '@/types/common.types';
 // --- FUNÇÕES DO SERVIÇO ---
 
 export const getClientes = async (pagina = 1, limite = 10): Promise<IPaginatedResponse<ICliente>> => {
