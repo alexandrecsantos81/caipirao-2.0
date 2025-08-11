@@ -1,3 +1,5 @@
+// frontend/src/App.tsx
+
 import { Box, useBreakpointValue } from '@chakra-ui/react';
 import { useState } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
@@ -8,7 +10,6 @@ import { useAuth } from '@/hooks/useAuth';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AdminRoute from '@/components/AdminRoute';
 
-// CORREÇÃO: Removida a extensão .tsx das importações de páginas.
 import LoginPage from '@/pages/LoginPage';
 import DashboardPage from '@/pages/DashboardPage';
 import MovimentacoesPage from '@/pages/MovimentacoesPage';
@@ -20,20 +21,15 @@ import RelatoriosPage from '@/pages/RelatoriosPage';
 import SolicitarAcessoPage from '@/pages/SolicitarAcessoPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 
-function App() {
-  const { isAuthenticated } = useAuth();
-  const location = useLocation();
+// Componente de Layout Principal
+const MainLayout = ({ children }: { children: React.ReactNode }) => {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
-
   const isMobile = useBreakpointValue({ base: true, md: false });
-
-  const showNavigation = isAuthenticated && location.pathname !== '/login' && location.pathname !== '/solicitar-acesso';
-
   const sidebarWidth = isMobile ? 0 : (isSidebarOpen ? '240px' : '72px');
 
   return (
     <Box>
-      {showNavigation && !isMobile && (
+      {!isMobile && (
         <>
           <Sidebar isCollapsed={!isSidebarOpen} />
           <Header onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)} isSidebarOpen={isSidebarOpen} />
@@ -47,34 +43,60 @@ function App() {
         pb={{ base: '80px', md: 8 }}
         transition="margin-left 0.2s ease-in-out"
       >
-        <Routes>
-          {/* Rotas Públicas */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/solicitar-acesso" element={<SolicitarAcessoPage />} />
-
-          {/* Rotas Protegidas */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/movimentacoes" element={<MovimentacoesPage />} />
-            <Route path="/clientes" element={<ClientesPage />} />
-            <Route path="/produtos" element={<ProdutosPage />} />
-            
-            {/* Rotas de Admin */}
-            <Route element={<AdminRoute />}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/relatorios" element={<RelatoriosPage />} />
-              <Route path="/fornecedores" element={<FornecedoresPage />} />
-              <Route path="/utilizadores" element={<UtilizadoresPage />} />
-            </Route>
-          </Route>
-
-          {/* Rota não encontrada */}
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
+        {children}
       </Box>
 
-      {showNavigation && isMobile && <BottomNavBar />}
+      {isMobile && <BottomNavBar />}
     </Box>
+  );
+};
+
+
+function App() {
+  const { isAuthenticated } = useAuth();
+  const location = useLocation();
+
+  // Lista de rotas que NÃO devem usar o layout principal
+  const publicRoutes = ['/login', '/solicitar-acesso'];
+  const useMainLayout = isAuthenticated && !publicRoutes.includes(location.pathname);
+
+  // Se a rota não usa o layout principal, renderiza apenas as rotas públicas
+  if (!useMainLayout) {
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/solicitar-acesso" element={<SolicitarAcessoPage />} />
+        {/* Se o usuário tentar acessar uma rota protegida sem estar logado,
+            o ProtectedRoute o redirecionará para /login */}
+        <Route path="*" element={
+          <ProtectedRoute> 
+            <NotFoundPage />
+          </ProtectedRoute>
+        } />
+      </Routes>
+    );
+  }
+
+  // Se usa o layout principal, renderiza o layout com as rotas protegidas dentro
+  return (
+    <MainLayout>
+      <Routes>
+        <Route element={<ProtectedRoute />}>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/movimentacoes" element={<MovimentacoesPage />} />
+          <Route path="/clientes" element={<ClientesPage />} />
+          <Route path="/produtos" element={<ProdutosPage />} />
+          
+          <Route element={<AdminRoute />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/relatorios" element={<RelatoriosPage />} />
+            <Route path="/fornecedores" element={<FornecedoresPage />} />
+            <Route path="/utilizadores" element={<UtilizadoresPage />} />
+          </Route>
+        </Route>
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </MainLayout>
   );
 }
 
