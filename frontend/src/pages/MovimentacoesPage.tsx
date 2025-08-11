@@ -15,12 +15,13 @@ import { Controller, useForm, SubmitHandler } from 'react-hook-form';
 import { FiPlus, FiTrash2, FiEdit } from 'react-icons/fi';
 
 import { Pagination } from '../components/Pagination';
-import { ICliente, getClientes, IPaginatedResponse } from '../services/cliente.service';
+import { ICliente, getClientes } from '../services/cliente.service';
 import { IDespesa, IDespesaForm, registrarDespesa, getDespesas, tiposDeSaida, updateDespesa, deleteDespesa } from '../services/despesa.service';
 import { IProduto, getProdutos } from '../services/produto.service';
 import { IVenda, INovaVenda, createVenda, getVendas, updateVenda, deleteVenda } from '../services/venda.service';
 import { IFornecedor, getFornecedores } from '../services/fornecedor.service';
 import { useAuth } from '../hooks/useAuth';
+import { IPaginatedResponse } from '@/types/common.types';
 
 // --- INTERFACES LOCAIS ---
 interface ProdutoVendaItem {
@@ -163,7 +164,7 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
           <DrawerBody>
             <VStack spacing={4} align="stretch">
               <Flex direction={flexDir} gap={4}>
-                <FormControl isRequired isInvalid={!!errors.cliente_id} flex={1}><FormLabel>Cliente</FormLabel><Select placeholder="Selecione um cliente" {...register('cliente_id', { required: 'Cliente é obrigatório' })}>{clientes?.dados.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}</Select><FormErrorMessage>{errors.cliente_id && errors.cliente_id.message}</FormErrorMessage></FormControl>
+                <FormControl isRequired isInvalid={!!errors.cliente_id} flex={1}><FormLabel>Cliente</FormLabel><Select placeholder="Selecione um cliente" {...register('cliente_id', { required: 'Cliente é obrigatório' })}>{clientes?.dados.map((c: ICliente) => <option key={c.id} value={c.id}>{c.nome}</option>)}</Select><FormErrorMessage>{errors.cliente_id && errors.cliente_id.message}</FormErrorMessage></FormControl>
                 <FormControl isRequired flex={1}><FormLabel>Data da Venda</FormLabel><Input type="date" {...register('data_venda')} /></FormControl>
               </Flex>
               <Flex direction={flexDir} gap={4}>
@@ -173,7 +174,7 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
               <Box p={4} borderWidth={1} borderRadius="md" mt={4}>
                 <Heading size="sm" mb={3}>Adicionar Produtos</Heading>
                 <Flex direction={flexDir} gap={2} align="flex-end">
-                  <FormControl flex={3}><FormLabel>Produto</FormLabel><Select placeholder="Selecione..." {...register('produto_selecionado_id')}>{produtos?.dados.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}</Select></FormControl>
+                  <FormControl flex={3}><FormLabel>Produto</FormLabel><Select placeholder="Selecione..." {...register('produto_selecionado_id')}>{produtos?.dados.map((p: IProduto) => <option key={p.id} value={p.id}>{p.nome}</option>)}</Select></FormControl>
                   <FormControl flex={1}><FormLabel>Qtd/Peso</FormLabel><Controller name="quantidade" control={control} render={({ field }) => <NumberInput {...field} min={0.001}><NumberInputField /></NumberInput>} /></FormControl>
                   <FormControl flex={1}><FormLabel>Preço Manual (R$)</FormLabel><Input placeholder="Opcional" {...register('preco_manual')} /></FormControl>
                   <Button colorScheme="green" onClick={handleAddProduto} alignSelf={{ base: 'stretch', md: 'flex-end' }}><FiPlus /></Button>
@@ -257,7 +258,6 @@ const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen:
     </Drawer>
   );
 };
-
 // --- COMPONENTES DE TABELA (JÁ RESPONSIVOS) ---
 const TabelaVendas = ({ onEdit, onDelete }: { onEdit: (venda: IVenda) => void; onDelete: (id: number) => void; }) => {
   const [pagina, setPagina] = useState(1);

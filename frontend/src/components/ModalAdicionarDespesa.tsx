@@ -1,5 +1,3 @@
-// frontend/src/components/ModalAdicionarDespesa.tsx
-
 import {
   Modal,
   ModalOverlay,
@@ -21,14 +19,14 @@ import {
   FormErrorMessage,
 } from '@chakra-ui/react';
 import { useForm, SubmitHandler } from 'react-hook-form';
-import { ICreateDespesa } from '../services/despesas.service';
+// CORREÇÃO: A interface agora é IDespesaForm
+import { IDespesaForm } from '../services/despesa.service';
 import { useEffect } from 'react';
 
-// Definindo as propriedades que o nosso Modal vai receber
 interface ModalAdicionarDespesaProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: ICreateDespesa) => void;
+  onSubmit: (data: IDespesaForm) => void; // CORREÇÃO: Usar IDespesaForm
   isLoading: boolean;
 }
 
@@ -38,17 +36,15 @@ export const ModalAdicionarDespesa = ({ isOpen, onClose, onSubmit, isLoading }: 
     handleSubmit,
     formState: { errors, isSubmitSuccessful },
     reset,
-  } = useForm<ICreateDespesa>();
+  } = useForm<IDespesaForm>(); // CORREÇÃO: Usar IDespesaForm
 
-  // Limpa o formulário sempre que ele for fechado ou quando um envio for bem-sucedido
   useEffect(() => {
     if (isSubmitSuccessful || !isOpen) {
       reset();
     }
   }, [isSubmitSuccessful, isOpen, reset]);
 
-  const handleFormSubmit: SubmitHandler<ICreateDespesa> = (data) => {
-    // O react-hook-form já foi configurado para tratar o valor como número
+  const handleFormSubmit: SubmitHandler<IDespesaForm> = (data) => { // CORREÇÃO: Usar IDespesaForm
     onSubmit(data);
   };
 
@@ -61,25 +57,25 @@ export const ModalAdicionarDespesa = ({ isOpen, onClose, onSubmit, isLoading }: 
           <ModalCloseButton />
           <ModalBody>
             <VStack spacing={4}>
-              <FormControl isInvalid={!!errors.descricao}>
-                <FormLabel htmlFor="descricao">Descrição</FormLabel>
+              <FormControl isInvalid={!!errors.discriminacao}>
+                <FormLabel htmlFor="discriminacao">Descrição</FormLabel>
                 <Input
-                  id="descricao"
+                  id="discriminacao"
                   placeholder="Ex: Compra de gelo para o isopor"
-                  {...register('descricao', { required: 'A descrição é obrigatória' })}
+                  {...register('discriminacao', { required: 'A descrição é obrigatória' })}
                 />
-                <FormErrorMessage>{errors.descricao && errors.descricao.message}</FormErrorMessage>
+                <FormErrorMessage>{errors.discriminacao && errors.discriminacao.message}</FormErrorMessage>
               </FormControl>
 
-              <FormControl isInvalid={!!errors.valor_total}>
-                <FormLabel htmlFor="valor_total">Valor (R$)</FormLabel>
+              <FormControl isInvalid={!!errors.valor}>
+                <FormLabel htmlFor="valor">Valor (R$)</FormLabel>
                 <NumberInput min={0.01} precision={2}>
                   <NumberInputField
-                    id="valor_total"
-                    {...register('valor_total', { 
+                    id="valor"
+                    {...register('valor', {
                         required: 'O valor é obrigatório',
-                        valueAsNumber: true, 
-                        min: { value: 0.01, message: 'O valor deve ser maior que zero' } 
+                        valueAsNumber: true,
+                        min: { value: 0.01, message: 'O valor deve ser maior que zero' }
                     })}
                   />
                   <NumberInputStepper>
@@ -87,7 +83,7 @@ export const ModalAdicionarDespesa = ({ isOpen, onClose, onSubmit, isLoading }: 
                     <NumberDecrementStepper />
                   </NumberInputStepper>
                 </NumberInput>
-                <FormErrorMessage>{errors.valor_total && errors.valor_total.message}</FormErrorMessage>
+                <FormErrorMessage>{errors.valor && errors.valor.message}</FormErrorMessage>
               </FormControl>
             </VStack>
           </ModalBody>
