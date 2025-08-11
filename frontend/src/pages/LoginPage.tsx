@@ -1,13 +1,14 @@
-// frontend/src/pages/Login.tsx
+// frontend/src/pages/LoginPage.tsx
 
 import { useState } from 'react';
 import {
-  Box, Button, Container, FormControl, FormLabel, Input, VStack, Heading, useToast, Text, Link as ChakraLink
+  Box, Button, FormControl, FormErrorMessage, FormLabel, Input, VStack, Heading, useToast, Text, Link as ChakraLink,
+  Flex // 1. Importe o componente Flex
 } from '@chakra-ui/react';
 import { useMutation } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
 
-import { login } from '../services/auth.service'; // <-- CORREÇÃO: Removida a importação de LoginCredentials
+import { login } from '../services/auth.service';
 import { useAuth } from '../hooks/useAuth';
 
 const LoginPage = () => {
@@ -27,10 +28,10 @@ const LoginPage = () => {
         isClosable: true,
       });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       toast({
         title: 'Erro no login',
-        description: error.message,
+        description: error.response?.data?.error || 'Falha na autenticação. Verifique suas credenciais.',
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -40,16 +41,25 @@ const LoginPage = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!credencial || !senha) {
+        toast({ title: 'Atenção', description: 'Por favor, preencha todos os campos.', status: 'warning', duration: 3000, isClosable: true });
+        return;
+    }
     loginMutation.mutate({ credencial, senha });
   };
 
   return (
-    <Container centerContent>
-      <Box p={8} mt={20} maxWidth="400px" borderWidth={1} borderRadius={8} boxShadow="lg">
+    // 2. Envolva tudo em um Flex container
+    <Flex
+      minH="100vh" // Garante que o container ocupe no mínimo 100% da altura da tela
+      align="center" // Centraliza verticalmente
+      justify="center" // Centraliza horizontalmente
+    >
+      <Box p={8} width="full" maxWidth="400px" borderWidth={1} borderRadius={8} boxShadow="lg">
         <form onSubmit={handleSubmit}>
           <VStack spacing={4}>
             <Heading as="h1" size="lg" textAlign="center">Login Caipirão 3.0</Heading>
-            <FormControl isRequired>
+            <FormControl isRequired isInvalid={loginMutation.isError}>
               <FormLabel>Email, Nickname ou Telefone</FormLabel>
               <Input
                 value={credencial}
@@ -57,7 +67,7 @@ const LoginPage = () => {
                 placeholder="Digite sua credencial"
               />
             </FormControl>
-            <FormControl isRequired>
+            <FormControl isRequired isInvalid={loginMutation.isError}>
               <FormLabel>Senha</FormLabel>
               <Input
                 type="password"
@@ -65,6 +75,9 @@ const LoginPage = () => {
                 onChange={(e) => setSenha(e.target.value)}
                 placeholder="********"
               />
+              {loginMutation.isError && (
+                  <FormErrorMessage>Credenciais inválidas. Tente novamente.</FormErrorMessage>
+              )}
             </FormControl>
             <Button
               type="submit"
@@ -83,7 +96,7 @@ const LoginPage = () => {
           </ChakraLink>
         </Text>
       </Box>
-    </Container>
+    </Flex>
   );
 };
 
