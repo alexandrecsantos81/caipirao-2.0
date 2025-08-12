@@ -1,3 +1,5 @@
+// frontend/src/pages/ProdutosPage.tsx
+
 import {
   Box, Button, Center, Drawer, DrawerBody, DrawerCloseButton, DrawerContent,
   DrawerFooter, DrawerHeader, DrawerOverlay, Flex, FormControl, FormLabel,
@@ -9,7 +11,7 @@ import {
   VStack,
   TableContainer,
 } from '@chakra-ui/react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { Controller, useForm } from 'react-hook-form';
 import { FiEdit, FiPlus, FiTrash2, FiPlusSquare } from 'react-icons/fi';
 import { useEffect, useState } from 'react';
@@ -146,16 +148,39 @@ const ProdutosPage = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['produtos', pagina],
     queryFn: () => getProdutos(pagina, 10),
+    placeholderData: keepPreviousData,
   });
   
-  // CORREÇÃO: Mover todos os hooks para o nível superior, fora de qualquer condição.
-  const deleteMutation = useMutation({ mutationFn: deleteProduto, onSuccess: async () => { toast({ title: 'Produto deletado!', status: 'success', duration: 3000, isClosable: true }); await queryClient.invalidateQueries({ queryKey: ['produtos'] }); }, onError: (error: any) => { toast({ title: 'Erro ao deletar.', description: error.message, status: 'error', duration: 5000, isClosable: true }); } });
-  const saveMutation = useMutation({ mutationFn: (data: { formData: IProdutoForm; id?: number }) => (data.id ? updateProduto(data.id, data.formData) : createProduto(data.formData)), onSuccess: async () => { toast({ title: `Produto salvo com sucesso!`, status: 'success', duration: 3000, isClosable: true }); await queryClient.invalidateQueries({ queryKey: ['produtos'] }); onFormClose(); }, onError: (error: any) => { toast({ title: `Erro ao salvar produto.`, description: error.message, status: 'error', duration: 5000, isClosable: true }); } });
+  // ✅ CORREÇÃO: Todos os hooks foram movidos para o nível superior do componente,
+  // fora de qualquer condicional.
+  const deleteMutation = useMutation({
+    mutationFn: deleteProduto,
+    onSuccess: () => {
+      toast({ title: 'Produto deletado!', status: 'success', duration: 3000, isClosable: true });
+      queryClient.invalidateQueries({ queryKey: ['produtos'] });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Erro ao deletar.', description: error.response?.data?.error || error.message, status: 'error', duration: 5000, isClosable: true });
+    }
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: (data: { formData: IProdutoForm; id?: number }) => (data.id ? updateProduto(data.id, data.formData) : createProduto(data.formData)),
+    onSuccess: () => {
+      toast({ title: `Produto salvo com sucesso!`, status: 'success', duration: 3000, isClosable: true });
+      queryClient.invalidateQueries({ queryKey: ['produtos'] });
+      onFormClose();
+    },
+    onError: (error: any) => {
+      toast({ title: `Erro ao salvar produto.`, description: error.response?.data?.error || error.message, status: 'error', duration: 5000, isClosable: true });
+    }
+  });
+
   const entradaEstoqueMutation = useMutation({
     mutationFn: (data: { id: number; formData: IEntradaEstoqueForm }) => registrarEntradaEstoque({ id: data.id, data: data.formData }),
-    onSuccess: async () => {
+    onSuccess: () => {
       toast({ title: 'Estoque atualizado!', status: 'success', duration: 3000, isClosable: true });
-      await queryClient.invalidateQueries({ queryKey: ['produtos'] });
+      queryClient.invalidateQueries({ queryKey: ['produtos'] });
       onEstoqueClose();
     },
     onError: (error: any) => {
@@ -252,7 +277,7 @@ const ProdutosPage = () => {
               </Table>
             </TableContainer>
           )}
-          <Pagination paginaAtual={pagina} totalPaginas={data.totalPaginas || 1} onPageChange={(page) => setPagina(page)} />
+          <Pagination paginaAtual={data?.pagina || 1} totalPaginas={data?.totalPaginas || 1} onPageChange={(page) => setPagina(page)} />
         </>
       )}
       {!isLoading && !data && (<Center p={10}><Text color="red.500" fontWeight="bold">Falha ao carregar os produtos.</Text></Center>)}
