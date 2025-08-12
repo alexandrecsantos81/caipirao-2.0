@@ -1,3 +1,5 @@
+// frontend/src/components/ModalEntradaEstoque.tsx
+
 import {
   Modal,
   ModalOverlay,
@@ -15,7 +17,7 @@ import {
   FormErrorMessage,
   Textarea,
   Text,
-  Input, // Adicionar Input para o campo de data
+  Input,
 } from '@chakra-ui/react';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { IEntradaEstoqueForm, IProduto } from '../services/produto.service';
@@ -29,7 +31,6 @@ interface ModalEntradaEstoqueProps {
   isLoading: boolean;
 }
 
-// Adicionar o campo 'data_entrada' à interface do formulário
 interface IEntradaEstoqueFormComData extends IEntradaEstoqueForm {
   data_entrada: string;
 }
@@ -38,21 +39,15 @@ export const ModalEntradaEstoque = ({ isOpen, onClose, onSubmit, produto, isLoad
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitSuccessful },
-    reset,
+    formState: { errors },
+    reset, // Removido isSubmitSuccessful daqui, pois não será mais usado no useEffect
   } = useForm<IEntradaEstoqueFormComData>();
 
-  // Limpa o formulário e define a data atual sempre que ele for aberto ou um envio for bem-sucedido
+  // ✅ CORREÇÃO: Simplificando o useEffect para depender apenas de 'isOpen'.
+  // Esta é a forma mais segura de resetar um formulário dentro de um modal.
   useEffect(() => {
-    if (!isOpen || isSubmitSuccessful) {
-      reset({
-        quantidade_adicionada: undefined,
-        custo_total: undefined,
-        observacao: '',
-        data_entrada: new Date().toISOString().split('T')[0], // Define a data atual
-      });
-    } else if (isOpen) {
-      // Garante que a data seja definida ao abrir o modal
+    if (isOpen) {
+      // Quando o modal abrir, reseta o formulário com a data atual.
       reset({
         data_entrada: new Date().toISOString().split('T')[0],
         quantidade_adicionada: undefined,
@@ -60,7 +55,7 @@ export const ModalEntradaEstoque = ({ isOpen, onClose, onSubmit, produto, isLoad
         observacao: '',
       });
     }
-  }, [isOpen, isSubmitSuccessful, reset]);
+  }, [isOpen, reset]); // A dependência agora é apenas em 'isOpen' e 'reset'.
 
   const handleFormSubmit: SubmitHandler<IEntradaEstoqueFormComData> = (data) => {
     onSubmit({
@@ -68,6 +63,8 @@ export const ModalEntradaEstoque = ({ isOpen, onClose, onSubmit, produto, isLoad
       quantidade_adicionada: Number(data.quantidade_adicionada),
       custo_total: Number(data.custo_total),
     });
+    // O reset após o envio pode ser tratado no onSuccess da mutação no componente pai,
+    // mas como o modal fecha, o reset pelo 'isOpen' já é suficiente.
   };
 
   return (
@@ -139,4 +136,3 @@ export const ModalEntradaEstoque = ({ isOpen, onClose, onSubmit, produto, isLoad
     </Modal>
   );
 };
-//marcação para commit gemini
