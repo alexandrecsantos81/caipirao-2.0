@@ -21,6 +21,7 @@ import { IVenda, INovaVenda, createVenda, getVendas, updateVenda, deleteVenda } 
 import { IFornecedor, getFornecedores } from '../services/fornecedor.service';
 import { useAuth } from '../hooks/useAuth';
 import { IPaginatedResponse } from '@/types/common.types';
+import { useDespesas } from '../hooks/useDespesas';
 
 // --- INTERFACES LOCAIS ---
 interface ProdutoVendaItem {
@@ -32,7 +33,7 @@ interface ProdutoVendaItem {
   preco_original: number;
 }
 
-// --- COMPONENTE DO FORMULÁRIO DE VENDA (SEM MUDANÇAS) ---
+// --- COMPONENTES DE FORMULÁRIO (SEM MUDANÇAS) ---
 const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boolean; onClose: () => void; vendaParaEditar: IVenda | null }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -186,8 +187,6 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
     </Drawer>
   );
 };
-
-// --- COMPONENTE DO FORMULÁRIO DE DESPESA (SEM MUDANÇAS) ---
 const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen: boolean; onClose: () => void; despesaParaEditar: IDespesa | null }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -323,26 +322,23 @@ const TabelaVendas = ({ onEdit, onDelete }: { onEdit: (venda: IVenda) => void; o
   );
 };
 
-// --- COMPONENTE TABELA DESPESAS (COM MUDANÇAS) ---
+// --- COMPONENTE TABELA DESPESAS (CÓDIGO CORRIGIDO) ---
 const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => void; onDelete: (id: number) => void; }) => {
-  const [pagina, setPagina] = useState(1); // 1. Adicionar estado de paginação
-  const { data, isLoading, isError } = useQuery({ // 2. Alterar a query
-    queryKey: ['despesas', pagina], 
-    queryFn: () => getDespesas(pagina, 10),
-    placeholderData: keepPreviousData,
-  });
+  const [pagina, setPagina] = useState(1);
+  const { data, isLoading, isError } = useDespesas(pagina);
+  
   const { user } = useAuth();
   const isAdmin = user?.perfil === 'ADMIN';
   const isMobile = useBreakpointValue({ base: true, md: false });
 
-  if (isLoading) return <Center p={10}><Spinner size="xl" /></Center>;
+  if (isLoading && !data) return <Center p={10}><Spinner size="xl" /></Center>;
   if (isError) return <Center p={10}><Text color="red.500">Não foi possível carregar as despesas.</Text></Center>;
   
   if (isMobile) {
-    return ( // 3. Adicionar fragmento e paginação
+    return (
       <>
         <VStack spacing={4} align="stretch" mt={4}>
-          {data?.dados.map((despesa) => ( // 4. Mapear sobre data.dados
+          {data?.dados.map((despesa) => (
             <Box key={despesa.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
               <Flex justify="space-between" align="center">
                 <Heading size="sm" noOfLines={1}>{despesa.discriminacao}</Heading>
@@ -379,12 +375,12 @@ const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => v
     );
   }
 
-  return ( // 3. Adicionar fragmento e paginação
+  return (
     <>
       <TableContainer>
-        <Table variant="striped">
+        <Table variant="striped" __css={{ 'opacity': isLoading ? 0.6 : 1 }}>
           <Thead><Tr><Th>Vencimento</Th><Th>Discriminação</Th><Th>Tipo</Th><Th>Status</Th><Th isNumeric>Valor</Th>{isAdmin && <Th>Ações</Th>}</Tr></Thead>
-          <Tbody>{data?.dados.map((despesa) => ( // 4. Mapear sobre data.dados
+          <Tbody>{data?.dados.map((despesa) => (
             <Tr key={despesa.id}>
               <Td>{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
               <Td>{despesa.discriminacao}</Td>

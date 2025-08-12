@@ -19,7 +19,7 @@ import {
   ICreateUtilizadorForm, createUtilizador,
 } from '../services/utilizador.service';
 import { useAuth } from '../hooks/useAuth';
-import { Pagination } from '../components/Pagination'; // 1. Importar
+import { Pagination } from '../components/Pagination';
 
 // --- COMPONENTES DE FORMULÁRIO (SEM MUDANÇAS) ---
 const FormularioAdicionarUtilizador = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) => {
@@ -139,11 +139,10 @@ const UtilizadoresPage = () => {
   const { isOpen: isDeleteAlertOpen, onOpen: onDeleteAlertOpen, onClose: onDeleteAlertClose } = useDisclosure();
   
   const [selectedUser, setSelectedUser] = useState<IUtilizador | null>(null);
-  const [pagina, setPagina] = useState(1); // 2. Adicionar estado de paginação
+  const [pagina, setPagina] = useState(1);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const isMobile = useBreakpointValue({ base: true, md: false });
 
-  // 3. Atualizar a query
   const { data, isLoading, isError } = useQuery({
     queryKey: ['utilizadores', pagina],
     queryFn: () => getUtilizadores(pagina, 10),
@@ -210,8 +209,7 @@ const UtilizadoresPage = () => {
           Adicionar Utilizador
         </Button>
       </Flex>
-      
-      {/* 4. Mapear sobre 'data.dados' */}
+
       {isMobile ? (
         <VStack spacing={4} align="stretch">
           {data?.dados.map((user) => (
@@ -265,7 +263,6 @@ const UtilizadoresPage = () => {
         </TableContainer>
       )}
 
-      {/* 5. Adicionar o componente de Paginação */}
       <Pagination
         paginaAtual={data?.pagina || 1}
         totalPaginas={data?.totalPaginas || 1}

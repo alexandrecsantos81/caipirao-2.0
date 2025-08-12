@@ -16,7 +16,7 @@ import {
   IFornecedor, IFornecedorForm, getFornecedores, createFornecedor, updateFornecedor, deleteFornecedor
 } from '../services/fornecedor.service';
 import { useAuth } from '../hooks/useAuth';
-import { Pagination } from '../components/Pagination'; // 1. Importar o componente de paginação
+import { Pagination } from '../components/Pagination';
 
 // --- COMPONENTE: FORMULÁRIO DE FORNECEDOR (SEM ALTERAÇÕES) ---
 export const FormularioFornecedor = ({ isOpen, onClose, fornecedor }: { isOpen: boolean; onClose: () => void; fornecedor: IFornecedor | null; }) => {
@@ -93,10 +93,9 @@ const FornecedoresPage = () => {
   const { isOpen: isConfirmModalOpen, onOpen: onConfirmModalOpen, onClose: onConfirmModalClose } = useDisclosure();
   
   const [selectedFornecedor, setSelectedFornecedor] = useState<IFornecedor | null>(null);
-  const [pagina, setPagina] = useState(1); // 2. Adicionar estado para a página atual
+  const [pagina, setPagina] = useState(1);
   const isMobile = useBreakpointValue({ base: true, md: false });
 
-  // 3. Atualizar o useQuery para buscar dados paginados
   const { data, isLoading, isError } = useQuery({
     queryKey: ['fornecedores', pagina],
     queryFn: () => getFornecedores(pagina, 10),
@@ -143,7 +142,6 @@ const FornecedoresPage = () => {
         <Button leftIcon={<FiPlus />} colorScheme="teal" onClick={handleAddClick} w={{ base: 'full', md: 'auto' }}>Adicionar Fornecedor</Button>
       </Flex>
 
-      {/* 4. Mapear sobre 'data.dados' em vez de 'fornecedores' */}
       {isMobile ? (
         <VStack spacing={4} align="stretch">
           {data?.dados.map((fornecedor) => (
@@ -206,7 +204,6 @@ const FornecedoresPage = () => {
         </TableContainer>
       )}
 
-      {/* 5. Adicionar o componente de Paginação */}
       <Pagination
         paginaAtual={data?.pagina || 1}
         totalPaginas={data?.totalPaginas || 1}
