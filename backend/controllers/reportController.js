@@ -1,5 +1,3 @@
-// backend/src/controllers/reportController.js
-
 const pool = require('../db');
 
 /**
@@ -252,6 +250,49 @@ const getSellerProductivity = async (req, res) => {
     }
 };
 
+/**
+ * @description Retorna o histórico de entradas de estoque dentro de um período.
+ * @route GET /api/reports/stock-entries?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
+ * @access Privado - Apenas ADMINS
+ */
+const getStockEntriesReport = async (req, res) => {
+    const { startDate, endDate } = req.query;
+
+    if (!startDate || !endDate) {
+        return res.status(400).json({ error: 'As datas de início e fim são obrigatórias.' });
+    }
+
+    try {
+        const query = `
+            SELECT 
+                ee.id,
+                ee.data_entrada,
+                p.nome AS "produto_nome",
+                u.nome AS "responsavel_nome",
+                ee.quantidade_adicionada,
+                ee.custo_total,
+                ee.observacao
+            FROM 
+                entradas_estoque ee
+            JOIN 
+                produtos p ON ee.produto_id = p.id
+            JOIN 
+                utilizadores u ON ee.utilizador_id = u.id
+            WHERE 
+                ee.data_entrada::date BETWEEN $1 AND $2
+            ORDER BY 
+                ee.data_entrada DESC;
+        `;
+
+        const result = await pool.query(query, [startDate, endDate]);
+        res.status(200).json(result.rows);
+
+    } catch (error) {
+        console.error('Erro ao gerar relatório de entradas de estoque:', error);
+        res.status(500).json({ error: 'Erro interno do servidor ao gerar relatório de entradas de estoque.' });
+    }
+};
+
 
 // Exporta todas as funções do controller
 module.exports = {
@@ -259,5 +300,6 @@ module.exports = {
     getProductRanking,
     getClientRanking,
     getClientAnalysis,
-    getSellerProductivity, // Adiciona a nova função à exportação
+    getSellerProductivity,
+    getStockEntriesReport,
 };
