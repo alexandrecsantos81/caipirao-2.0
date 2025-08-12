@@ -4,40 +4,35 @@ import {
 } from '@chakra-ui/react';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-
 import { IDespesaForm, registrarDespesa, tiposDeSaida } from '../services/despesa.service';
 import { getFornecedores, IFornecedor } from '../services/fornecedor.service';
+import { IPaginatedResponse } from '@/types/common.types';
 
-// --- INTERFACE PARA AS PROPS DO COMPONENTE ---
 interface FormularioDespesaProps {
   isOpen: boolean;
   onClose: () => void;
-  onOpenFornecedorForm: () => void; // Função para abrir o formulário de fornecedor
+  onOpenFornecedorForm: () => void;
 }
 
-// --- COMPONENTE PRINCIPAL ---
 const FormularioDespesa = ({ isOpen, onClose, onOpenFornecedorForm }: FormularioDespesaProps) => {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<IDespesaForm>();
-
-  // Observa o valor do dropdown de fornecedor
   const fornecedorSelecionado = watch('fornecedor_id');
-
-  // Busca a lista de fornecedores para o dropdown
-  const { data: fornecedores, isLoading: isLoadingFornecedores } = useQuery<IFornecedor[]>({
-    queryKey: ['fornecedores'],
-    queryFn: getFornecedores,
-    // A query só será executada se o drawer estiver aberto
+  
+  // ✅ CORREÇÃO DA TIPAGEM DA QUERY
+  const { data: fornecedores, isLoading: isLoadingFornecedores } = useQuery<IPaginatedResponse<IFornecedor>, Error, IFornecedor[]>({
+    queryKey: ['fornecedores', 1, 1000],
+    queryFn: () => getFornecedores(1, 1000),
+    select: (data) => data.dados,
     enabled: isOpen,
   });
 
-  // Mutação para registrar a despesa
   const mutation = useMutation({
     mutationFn: registrarDespesa,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['despesas'] });
-      queryClient.invalidateQueries({ queryKey: ['contasAPagar'] }); // Invalida a query do dashboard
+      queryClient.invalidateQueries({ queryKey: ['contasAPagar'] });
       toast({ title: 'Despesa registrada com sucesso!', status: 'success' });
       onClose();
       reset();
@@ -48,7 +43,6 @@ const FormularioDespesa = ({ isOpen, onClose, onOpenFornecedorForm }: Formulario
   });
 
   const onSubmit: SubmitHandler<IDespesaForm> = (data) => {
-    // Converte o valor para número e garante que o fornecedor_id seja um número ou nulo
     const finalData = { 
       ...data, 
       valor: Number(data.valor),
@@ -57,15 +51,12 @@ const FormularioDespesa = ({ isOpen, onClose, onOpenFornecedorForm }: Formulario
     mutation.mutate(finalData);
   };
 
-  // Handler para o dropdown de fornecedor
   const handleFornecedorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
     if (value === 'CADASTRAR_NOVO') {
-      // Abre o formulário de fornecedor e reseta a seleção
       onOpenFornecedorForm();
       setValue('fornecedor_id', undefined); 
     } else {
-      // O valor do <option> já é uma string, então registramos como está
       setValue('fornecedor_id', Number(value));
     }
   };
@@ -95,7 +86,7 @@ const FormularioDespesa = ({ isOpen, onClose, onOpenFornecedorForm }: Formulario
 
               <FormControl isRequired isInvalid={!!errors.discriminacao}>
                 <FormLabel>Discriminação</FormLabel>
-                <Textarea {...register('discriminacao', { required: 'A discriminação é obrigatória' })} placeholder="Detalhes da despesa (ex: compra de limões, pagamento de frete)..." />
+                <Textarea {...register('discriminacao', { required: 'A discriminação é obrigatória' })} placeholder="Detalhes da despesa..." />
                 <FormErrorMessage>{errors.discriminacao?.message}</FormErrorMessage>
               </FormControl>
 
@@ -122,7 +113,6 @@ const FormularioDespesa = ({ isOpen, onClose, onOpenFornecedorForm }: Formulario
                   </option>
                 </Select>
               </FormControl>
-
             </VStack>
           </DrawerBody>
           <DrawerFooter borderBottomWidth="1px">

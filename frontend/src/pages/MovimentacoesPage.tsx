@@ -15,7 +15,7 @@ import { Controller, useForm, SubmitHandler } from 'react-hook-form';
 import { FiPlus, FiTrash2, FiEdit } from 'react-icons/fi';
 import { Pagination } from '../components/Pagination';
 import { ICliente, getClientes } from '../services/cliente.service';
-import { IDespesa, IDespesaForm, registrarDespesa, getDespesas, tiposDeSaida, updateDespesa, deleteDespesa } from '../services/despesa.service';
+import { IDespesa, IDespesaForm, registrarDespesa, tiposDeSaida, updateDespesa, deleteDespesa } from '../services/despesa.service';
 import { IProduto, getProdutos } from '../services/produto.service';
 import { IVenda, INovaVenda, createVenda, getVendas, updateVenda, deleteVenda } from '../services/venda.service';
 import { IFornecedor, getFornecedores } from '../services/fornecedor.service';
@@ -33,7 +33,7 @@ interface ProdutoVendaItem {
   preco_original: number;
 }
 
-// --- COMPONENTES DE FORMULÁRIO (SEM MUDANÇAS) ---
+// --- COMPONENTES DE FORMULÁRIO (JÁ CORRIGIDOS ANTERIORMENTE) ---
 const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boolean; onClose: () => void; vendaParaEditar: IVenda | null }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -49,8 +49,8 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
       produto_selecionado_id: '', quantidade: 1, preco_manual: '',
     },
   });
-  const { data: clientes } = useQuery<IPaginatedResponse<ICliente>>({ queryKey: ['todosClientes'], queryFn: () => getClientes(1, 1000), enabled: isOpen });
-  const { data: produtos } = useQuery<IPaginatedResponse<IProduto>>({ queryKey: ['todosProdutos'], queryFn: () => getProdutos(1, 1000), enabled: isOpen });
+  const { data: clientes } = useQuery<IPaginatedResponse<ICliente>, Error, ICliente[]>({ queryKey: ['todosClientes'], queryFn: () => getClientes(1, 1000), enabled: isOpen, select: data => data.dados });
+  const { data: produtos } = useQuery<IPaginatedResponse<IProduto>, Error, IProduto[]>({ queryKey: ['todosProdutos'], queryFn: () => getProdutos(1, 1000), enabled: isOpen, select: data => data.dados });
   const dataVendaValue = watch('data_venda');
 
   const valorTotalCalculado = useMemo(() => {
@@ -109,7 +109,7 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
       toast({ title: "Produto ou quantidade inválida", status: "warning", duration: 3000, isClosable: true });
       return;
     }
-    const produtoInfo = produtos?.dados.find(p => p.id === Number(produto_selecionado_id));
+    const produtoInfo = produtos?.find(p => p.id === Number(produto_selecionado_id));
     if (!produtoInfo) return;
     if (produtosNaVenda.some(p => p.produto_id === produtoInfo.id)) {
       toast({ title: "Produto já adicionado", status: "warning", duration: 2000, isClosable: true });
@@ -161,7 +161,7 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
           <DrawerBody>
             <VStack spacing={4} align="stretch">
                <Flex direction={flexDir} gap={4}>
-                <FormControl isRequired isInvalid={!!errors.cliente_id} flex={1}><FormLabel>Cliente</FormLabel><Select placeholder="Selecione um cliente" {...register('cliente_id', { required: 'Cliente é obrigatório' })}>{clientes?.dados.map((c: ICliente) => <option key={c.id} value={c.id}>{c.nome}</option>)}</Select><FormErrorMessage>{errors.cliente_id && errors.cliente_id.message}</FormErrorMessage></FormControl>
+                <FormControl isRequired isInvalid={!!errors.cliente_id} flex={1}><FormLabel>Cliente</FormLabel><Select placeholder="Selecione um cliente" {...register('cliente_id', { required: 'Cliente é obrigatório' })}>{clientes?.map((c: ICliente) => <option key={c.id} value={c.id}>{c.nome}</option>)}</Select><FormErrorMessage>{errors.cliente_id && errors.cliente_id.message}</FormErrorMessage></FormControl>
                 <FormControl isRequired flex={1}><FormLabel>Data da Venda</FormLabel><Input type="date" {...register('data_venda')} /></FormControl>
               </Flex>
               <Flex direction={flexDir} gap={4}>
@@ -171,7 +171,7 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
               <Box p={4} borderWidth={1} borderRadius="md" mt={4}>
                  <Heading size="sm" mb={3}>Adicionar Produtos</Heading>
                 <Flex direction={flexDir} gap={2} align="flex-end">
-                  <FormControl flex={3}><FormLabel>Produto</FormLabel><Select placeholder="Selecione..." {...register('produto_selecionado_id')}>{produtos?.dados.map((p: IProduto) => <option key={p.id} value={p.id}>{p.nome}</option>)}</Select></FormControl>
+                  <FormControl flex={3}><FormLabel>Produto</FormLabel><Select placeholder="Selecione..." {...register('produto_selecionado_id')}>{produtos?.map((p: IProduto) => <option key={p.id} value={p.id}>{p.nome}</option>)}</Select></FormControl>
                   <FormControl flex={1}><FormLabel>Qtd/Peso</FormLabel><Controller name="quantidade" control={control} render={({ field }) => <NumberInput {...field} min={0.001}><NumberInputField /></NumberInput>} /></FormControl>
                   <FormControl flex={1}><FormLabel>Preço Manual (R$)</FormLabel><Input placeholder="Opcional" {...register('preco_manual')} /></FormControl>
                   <Button colorScheme="green" onClick={handleAddProduto} alignSelf={{ base: 'stretch', md: 'flex-end' }}><FiPlus /></Button>
@@ -193,7 +193,7 @@ const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen:
   
   const drawerSize = useBreakpointValue({ base: 'full', md: 'md' });
   const { register, handleSubmit, control, reset, formState: { errors } } = useForm<IDespesaForm>();
-  const { data: fornecedores } = useQuery<IPaginatedResponse<IFornecedor>>({ queryKey: ['todosFornecedores'], queryFn: () => getFornecedores(1, 1000), enabled: isOpen });
+  const { data: fornecedores } = useQuery<IPaginatedResponse<IFornecedor>, Error, IFornecedor[]>({ queryKey: ['todosFornecedores'], queryFn: () => getFornecedores(1, 1000), enabled: isOpen, select: data => data.dados });
   
   const mutation = useMutation({
     mutationFn: (data: { despesaData: IDespesaForm, id?: number }) =>
@@ -242,7 +242,7 @@ const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen:
               <FormControl isRequired isInvalid={!!errors.valor}><FormLabel>Valor (R$)</FormLabel><Controller name="valor" control={control} rules={{ required: 'Valor é obrigatório', min: { value: 0.01, message: 'Valor deve ser maior que zero' } }} render={({ field }) => <NumberInput {...field} onChange={(_, valAsNumber) => field.onChange(valAsNumber)} value={field.value as number} min={0.01} precision={2}><NumberInputField /></NumberInput>} /><FormErrorMessage>{errors.valor?.message}</FormErrorMessage></FormControl>
               <FormControl isRequired isInvalid={!!errors.discriminacao}><FormLabel>Discriminação (Detalhes)</FormLabel><Textarea placeholder="Detalhes da despesa..." {...register('discriminacao', { required: 'A descrição é obrigatória' })} /><FormErrorMessage>{errors.discriminacao?.message}</FormErrorMessage></FormControl>
               <FormControl isRequired isInvalid={!!errors.data_vencimento}><FormLabel>Data de Vencimento</FormLabel><Input type="date" {...register('data_vencimento', { required: 'Data de vencimento é obrigatória' })} /><FormErrorMessage>{errors.data_vencimento?.message}</FormErrorMessage></FormControl>
-              <FormControl><FormLabel>Fornecedor/Credor (Opcional)</FormLabel><Select placeholder="Selecione um fornecedor" {...register('fornecedor_id')}>{fornecedores?.dados.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}</Select></FormControl>
+              <FormControl><FormLabel>Fornecedor/Credor (Opcional)</FormLabel><Select placeholder="Selecione um fornecedor" {...register('fornecedor_id')}>{fornecedores?.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}</Select></FormControl>
             </VStack>
           </DrawerBody>
           <DrawerFooter borderTopWidth="1px"><Button variant="outline" mr={3} onClick={onClose}>Cancelar</Button><Button colorScheme="red" type="submit" isLoading={mutation.isPending}>Salvar Despesa</Button></DrawerFooter>
@@ -324,7 +324,10 @@ const TabelaVendas = ({ onEdit, onDelete }: { onEdit: (venda: IVenda) => void; o
 
 // --- COMPONENTE TABELA DESPESAS (CÓDIGO CORRIGIDO) ---
 const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => void; onDelete: (id: number) => void; }) => {
+  // ✅ PONTO DE CORREÇÃO 1: Adicionar o estado para controlar a página atual.
   const [pagina, setPagina] = useState(1);
+  
+  // ✅ PONTO DE CORREÇÃO 2: Chamar o hook `useDespesas` com o número da página.
   const { data, isLoading, isError } = useDespesas(pagina);
   
   const { user } = useAuth();
@@ -338,6 +341,7 @@ const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => v
     return (
       <>
         <VStack spacing={4} align="stretch" mt={4}>
+          {/* ✅ PONTO DE CORREÇÃO 3: Mapear a lista de despesas a partir de `data.dados`. */}
           {data?.dados.map((despesa) => (
             <Box key={despesa.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
               <Flex justify="space-between" align="center">
@@ -370,6 +374,7 @@ const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => v
             </Box>
           ))}
         </VStack>
+        {/* ✅ PONTO DE CORREÇÃO 4: Adicionar o componente de Paginação. */}
         <Pagination paginaAtual={data?.pagina || 1} totalPaginas={data?.totalPaginas || 1} onPageChange={setPagina} />
       </>
     );
@@ -380,7 +385,9 @@ const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => v
       <TableContainer>
         <Table variant="striped" __css={{ 'opacity': isLoading ? 0.6 : 1 }}>
           <Thead><Tr><Th>Vencimento</Th><Th>Discriminação</Th><Th>Tipo</Th><Th>Status</Th><Th isNumeric>Valor</Th>{isAdmin && <Th>Ações</Th>}</Tr></Thead>
-          <Tbody>{data?.dados.map((despesa) => (
+          <Tbody>
+            {/* ✅ PONTO DE CORREÇÃO 3: Mapear a lista de despesas a partir de `data.dados`. */}
+            {data?.dados.map((despesa) => (
             <Tr key={despesa.id}>
               <Td>{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
               <Td>{despesa.discriminacao}</Td>
@@ -395,12 +402,13 @@ const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => v
           ))}</Tbody>
         </Table>
       </TableContainer>
+      {/* ✅ PONTO DE CORREÇÃO 4: Adicionar o componente de Paginação. */}
       <Pagination paginaAtual={data?.pagina || 1} totalPaginas={data?.totalPaginas || 1} onPageChange={setPagina} />
     </>
   );
 };
 
-// --- PÁGINA PRINCIPAL DE MOVIMENTAÇÕES (SEM MUDANÇAS) ---
+// --- PÁGINA PRINCIPAL DE MOVIMENTAÇÕES ---
 const MovimentacoesPage = () => {
   const { user } = useAuth();
   const isAdmin = user?.perfil === 'ADMIN';

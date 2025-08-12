@@ -10,8 +10,8 @@ import { useForm, SubmitHandler } from 'react-hook-form';
 import { IContasAPagar, quitarDespesa, IQuitacaoData, getContasAPagar } from '../services/despesa.service';
 import { getUtilizadores, IUtilizador } from '../services/utilizador.service';
 import { useAuth } from '../hooks/useAuth';
+import { IPaginatedResponse } from '@/types/common.types';
 
-// --- COMPONENTE: CARD DE CONTAS A PAGAR ---
 export const CardContasAPagar = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -20,27 +20,26 @@ export const CardContasAPagar = () => {
   const [selectedDespesa, setSelectedDespesa] = useState<IContasAPagar | null>(null);
   const { register, handleSubmit, setValue } = useForm<IQuitacaoData>();
 
-  // Busca as contas a pagar
   const { data: contas, isLoading, isError } = useQuery<IContasAPagar[]>({
     queryKey: ['contasAPagar'],
     queryFn: getContasAPagar,
   });
 
-  // Busca a lista de admins para o dropdown de responsável
-  const { data: admins, isLoading: isLoadingAdmins } = useQuery<IUtilizador[]>({
-    queryKey: ['utilizadores'],
-    queryFn: getUtilizadores,
-    select: (data) => data.filter(u => u.perfil === 'ADMIN'),
-    enabled: isOpen, // Só busca quando o modal está aberto
+  // ✅ CORREÇÃO AQUI: A query agora sabe que a API retorna 'IPaginatedResponse'
+  // e o 'select' transforma o resultado final em um array simples 'IUtilizador[]'.
+  const { data: admins, isLoading: isLoadingAdmins } = useQuery<IPaginatedResponse<IUtilizador>, Error, IUtilizador[]>({
+    queryKey: ['utilizadores', 1, 1000],
+    queryFn: () => getUtilizadores(1, 1000),
+    select: (data) => data.dados.filter(u => u.perfil === 'ADMIN'),
+    enabled: isOpen,
   });
 
-  // Mutação para quitar a despesa
   const quitacaoMutation = useMutation({
     mutationFn: quitarDespesa,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contasAPagar'] });
       queryClient.invalidateQueries({ queryKey: ['despesas'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboardKPIs'] }); // Invalida os KPIs para atualizar o card
+      queryClient.invalidateQueries({ queryKey: ['dashboardKPIs'] });
       toast({ title: 'Despesa quitada com sucesso!', status: 'success' });
       onClose();
     },
@@ -100,7 +99,6 @@ export const CardContasAPagar = () => {
         </VStack>
       )}
 
-      {/* Modal de Quitação */}
       <Modal isOpen={isOpen} onClose={onClose} isCentered>
         <ModalOverlay />
         <ModalContent as="form" onSubmit={handleSubmit(onConfirmarQuitacao)}>
@@ -115,9 +113,9 @@ export const CardContasAPagar = () => {
               </FormControl>
               <FormControl isRequired>
                 <FormLabel>Responsável pelo Pagamento</FormLabel>
-                <Select 
+                <Select
                   placeholder={isLoadingAdmins ? "Carregando..." : "Selecione um responsável"}
-                  {...register('responsavel_pagamento_id', { required: true })} 
+                  {...register('responsavel_pagamento_id', { required: true })}
                   disabled={isLoadingAdmins}
                 >
                   {admins?.map(admin => (
