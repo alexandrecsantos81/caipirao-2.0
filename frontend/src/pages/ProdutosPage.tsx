@@ -132,7 +132,7 @@ const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
 };
 
 
-// --- PÁGINA PRINCIPAL DE PRODUTOS (COM CORREÇÃO DOS HOOKS) ---
+// --- PÁGINA PRINCIPAL DE PRODUTOS ---
 const ProdutosPage = () => {
   const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
   const { isOpen: isEstoqueOpen, onOpen: onEstoqueOpen, onClose: onEstoqueClose } = useDisclosure();
@@ -151,8 +151,6 @@ const ProdutosPage = () => {
     placeholderData: keepPreviousData,
   });
   
-  // ✅ CORREÇÃO: Todos os hooks foram movidos para o nível superior do componente,
-  // fora de qualquer condicional.
   const deleteMutation = useMutation({
     mutationFn: deleteProduto,
     onSuccess: () => {
@@ -282,18 +280,23 @@ const ProdutosPage = () => {
       )}
       {!isLoading && !data && (<Center p={10}><Text color="red.500" fontWeight="bold">Falha ao carregar os produtos.</Text></Center>)}
       
-      {isAdmin && (
-        <>
-          <FormularioProduto isOpen={isFormOpen} onClose={onFormClose} produto={editingProduto} onSave={handleSave} isLoading={saveMutation.isPending} />
-          <ModalEntradaEstoque 
-            isOpen={isEstoqueOpen} 
-            onClose={onEstoqueClose} 
-            produto={produtoParaEstoque} 
-            onSubmit={handleSaveEstoque} 
-            isLoading={entradaEstoqueMutation.isPending} 
-          />
-        </>
-      )}
+      {/* ✅ CORREÇÃO: Os componentes são renderizados fora da condição,
+          mas a prop 'isOpen' garante que eles só apareçam quando necessário.
+          Isso mantém o número de hooks constante entre as renderizações. */}
+      <FormularioProduto 
+        isOpen={isFormOpen && isAdmin} 
+        onClose={onFormClose} 
+        produto={editingProduto} 
+        onSave={handleSave} 
+        isLoading={saveMutation.isPending} 
+      />
+      <ModalEntradaEstoque 
+        isOpen={isEstoqueOpen && isAdmin} 
+        onClose={onEstoqueClose} 
+        produto={produtoParaEstoque} 
+        onSubmit={handleSaveEstoque} 
+        isLoading={entradaEstoqueMutation.isPending} 
+      />
     </Box>
   );
 };
