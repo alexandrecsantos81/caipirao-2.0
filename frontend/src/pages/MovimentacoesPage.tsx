@@ -33,7 +33,7 @@ interface ProdutoVendaItem {
   preco_original: number;
 }
 
-// --- COMPONENTES DE FORMULÁRIO (JÁ CORRIGIDOS ANTERIORMENTE) ---
+// --- COMPONENTES DE FORMULÁRIO ---
 const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boolean; onClose: () => void; vendaParaEditar: IVenda | null }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -245,14 +245,14 @@ const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen:
               <FormControl><FormLabel>Fornecedor/Credor (Opcional)</FormLabel><Select placeholder="Selecione um fornecedor" {...register('fornecedor_id')}>{fornecedores?.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}</Select></FormControl>
             </VStack>
           </DrawerBody>
-          <DrawerFooter borderTopWidth="1px"><Button variant="outline" mr={3} onClick={onClose}>Cancelar</Button><Button colorScheme="red" type="submit" isLoading={mutation.isPending}>Salvar Despesa</Button></DrawerFooter>
+          <DrawerFooter borderBottomWidth="1px"><Button variant="outline" mr={3} onClick={onClose}>Cancelar</Button><Button colorScheme="red" type="submit" isLoading={mutation.isPending}>Salvar Despesa</Button></DrawerFooter>
         </form>
       </DrawerContent>
     </Drawer>
   );
 };
 
-// --- COMPONENTE TABELA VENDAS (SEM MUDANÇAS) ---
+// --- COMPONENTE TABELA VENDAS ---
 const TabelaVendas = ({ onEdit, onDelete }: { onEdit: (venda: IVenda) => void; onDelete: (id: number) => void; }) => {
   const [pagina, setPagina] = useState(1);
   const { data, isLoading, isError } = useQuery({ queryKey: ['vendas', pagina], queryFn: () => getVendas(pagina, 10), placeholderData: keepPreviousData });
@@ -322,12 +322,9 @@ const TabelaVendas = ({ onEdit, onDelete }: { onEdit: (venda: IVenda) => void; o
   );
 };
 
-// --- COMPONENTE TABELA DESPESAS (CÓDIGO CORRIGIDO) ---
+// --- COMPONENTE TABELA DESPESAS ---
 const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => void; onDelete: (id: number) => void; }) => {
-  // ✅ PONTO DE CORREÇÃO 1: Adicionar o estado para controlar a página atual.
   const [pagina, setPagina] = useState(1);
-  
-  // ✅ PONTO DE CORREÇÃO 2: Chamar o hook `useDespesas` com o número da página.
   const { data, isLoading, isError } = useDespesas(pagina);
   
   const { user } = useAuth();
@@ -341,7 +338,6 @@ const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => v
     return (
       <>
         <VStack spacing={4} align="stretch" mt={4}>
-          {/* ✅ PONTO DE CORREÇÃO 3: Mapear a lista de despesas a partir de `data.dados`. */}
           {data?.dados.map((despesa) => (
             <Box key={despesa.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
               <Flex justify="space-between" align="center">
@@ -374,7 +370,6 @@ const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => v
             </Box>
           ))}
         </VStack>
-        {/* ✅ PONTO DE CORREÇÃO 4: Adicionar o componente de Paginação. */}
         <Pagination paginaAtual={data?.pagina || 1} totalPaginas={data?.totalPaginas || 1} onPageChange={setPagina} />
       </>
     );
@@ -385,9 +380,7 @@ const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => v
       <TableContainer>
         <Table variant="striped" __css={{ 'opacity': isLoading ? 0.6 : 1 }}>
           <Thead><Tr><Th>Vencimento</Th><Th>Discriminação</Th><Th>Tipo</Th><Th>Status</Th><Th isNumeric>Valor</Th>{isAdmin && <Th>Ações</Th>}</Tr></Thead>
-          <Tbody>
-            {/* ✅ PONTO DE CORREÇÃO 3: Mapear a lista de despesas a partir de `data.dados`. */}
-            {data?.dados.map((despesa) => (
+          <Tbody>{data?.dados.map((despesa) => (
             <Tr key={despesa.id}>
               <Td>{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
               <Td>{despesa.discriminacao}</Td>
@@ -402,7 +395,6 @@ const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => v
           ))}</Tbody>
         </Table>
       </TableContainer>
-      {/* ✅ PONTO DE CORREÇÃO 4: Adicionar o componente de Paginação. */}
       <Pagination paginaAtual={data?.pagina || 1} totalPaginas={data?.totalPaginas || 1} onPageChange={setPagina} />
     </>
   );
