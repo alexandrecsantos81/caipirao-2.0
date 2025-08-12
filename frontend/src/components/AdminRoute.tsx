@@ -1,26 +1,22 @@
+// frontend/src/components/AdminRoute.tsx
+
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { Center, Spinner } from '@chakra-ui/react';
 
 const AdminRoute = () => {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
 
-  // Enquanto o estado de autenticação está carregando, exibe um spinner
-  if (loading) {
-    return (
-      <Center h="100vh">
-        <Spinner size="xl" />
-      </Center>
-    );
-  }
+  // O hook useAuth já garante que 'user' não será nulo aqui,
+  // pois ProtectedRoute já validou a autenticação.
+  // A verificação de loading também já foi feita no ProtectedRoute.
 
-  // Se o usuário não for um ADMIN, redireciona para a página principal permitida para ele
+  // Se o usuário não for um ADMIN, redireciona para a página principal permitida para ele.
   if (user?.perfil !== 'ADMIN') {
-    // Pode ser o dashboard ou outra página, como /movimentacoes
+    // Redireciona para a página de movimentações, que é acessível por todos os usuários logados.
     return <Navigate to="/movimentacoes" replace />;
   }
 
-  // Se for um ADMIN, permite o acesso às rotas aninhadas
+  // Se for um ADMIN, permite o acesso às rotas aninhadas.
   return <Outlet />;
 };
 

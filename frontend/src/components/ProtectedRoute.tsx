@@ -1,15 +1,28 @@
 // frontend/src/components/ProtectedRoute.tsx
+
 import { Navigate, Outlet } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { Center, Spinner } from '@chakra-ui/react';
 
 const ProtectedRoute = () => {
-  const token = localStorage.getItem('token'); // Ou a sua lógica para verificar a autenticação
+  const { isAuthenticated, loading } = useAuth();
 
-  // Se não houver token, redireciona para a página de login
-  if (!token) {
+  // Enquanto o estado de autenticação está sendo verificado, exibe um spinner.
+  // Isso centraliza a lógica de carregamento e evita renderizações parciais.
+  if (loading) {
+    return (
+      <Center h="100vh">
+        <Spinner size="xl" />
+      </Center>
+    );
+  }
+
+  // Após o carregamento, se o usuário NÃO estiver autenticado, redireciona para o login.
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  // Se houver token, renderiza o componente da rota solicitada (filho)
+  // Se estiver autenticado, permite o acesso às rotas aninhadas.
   return <Outlet />;
 };
 
