@@ -13,15 +13,39 @@ const utilizadorRoutes = require('./routes/utilizadores');
 const fornecedorRoutes = require('./routes/fornecedorRoutes');
 const despesaRoutes = require('./routes/despesaRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
-// 1. IMPORTAR A NOVA ROTA DE RELATÓRIOS
 const reportRoutes = require('./routes/reports');
 
 const app = express();
 const port = process.env.PORT || 3001;
 
+// --- INÍCIO DA CORREÇÃO DE CORS ---
+
+// Lista de origens permitidas. Adicione outras se necessário (ex: http://localhost:5173 para dev )
+const allowedOrigins = [
+  'https://syscaipirao.netlify.app',
+  'http://localhost:5173' // Adicione a URL de desenvolvimento local
+];
+
+const corsOptions = {
+  origin: (origin, callback ) => {
+    // Permite requisições sem 'origin' (como apps mobile ou Postman) ou se a origem estiver na lista
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Permite todos os métodos HTTP comuns
+  credentials: true, // Permite o envio de cookies/credenciais
+  optionsSuccessStatus: 204 // Necessário para algumas versões de navegadores
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions)); // <-- APLICA A NOVA CONFIGURAÇÃO DE CORS
 app.use(express.json());
+
+// --- FIM DA CORREÇÃO DE CORS ---
+
 
 // Rotas Públicas
 app.get('/', (req, res) => {
@@ -37,7 +61,6 @@ app.use('/api/clientes', clienteRoutes);
 app.use('/api/produtos', produtoRoutes);
 app.use('/api/movimentacoes', movimentacaoRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-// 2. ADICIONAR A NOVA ROTA À APLICAÇÃO
 app.use('/api/reports', reportRoutes);
 
 // Iniciar o servidor
