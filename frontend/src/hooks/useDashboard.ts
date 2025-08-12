@@ -31,4 +31,4 @@ export const useDashboardData = () => {
     vendasPorDiaQuery,
     contasAPagarQuery,
   };
-};
+};//marcação para commit gemini

@@ -139,3 +139,4 @@ export const ModalEntradaEstoque = ({ isOpen, onClose, onSubmit, produto, isLoad
     </Modal>
   );
 };
+//marcação para commit gemini

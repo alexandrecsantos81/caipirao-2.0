@@ -92,3 +92,5 @@ export const updateUtilizador = async ({ id, data }: { id: number, data: IUpdate
 export const deleteUtilizador = async (id: number): Promise<void> => {
   await apiClient.delete(`/utilizadores/${id}`);
 };
+
+//marcação para commit gemini

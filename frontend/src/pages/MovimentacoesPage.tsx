@@ -32,7 +32,6 @@ interface ProdutoVendaItem {
   unidade_medida: string;
   preco_original: number;
 }
-
 // --- COMPONENTES DE FORMULÁRIO ---
 const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boolean; onClose: () => void; vendaParaEditar: IVenda | null }) => {
   const queryClient = useQueryClient();
@@ -251,7 +250,6 @@ const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen:
     </Drawer>
   );
 };
-
 // --- COMPONENTE TABELA VENDAS ---
 const TabelaVendas = ({ onEdit, onDelete }: { onEdit: (venda: IVenda) => void; onDelete: (id: number) => void; }) => {
   const [pagina, setPagina] = useState(1);
@@ -322,9 +320,10 @@ const TabelaVendas = ({ onEdit, onDelete }: { onEdit: (venda: IVenda) => void; o
   );
 };
 
-// --- COMPONENTE TABELA DESPESAS ---
+// --- COMPONENTE TABELA DESPESAS (COM AS CORREÇÕES) ---
 const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => void; onDelete: (id: number) => void; }) => {
   const [pagina, setPagina] = useState(1);
+  // CORREÇÃO: Passando a página atual para o hook
   const { data, isLoading, isError } = useDespesas(pagina);
   
   const { user } = useAuth();
@@ -338,7 +337,8 @@ const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => v
     return (
       <>
         <VStack spacing={4} align="stretch" mt={4}>
-          {data?.dados.map((despesa) => (
+          {/* CORREÇÃO: Acessando data.dados para o map e tipando o parâmetro 'despesa' */}
+          {data?.dados.map((despesa: IDespesa) => (
             <Box key={despesa.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
               <Flex justify="space-between" align="center">
                 <Heading size="sm" noOfLines={1}>{despesa.discriminacao}</Heading>
@@ -370,6 +370,7 @@ const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => v
             </Box>
           ))}
         </VStack>
+        {/* CORREÇÃO: Passando as propriedades corretas para o componente Pagination */}
         <Pagination paginaAtual={data?.pagina || 1} totalPaginas={data?.totalPaginas || 1} onPageChange={setPagina} />
       </>
     );
@@ -380,7 +381,9 @@ const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => v
       <TableContainer>
         <Table variant="striped" __css={{ 'opacity': isLoading ? 0.6 : 1 }}>
           <Thead><Tr><Th>Vencimento</Th><Th>Discriminação</Th><Th>Tipo</Th><Th>Status</Th><Th isNumeric>Valor</Th>{isAdmin && <Th>Ações</Th>}</Tr></Thead>
-          <Tbody>{data?.dados.map((despesa) => (
+          <Tbody>
+            {/* CORREÇÃO: Acessando data.dados e tipando o parâmetro 'despesa' */}
+            {data?.dados.map((despesa: IDespesa) => (
             <Tr key={despesa.id}>
               <Td>{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
               <Td>{despesa.discriminacao}</Td>
@@ -395,6 +398,7 @@ const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => v
           ))}</Tbody>
         </Table>
       </TableContainer>
+      {/* CORREÇÃO: Passando as propriedades corretas para o componente Pagination */}
       <Pagination paginaAtual={data?.pagina || 1} totalPaginas={data?.totalPaginas || 1} onPageChange={setPagina} />
     </>
   );

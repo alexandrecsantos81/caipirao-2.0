@@ -1,33 +1,61 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-// CORREÇÃO: Importar tudo do local correto
-import { getDespesas, registrarDespesa as createDespesa, IDespesa, IDespesaForm as ICreateDespesa } from '../services/despesa.service';
-import { IPaginatedResponse } from '@/types/common.types'; // Importação centralizada
+// frontend/src/hooks/useDespesas.ts
 
-const DESPESAS_QUERY_KEY = ['despesas'];
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { getDespesas, registrarDespesa, updateDespesa, deleteDespesa, IDespesa, IDespesaForm } from '../services/despesa.service';
+import { IPaginatedResponse } from '@/types/common.types';
+
+const DESPESAS_QUERY_KEY = 'despesas';
 
 /**
- * Custom Hook para buscar a lista de despesas.
+ * Hook customizado para buscar a lista paginada de despesas.
  * Ele gerencia o fetching, caching, loading e estados de erro.
+ * @param pagina O número da página a ser buscada.
  */
-export const useDespesas = () => { // CORREÇÃO: Removidos os parâmetros de paginação que não são mais usados aqui
-  return useQuery<IDespesa[], Error>({ // CORREÇÃO: A query agora retorna um array simples de IDespesa
-    queryKey: DESPESAS_QUERY_KEY,
-    queryFn: getDespesas, // A função getDespesas não precisa mais de parâmetros
+export const useDespesas = (pagina: number) => {
+  return useQuery<IPaginatedResponse<IDespesa>, Error>({
+    // A chave da query agora inclui a página para que cada página tenha seu próprio cache
+    queryKey: [DESPESAS_QUERY_KEY, pagina],
+    queryFn: () => getDespesas(pagina, 10), // Busca 10 itens por página
+    placeholderData: keepPreviousData, // Mantém os dados antigos visíveis enquanto busca os novos
   });
 };
 
 /**
- * Custom Hook para criar uma nova despesa.
- * Ele gerencia o estado da mutação (criação) e atualiza a lista de despesas
- * automaticamente em caso de sucesso.
+ * Hook customizado para criar uma nova despesa.
  */
 export const useCreateDespesa = () => {
   const queryClient = useQueryClient();
-
-  return useMutation<IDespesa, Error, ICreateDespesa>({
-    mutationFn: createDespesa,
+  return useMutation<IDespesa, Error, IDespesaForm>({
+    mutationFn: registrarDespesa,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: DESPESAS_QUERY_KEY });
+      // Invalida todas as queries de despesas para forçar a atualização
+      queryClient.invalidateQueries({ queryKey: [DESPESAS_QUERY_KEY] });
     },
   });
+};
+
+/**
+ * Hook customizado para atualizar uma despesa.
+ */
+export const useUpdateDespesa = () => {
+    const queryClient = useQueryClient();
+    return useMutation<IDespesa, Error, { id: number; data: IDespesaForm }>({
+        mutationFn: (params) => updateDespesa(params),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: [DESPESAS_QUERY_KEY] });
+        }
+    });
+};
+
+/**
+ * Hook customizado para deletar uma despesa.
+ */
+export const useDeleteDespesa = () => {
+    const queryClient = useQueryClient();
+    return useMutation<void, Error, number>({
+        mutationFn: deleteDespesa,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: [DESPESAS_QUERY_KEY] });
+        }
+    });
 };

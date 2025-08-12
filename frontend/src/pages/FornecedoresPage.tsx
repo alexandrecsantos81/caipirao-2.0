@@ -236,3 +236,5 @@ const FornecedoresPage = () => {
 };
 
 export default FornecedoresPage;
+
+//marcação para commit gemini

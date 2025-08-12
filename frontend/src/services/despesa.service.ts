@@ -1,4 +1,7 @@
+// frontend/src/services/despesa.service.ts
+
 import axios from 'axios';
+import { IPaginatedResponse } from '@/types/common.types'; // Importação centralizada
 
 // Configuração do cliente Axios
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -19,8 +22,8 @@ apiClient.interceptors.request.use(
 // --- INTERFACES ---
 
 export const tiposDeSaida = [
-    "Insumos de Produção", "Mão de Obra", "Materiais e Embalagens", 
-    "Despesas Operacionais", "Encargos e Tributos", "Despesas Administrativas", 
+    "Insumos de Produção", "Mão de Obra", "Materiais e Embalagens",
+    "Despesas Operacionais", "Encargos e Tributos", "Despesas Administrativas",
     "Financeiras", "Remuneração de Sócios", "Outros"
 ] as const;
 
@@ -61,6 +64,16 @@ export interface IQuitacaoData {
 // --- FUNÇÕES DO SERVIÇO ---
 
 /**
+ * @description Busca a lista completa de despesas com paginação.
+ */
+export const getDespesas = async (pagina = 1, limite = 10): Promise<IPaginatedResponse<IDespesa>> => {
+    const response = await apiClient.get('/', {
+        params: { pagina, limite }
+    });
+    return response.data;
+};
+
+/**
  * @description Registra uma nova despesa.
  */
 export const registrarDespesa = async (data: IDespesaForm): Promise<IDespesa> => {
@@ -96,13 +109,5 @@ export const getContasAPagar = async (): Promise<IContasAPagar[]> => {
  */
 export const quitarDespesa = async ({ id, quitacaoData }: { id: number, quitacaoData: IQuitacaoData }): Promise<IDespesa> => {
     const response = await apiClient.put(`/${id}/quitar`, quitacaoData);
-    return response.data;
-};
-
-/**
- * @description Busca a lista completa de despesas.
- */
-export const getDespesas = async (): Promise<IDespesa[]> => {
-    const response = await apiClient.get('/');
     return response.data;
 };

@@ -126,3 +126,5 @@ const FormularioDespesa = ({ isOpen, onClose, onOpenFornecedorForm }: Formulario
 };
 
 export default FormularioDespesa;
+
+//marcação para commit gemini

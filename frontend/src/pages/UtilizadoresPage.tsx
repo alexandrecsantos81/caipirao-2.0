@@ -287,3 +287,5 @@ const UtilizadoresPage = () => {
 };
 
 export default UtilizadoresPage;
+
+//marcação para commit gemini

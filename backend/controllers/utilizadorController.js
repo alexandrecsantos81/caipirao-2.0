@@ -206,3 +206,6 @@ module.exports = {
     updateUtilizador,
     deleteUtilizador,
 };
+
+
+//marcação para commit gemini

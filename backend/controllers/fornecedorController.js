@@ -119,3 +119,5 @@ module.exports = {
     updateFornecedor,
     deleteFornecedor,
 };
+
+//marcação para commit gemini

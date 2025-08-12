@@ -138,3 +138,5 @@ module.exports = {
     updateCliente,
     deleteCliente
 };
+
+//marcação para commit gemini

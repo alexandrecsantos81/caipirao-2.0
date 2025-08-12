@@ -106,3 +106,4 @@ export const ModalAdicionarDespesa = ({ isOpen, onClose, onSubmit, isLoading }: 
     </Modal>
   );
 };
+//marcação para commit gemini

@@ -65,3 +65,5 @@ export const updateFornecedor = async ({ id, ...data }: IFornecedor): Promise<IF
 export const deleteFornecedor = async (id: number): Promise<void> => {
     await apiClient.delete(`/${id}`);
 }
+
+//marcação para commit gemini
