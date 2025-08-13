@@ -1,13 +1,12 @@
-// src/components/StockEntriesTable.tsx
-
 import {
-  Table, Thead, Tbody, Tr, Th, Td, TableContainer, Skeleton, Text, Center, Tooltip
+  Table, Thead, Tbody, Tr, Th, Td, TableContainer, Skeleton, Text, Center, Tooltip, useColorModeValue
 } from '@chakra-ui/react';
 import { IStockEntryReportItem } from '@/services/report.service';
 
 interface StockEntriesTableProps {
   data: IStockEntryReportItem[] | undefined;
   isLoading: boolean;
+  isError: boolean;
 }
 
 const formatCurrency = (value: number) => {
@@ -24,11 +23,13 @@ const formatDate = (dateString: string) => {
   });
 };
 
-export const StockEntriesTable = ({ data, isLoading }: StockEntriesTableProps) => {
+export const StockEntriesTable = ({ data, isLoading, isError }: StockEntriesTableProps) => {
+  const textColor = useColorModeValue('gray.600', 'gray.400');
+
   if (isLoading) {
     return (
       <TableContainer>
-        <Table variant="striped">
+        <Table variant="simple">
           <Thead>
             <Tr>
               <Th>Data</Th>
@@ -40,7 +41,7 @@ export const StockEntriesTable = ({ data, isLoading }: StockEntriesTableProps) =
             </Tr>
           </Thead>
           <Tbody>
-            {Array.from({ length: 5 }).map((_, index) => (
+            {Array.from({ length: 8 }).map((_, index) => (
               <Tr key={index}>
                 <Td><Skeleton height="20px" /></Td>
                 <Td><Skeleton height="20px" /></Td>
@@ -56,10 +57,14 @@ export const StockEntriesTable = ({ data, isLoading }: StockEntriesTableProps) =
     );
   }
 
+  if (isError) {
+    return <Center p={10}><Text color="red.500">Não foi possível carregar o histórico de estoque.</Text></Center>;
+  }
+
   if (!data || data.length === 0) {
     return (
       <Center p={10}>
-        <Text color="gray.500">Nenhuma entrada de estoque registrada no período selecionado.</Text>
+        <Text color={textColor}>Nenhuma entrada de estoque registrada no período selecionado.</Text>
       </Center>
     );
   }
@@ -81,10 +86,10 @@ export const StockEntriesTable = ({ data, isLoading }: StockEntriesTableProps) =
           {data.map((entry) => (
             <Tr key={entry.id}>
               <Td>{formatDate(entry.data_entrada)}</Td>
-              <Td>{entry.produto_nome}</Td>
+              <Td fontWeight="medium">{entry.produto_nome}</Td>
               <Td>{entry.responsavel_nome}</Td>
               <Td isNumeric>{entry.quantidade_adicionada}</Td>
-              <Td isNumeric>{formatCurrency(entry.custo_total)}</Td>
+              <Td isNumeric color="orange.500">{formatCurrency(entry.custo_total)}</Td>
               <Td>
                 <Tooltip label={entry.observacao || ''} placement="top" hasArrow>
                   <Text isTruncated maxW="150px">

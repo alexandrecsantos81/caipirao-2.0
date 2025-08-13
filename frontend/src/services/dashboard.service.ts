@@ -19,7 +19,6 @@ apiClient.interceptors.request.use(
 
 // --- INTERFACES ---
 
-// Interface para os dados dos cards (KPIs)
 export interface IKPIs {
   totalVendasMes: number;
   totalDespesasMes: number;
@@ -29,29 +28,52 @@ export interface IKPIs {
   novosClientesMes: number;
 }
 
-// Interface para os dados do gráfico de vendas
 export interface IVendasPorDia {
-  dia: string;  // Formatado como "DD/MM"
+  dia: string;
   total: number;
+}
+
+export interface IDespesasPorCategoria {
+  name: string;
+  value: number;
+}
+
+export interface IRankingProduto {
+  nome: string;
+  total_vendido: number;
+}
+
+// NOVA INTERFACE
+export interface IRankingCliente {
+  nome: string;
+  total_comprado: number;
 }
 
 
 // --- FUNÇÕES DO SERVIÇO ---
 
-/**
- * @description Busca os KPIs (Key Performance Indicators) para os cards do dashboard.
- * @returns Uma promessa com o objeto de KPIs.
- */
 export const getKPIs = async (): Promise<IKPIs> => {
   const response = await apiClient.get('/kpis');
   return response.data;
 };
 
-/**
- * @description Busca os dados de vendas agregados por dia para o gráfico.
- * @returns Uma promessa com um array de dados de vendas diárias.
- */
 export const getVendasPorDia = async (): Promise<IVendasPorDia[]> => {
   const response = await apiClient.get('/vendas-por-dia');
+  return response.data;
+};
+
+export const getDespesasPorCategoria = async (): Promise<IDespesasPorCategoria[]> => {
+  const response = await apiClient.get('/despesas-por-categoria');
+  return response.data;
+};
+
+export const getRankingProdutos = async (): Promise<IRankingProduto[]> => {
+  const response = await apiClient.get('/ranking-produtos');
+  return response.data;
+};
+
+// NOVA FUNÇÃO
+export const getRankingClientes = async (): Promise<IRankingCliente[]> => {
+  const response = await apiClient.get('/ranking-clientes');
   return response.data;
 };

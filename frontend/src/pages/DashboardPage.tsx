@@ -1,31 +1,37 @@
-// frontend/src/pages/DashboardPage.tsx
-
 import {
   Box, Heading, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText,
-  Spinner, Text, Center, StatArrow, useBreakpointValue, VStack, HStack
+  Spinner, Text, Center, StatArrow, VStack, HStack, useBreakpointValue,
 } from '@chakra-ui/react';
-import { useDashboardData } from '../hooks/useDashboard';
-import { GraficoVendas } from '../components/GraficoVendas'; // A importação já estava aqui
 import { FaCalendarAlt } from 'react-icons/fa';
+import { useDashboardData } from '../hooks/useDashboard';
+import { GraficoVendas } from '../components/GraficoVendas';
+import { GraficoRankingProdutos } from '../components/GraficoRankingProdutos';
+import { GraficoRankingClientes } from '../components/GraficoRankingClientes';
 import { IContasAPagar } from '../services/despesa.service';
 
 const formatCurrency = (value: number | undefined) => {
   if (value === undefined) return 'N/D';
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
+
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
 };
 
-
 const DashboardPage = () => {
-  const { kpisQuery, vendasPorDiaQuery, contasAPagarQuery } = useDashboardData();
+  const { 
+    kpisQuery, 
+    vendasPorDiaQuery, 
+    rankingProdutosQuery,
+    rankingClientesQuery,
+    contasAPagarQuery,
+  } = useDashboardData();
 
   const { data: kpis, isLoading: isLoadingKPIs, isError: isErrorKPIs } = kpisQuery;
   const { data: vendasData, isLoading: isLoadingVendas, isError: isErrorVendas } = vendasPorDiaQuery;
+  const { data: rankingProdutosData, isLoading: isLoadingRankingProdutos, isError: isErrorRankingProdutos } = rankingProdutosQuery;
+  const { data: rankingClientesData, isLoading: isLoadingRankingClientes, isError: isErrorRankingClientes } = rankingClientesQuery;
   const { data: contasAPagar, isLoading: isLoadingContas, isError: isErrorContas } = contasAPagarQuery;
-
-  const isMobile = useBreakpointValue({ base: true, md: false });
 
   if (isLoadingKPIs) {
     return <Center p={8} minH="50vh"><Spinner size="xl" /></Center>;
@@ -35,41 +41,39 @@ const DashboardPage = () => {
     return <Center p={8}><Text color="red.500" fontSize="lg">Erro ao carregar os dados do Dashboard.</Text></Center>;
   }
 
+  // Componente interno para renderizar as contas a pagar
   const ContasAPagarComponent = () => {
-    if (isLoadingContas) return <Center p={4}><Spinner /></Center>;
-    if (isErrorContas) return <Center p={4}><Text color="red.500">Erro ao buscar contas a pagar.</Text></Center>;
-    if (!contasAPagar || contasAPagar.length === 0) {
-      return <Center p={4}><Text>Nenhuma conta a pagar pendente.</Text></Center>;
-    }
+    const renderContent = () => {
+      if (isLoadingContas) return <Center h="250px"><Spinner /></Center>;
+      if (isErrorContas) return <Center h="250px"><Text color="red.500">Erro ao buscar contas.</Text></Center>;
+      if (!contasAPagar || contasAPagar.length === 0) {
+        return <Center h="250px"><Text>Nenhuma conta a pagar pendente.</Text></Center>;
+      }
 
-    if (isMobile) {
       return (
-        <VStack spacing={4} align="stretch">
+        <VStack spacing={3} align="stretch" mt={4}>
           {contasAPagar.map((conta: IContasAPagar) => (
-            <Box key={conta.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
-              <HStack justify="space-between">
-                <Text fontWeight="bold" noOfLines={1}>{conta.nome_fornecedor}</Text>
-                <Text fontWeight="bold" color="red.500">{formatCurrency(conta.valor)}</Text>
-              </HStack>
-              <HStack mt={2} color="gray.500">
-                <FaCalendarAlt />
-                <Text fontSize="sm">Venc: {formatDate(conta.data_vencimento)}</Text>
-              </HStack>
-            </Box>
+            <HStack key={conta.id} justify="space-between" py={2} borderBottomWidth="1px" _last={{ borderBottomWidth: 0 }}>
+              <VStack align="start" spacing={0}>
+                <Text fontWeight="medium" noOfLines={1}>{conta.nome_fornecedor || 'Despesa avulsa'}</Text>
+                <HStack color="gray.500">
+                  <FaCalendarAlt size="12px" />
+                  <Text fontSize="sm">Venc: {formatDate(conta.data_vencimento)}</Text>
+                </HStack>
+              </VStack>
+              <Text color="red.500" fontWeight="bold">{formatCurrency(conta.valor)}</Text>
+            </HStack>
           ))}
         </VStack>
       );
-    }
+    };
 
+    // **CORREÇÃO APLICADA AQUI**
+    // Envolvemos o conteúdo em um Box com o mesmo estilo dos outros cards.
     return (
-      <Box borderWidth={1} borderRadius="md" p={4}>
-        {contasAPagar.map((conta: IContasAPagar) => (
-          <HStack key={conta.id} justify="space-between" py={2} borderBottomWidth="1px">
-            <Text>{conta.nome_fornecedor}</Text>
-            <Text>{formatDate(conta.data_vencimento)}</Text>
-            <Text color="red.500" fontWeight="bold">{formatCurrency(conta.valor)}</Text>
-          </HStack>
-        ))}
+      <Box borderWidth={1} borderRadius="md" p={4} boxShadow="sm" h="100%">
+        <Heading as="h2" size="md" mb={2}>Contas a Pagar Pendentes</Heading>
+        {renderContent()}
       </Box>
     );
   };
@@ -78,6 +82,7 @@ const DashboardPage = () => {
     <Box p={{ base: 4, md: 8 }}>
       <Heading as="h1" size="lg" mb={6}>Dashboard</Heading>
       
+      {/* KPIs Cards */}
       <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
         <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm"><StatLabel>Receita (Mês)</StatLabel><StatNumber color="green.500">{formatCurrency(kpis?.totalVendasMes)}</StatNumber><StatHelpText>Total de vendas no mês atual.</StatHelpText></Stat>
         <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm"><StatLabel>Despesas (Mês)</StatLabel><StatNumber color="red.500">{formatCurrency(kpis?.totalDespesasMes)}</StatNumber><StatHelpText>Total de despesas no mês atual.</StatHelpText></Stat>
@@ -87,17 +92,48 @@ const DashboardPage = () => {
         <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm"><StatLabel>Novos Clientes (Mês)</StatLabel><StatNumber>{kpis?.novosClientesMes ?? 'N/D'}</StatNumber><StatHelpText>Clientes cadastrados no mês atual.</StatHelpText></Stat>
       </SimpleGrid>
 
-      <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6} mt={8}>
+      {/* Seção de Gráficos e Cards */}
+      <SimpleGrid columns={{ base: 1, lg: 2, '2xl': 3 }} spacing={6} mt={8}>
+        {/* Coluna 1: Gráfico de Vendas */}
         <Box borderWidth={1} borderRadius="md" p={4} boxShadow="sm">
-          <Heading as="h2" size="md" mb={4}>Vendas e Despesas (Últimos 30 dias)</Heading>
-          {/* ✅ CÓDIGO REATIVADO */}
-          <GraficoVendas data={vendasData} isLoading={isLoadingVendas} isError={isErrorVendas} />
+          <Heading as="h2" size="md" mb={4}>Vendas nos Últimos 30 Dias</Heading>
+          <GraficoVendas 
+            data={vendasData} 
+            isLoading={isLoadingVendas} 
+            isError={isErrorVendas} 
+          />
         </Box>
-        <Box borderWidth={1} borderRadius="md" p={0} boxShadow="sm" overflow="hidden">
-          <Heading as="h2" size="md" p={4} pb={2}>Contas a Pagar Pendentes</Heading>
+
+        {/* Coluna 2: Rankings */}
+        <VStack spacing={6}>
+          <Box w="full" borderWidth={1} borderRadius="md" p={4} boxShadow="sm">
+            <Heading as="h2" size="md" mb={4}>Top 5 Produtos (Mês)</Heading>
+            <GraficoRankingProdutos
+              data={rankingProdutosData}
+              isLoading={isLoadingRankingProdutos}
+              isError={isErrorRankingProdutos}
+            />
+          </Box>
+          <Box w="full" borderWidth={1} borderRadius="md" p={4} boxShadow="sm">
+            <Heading as="h2" size="md" mb={4}>Top 5 Clientes (Mês)</Heading>
+            <GraficoRankingClientes
+              data={rankingClientesData}
+              isLoading={isLoadingRankingClientes}
+              isError={isErrorRankingClientes}
+            />
+          </Box>
+        </VStack>
+
+        {/* Coluna 3: Contas a Pagar (só aparece em telas grandes) */}
+        <Box display={{ base: 'none', '2xl': 'block' }}>
           <ContasAPagarComponent />
         </Box>
       </SimpleGrid>
+
+      {/* Card de Contas a Pagar para telas menores (aparece abaixo dos outros) */}
+      <Box mt={6} display={{ base: 'block', '2xl': 'none' }}>
+        <ContasAPagarComponent />
+      </Box>
     </Box>
   );
 };

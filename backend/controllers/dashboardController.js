@@ -110,8 +110,113 @@ const getVendasPorDia = async (req, res) => {
     }
 };
 
+/**
+ * @desc    Busca o total de despesas do mês atual, agrupado por categoria.
+ * @route   GET /api/dashboard/despesas-por-categoria
+ * @access  Protegido (Admin)
+ */
+const getDespesasPorCategoria = async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                tipo_saida AS name,
+                SUM(valor) AS value
+            FROM 
+                despesas
+            WHERE 
+                data_vencimento >= DATE_TRUNC('month', CURRENT_DATE) AND
+                data_vencimento < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
+            GROUP BY 
+                tipo_saida
+            HAVING
+                SUM(valor) > 0
+            ORDER BY 
+                value DESC;
+        `;
+        const resultado = await pool.query(query);
+        res.status(200).json(resultado.rows);
+    } catch (error) {
+        console.error('Erro ao buscar despesas por categoria:', error);
+        res.status(500).json({ error: 'Erro interno do servidor.' });
+    }
+};
+
+/**
+ * @desc    Busca o ranking dos 5 produtos mais vendidos no mês atual.
+ * @route   GET /api/dashboard/ranking-produtos
+ * @access  Protegido (Admin)
+ */
+const getRankingProdutos = async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                p.nome,
+                SUM(
+                    (item->>'quantidade')::numeric * 
+                    COALESCE((item->>'preco_manual')::numeric, p.price)
+                ) AS total_vendido
+            FROM 
+                movimentacoes m,
+                jsonb_array_elements(m.produtos) AS item
+            JOIN 
+                produtos p ON (item->>'produto_id')::int = p.id
+            WHERE 
+                m.tipo = 'ENTRADA' AND 
+                m.data_venda >= DATE_TRUNC('month', CURRENT_DATE) AND
+                m.data_venda < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
+            GROUP BY 
+                p.nome
+            ORDER BY 
+                total_vendido DESC
+            LIMIT 5;
+        `;
+        const resultado = await pool.query(query);
+        res.status(200).json(resultado.rows.reverse());
+    } catch (error) {
+        console.error('Erro ao buscar ranking de produtos:', error);
+        res.status(500).json({ error: 'Erro interno do servidor.' });
+    }
+};
+
+/**
+ * @desc    Busca o ranking dos 5 clientes que mais compraram no mês atual.
+ * @route   GET /api/dashboard/ranking-clientes
+ * @access  Protegido (Admin)
+ */
+const getRankingClientes = async (req, res) => {
+    try {
+        const query = `
+            SELECT
+                c.nome,
+                SUM(m.valor_total) as total_comprado
+            FROM
+                movimentacoes m
+            JOIN
+                clientes c ON m.cliente_id = c.id
+            WHERE
+                m.tipo = 'ENTRADA' AND
+                m.data_venda >= DATE_TRUNC('month', CURRENT_DATE) AND
+                m.data_venda < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
+            GROUP BY
+                c.nome
+            ORDER BY
+                total_comprado DESC
+            LIMIT 5;
+        `;
+        const resultado = await pool.query(query);
+        // Invertemos a ordem para o gráfico de barras horizontais exibir o maior em cima
+        res.status(200).json(resultado.rows.reverse());
+    } catch (error) {
+        console.error('Erro ao buscar ranking de clientes:', error);
+        res.status(500).json({ error: 'Erro interno do servidor.' });
+    }
+};
+
 
 module.exports = {
     getKPIs,
     getVendasPorDia,
+    getDespesasPorCategoria,
+    getRankingProdutos,
+    getRankingClientes, // <-- EXPORTAR NOVA FUNÇÃO
 };
