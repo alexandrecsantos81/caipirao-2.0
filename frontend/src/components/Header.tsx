@@ -7,7 +7,7 @@ import {
   useColorModeValue,
   Heading,
   Spacer,
-  useBreakpointValue, // Importar useBreakpointValue
+  useBreakpointValue,
 } from '@chakra-ui/react';
 import { BsLayoutSidebarInset, BsLayoutSidebarInsetReverse } from 'react-icons/bs';
 import { FiMoon, FiSun } from 'react-icons/fi';
@@ -31,30 +31,22 @@ const routeTitles: { [key: string]: string } = {
 export const Header = ({ onToggleSidebar, isSidebarOpen }: HeaderProps) => {
   const { colorMode, toggleColorMode } = useColorMode();
   const location = useLocation();
-
-  // ✅ CORREÇÃO: Calcular a largura da sidebar aqui também
   const isMobile = useBreakpointValue({ base: true, md: false });
-  const sidebarWidth = isMobile ? 0 : (isSidebarOpen ? '240px' : '72px');
 
   const pageTitle = routeTitles[location.pathname] || 'Caipirão 3.0';
 
   return (
+    // ✅ O Flex do Header agora ocupa a largura total disponível
     <Flex
       as="header"
       align="center"
       justify="space-between"
-      // ✅ CORREÇÃO: Aplicar a margem esquerda dinâmica no Header
-      ml={{ base: 0, md: sidebarWidth }}
+      w="full" // Ocupa a largura total do seu container pai
       px="4"
       bg={useColorModeValue('white', 'gray.800')}
       borderBottomWidth="1px"
       borderColor={useColorModeValue('gray.200', 'gray.700')}
       h="14"
-      position="fixed" // Fixar o header no topo
-      top="0"
-      right="0"
-      zIndex="banner" // Garantir que fique acima do conteúdo
-      transition="margin-left 0.2s ease-in-out" // Adicionar transição suave
     >
       <Flex align="center">
         {/* O botão de toggle só aparece em telas de desktop */}

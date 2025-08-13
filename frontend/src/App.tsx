@@ -1,6 +1,6 @@
 // frontend/src/App.tsx
 
-import { Box, useBreakpointValue } from '@chakra-ui/react';
+import { Box, useBreakpointValue, Flex } from '@chakra-ui/react'; // Adicionado Flex
 import { useState } from 'react';
 import { Routes, Route, Outlet } from 'react-router-dom';
 import { Header } from '@/components/Header';
@@ -27,24 +27,27 @@ const MainLayout = () => {
 
   return (
     <Box>
-      {/* O Header agora é renderizado para mobile também, mas o botão de toggle é interno */}
-      <Header onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)} isSidebarOpen={isSidebarOpen} />
-      
-      {/* A Sidebar só é renderizada em desktop */}
+      {/* A Sidebar é renderizada primeiro e posicionada de forma fixa */}
       {!isMobile && <Sidebar isCollapsed={!isSidebarOpen} />}
 
-      <Box
+      {/* ✅ CORREÇÃO: Um novo Flex container para o conteúdo principal */}
+      <Flex
+        direction="column"
         as="main"
-        // ✅ CORREÇÃO: Adicionar um padding-top para não ficar sob o Header fixo
-        pt="14" // "14" é a altura do Header (h="14")
-        ml={{ base: 0, md: sidebarWidth }} // Margem correta para desktop
-        p={{ base: 4, md: 8 }}
-        pb={{ base: '80px', md: 8 }} // Padding-bottom para não ficar sob o BottomNavBar
+        ml={{ base: 0, md: sidebarWidth }} // A margem dinâmica é aplicada aqui
+        pb={{ base: '80px', md: 0 }} // Padding para o BottomNavBar em mobile
         transition="margin-left 0.2s ease-in-out"
       >
-        <Outlet />
-      </Box>
+        {/* O Header fica no topo deste container */}
+        <Header onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)} isSidebarOpen={isSidebarOpen} />
+        
+        {/* O conteúdo da página (Outlet) vem logo abaixo */}
+        <Box p={{ base: 4, md: 8 }}>
+          <Outlet />
+        </Box>
+      </Flex>
 
+      {/* O BottomNavBar continua fixo para mobile */}
       {isMobile && <BottomNavBar />}
     </Box>
   );
