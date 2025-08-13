@@ -8,12 +8,12 @@ import path from 'path'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    react( ), // O plugin do React já lida com o Fast Refresh corretamente.
+    react( ),
     tsconfigPaths()
   ],
   
-  // ✅ CORREÇÃO: Adicionando um alias explícito para garantir uma única fonte para o React.
-  // Isso força o Vite a sempre usar a mesma cópia do React, evitando duplicações.
+  // ✅ CORREÇÃO DEFINITIVA: Adicionando um alias explícito para garantir uma única fonte para o React.
+  // Isso força o Vite a sempre usar a mesma cópia do React, evitando duplicações que causam o erro #310.
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
