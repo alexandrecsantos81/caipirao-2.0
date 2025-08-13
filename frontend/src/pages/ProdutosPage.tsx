@@ -22,11 +22,12 @@ import { useAuth } from '../hooks/useAuth';
 import { ModalEntradaEstoque } from '../components/ModalEntradaEstoque';
 import { IPaginatedResponse } from '@/types/common.types';
 
+// Componentes de formulário permanecem os mesmos, pois não são a causa do erro.
+// ... (FormularioProduto e ModalEntradaEstoque) ...
 type ProdutoFormData = IProdutoForm & {
   outra_unidade_medida?: string;
 };
 
-// --- COMPONENTE DO FORMULÁRIO DE PRODUTO (SEM ALTERAÇÕES) ---
 const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
   isOpen: boolean; onClose: () => void; produto: IProduto | null; onSave: (data: ProdutoFormData) => void; isLoading: boolean;
 }) => {
@@ -77,7 +78,6 @@ const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
                   {...register('nome', { required: 'Nome é obrigatório' })}
                 />
               </FormControl>
-
               <FormControl isInvalid={!!errors.unidade_medida}>
                 <FormLabel htmlFor="unidade_medida">Unidade de Medida</FormLabel>
                 <Select id="unidade_medida" {...register('unidade_medida', { required: 'Unidade de medida é obrigatória' })}>
@@ -86,14 +86,12 @@ const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
                   <option value="outros">Outros</option>
                 </Select>
               </FormControl>
-
               {unidadeMedida === 'outros' && (
                 <FormControl isInvalid={!!errors.outra_unidade_medida}>
                   <FormLabel htmlFor="outra_unidade_medida">Especifique a Unidade (ex: dz, cx)</FormLabel>
                   <Input id="outra_unidade_medida" {...register('outra_unidade_medida', { required: unidadeMedida === 'outros' ? 'Especifique a unidade' : false })} />
                 </FormControl>
               )}
-
               <FormControl isInvalid={!!errors.price}>
                 <FormLabel htmlFor="price">Preço (R$)</FormLabel>
                 <Controller
@@ -129,25 +127,26 @@ const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
 };
 
 
-// --- PÁGINA PRINCIPAL DE PRODUTOS (REESTRUTURADA) ---
+// --- PÁGINA PRINCIPAL DE PRODUTOS (VERSÃO FINAL E SEGURA) ---
 const ProdutosPage = () => {
+  // ✅ HOOKS SÃO CHAMADOS NO TOPO, INCONDICIONALMENTE
   const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
   const { isOpen: isEstoqueOpen, onOpen: onEstoqueOpen, onClose: onEstoqueClose } = useDisclosure();
   const toast = useToast();
+  const { user } = useAuth();
   
   const [data, setData] = useState<IPaginatedResponse<IProduto> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
-
   const [pagina, setPagina] = useState(1);
   const [editingProduto, setEditingProduto] = useState<IProduto | null>(null);
   const [produtoParaEstoque, setProdutoParaEstoque] = useState<IProduto | null>(null);
-  const { user } = useAuth();
+  
   const isAdmin = user?.perfil === 'ADMIN';
   const isMobile = useBreakpointValue({ base: true, md: false });
 
-  // Função para buscar e atualizar os dados da página
+  // Funções de manipulação de dados
   const fetchData = async (page: number) => {
     setIsLoading(true);
     setIsError(false);
@@ -164,7 +163,7 @@ const ProdutosPage = () => {
 
   useEffect(() => {
     fetchData(pagina);
-  }, [pagina]); // Dependência apenas na página
+  }, [pagina]);
 
   const refreshData = () => fetchData(pagina);
 
@@ -219,48 +218,16 @@ const ProdutosPage = () => {
   const handleOpenForEdit = (produto: IProduto) => { setEditingProduto(produto); onFormOpen(); };
   const handleOpenForEstoque = (produto: IProduto) => { setProdutoParaEstoque(produto); onEstoqueOpen(); };
 
-  // ✅ SOLUÇÃO: Renderiza os componentes de tabela/lista com base no breakpoint,
-  // mas ambos estão sempre no DOM, apenas um deles é visível.
+  // ✅ LÓGICA DE RENDERIZAÇÃO PRINCIPAL
   const renderContent = () => {
     if (isLoading) return <Center p={10}><Spinner size="xl" /></Center>;
     if (isError) return <Center p={10}><Text color="red.500">Falha ao carregar os produtos.</Text></Center>;
-    if (!data?.dados) return <Center p={10}><Text>Nenhum produto encontrado.</Text></Center>;
+    if (!data?.dados || data.dados.length === 0) return <Center p={10}><Text>Nenhum produto encontrado.</Text></Center>;
 
-    return (
-      <>
-        {/* Versão Desktop */}
-        <TableContainer display={{ base: 'none', md: 'block' }}>
-          <Table variant="simple">
-            <Thead>
-              <Tr>
-                <Th>Nome</Th><Th>Unidade</Th><Th isNumeric>Preço (R$)</Th><Th isNumeric>Estoque Atual</Th>
-                {isAdmin && <Th>Ações</Th>}
-              </Tr>
-            </Thead>
-            <Tbody>
-              {data.dados.map((produto) => (
-                <Tr key={produto.id}>
-                  <Td>{produto.nome}</Td>
-                  <Td>{produto.unidade_medida}</Td>
-                  <Td isNumeric>{typeof produto.price === 'number' ? produto.price.toFixed(2) : '0.00'}</Td>
-                  <Td isNumeric>{produto.quantidade_em_estoque}</Td>
-                  {isAdmin && (
-                    <Td>
-                      <HStack spacing={2}>
-                        <Button size="sm" leftIcon={<FiPlusSquare />} variant="outline" colorScheme="blue" onClick={() => handleOpenForEstoque(produto)}>Entrada</Button>
-                        <IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleOpenForEdit(produto)} />
-                        <IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDelete(produto.id)} isLoading={isMutating} />
-                      </HStack>
-                    </Td>
-                  )}
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
-        </TableContainer>
-
-        {/* Versão Mobile */}
-        <VStack spacing={4} align="stretch" display={{ base: 'flex', md: 'none' }}>
+    // Se for mobile, renderiza a lista de cards
+    if (isMobile) {
+      return (
+        <VStack spacing={4} align="stretch">
           {data.dados.map((produto) => (
             <Box key={produto.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
               <Flex justify="space-between" align="center">
@@ -280,9 +247,40 @@ const ProdutosPage = () => {
             </Box>
           ))}
         </VStack>
+      );
+    }
 
-        <Pagination paginaAtual={data.pagina || 1} totalPaginas={data.totalPaginas || 1} onPageChange={setPagina} />
-      </>
+    // Se for desktop, renderiza a tabela
+    return (
+      <TableContainer>
+        <Table variant="simple">
+          <Thead>
+            <Tr>
+              <Th>Nome</Th><Th>Unidade</Th><Th isNumeric>Preço (R$)</Th><Th isNumeric>Estoque Atual</Th>
+              {isAdmin && <Th>Ações</Th>}
+            </Tr>
+          </Thead>
+          <Tbody>
+            {data.dados.map((produto) => (
+              <Tr key={produto.id}>
+                <Td>{produto.nome}</Td>
+                <Td>{produto.unidade_medida}</Td>
+                <Td isNumeric>{typeof produto.price === 'number' ? produto.price.toFixed(2) : '0.00'}</Td>
+                <Td isNumeric>{produto.quantidade_em_estoque}</Td>
+                {isAdmin && (
+                  <Td>
+                    <HStack spacing={2}>
+                      <Button size="sm" leftIcon={<FiPlusSquare />} variant="outline" colorScheme="blue" onClick={() => handleOpenForEstoque(produto)}>Entrada</Button>
+                      <IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleOpenForEdit(produto)} />
+                      <IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDelete(produto.id)} isLoading={isMutating} />
+                    </HStack>
+                  </Td>
+                )}
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      </TableContainer>
     );
   };
 
@@ -299,8 +297,10 @@ const ProdutosPage = () => {
       
       {renderContent()}
       
-      {/* ✅ SOLUÇÃO: Os modais são renderizados incondicionalmente, mas controlados pela flag 'isOpen'.
-          Isso garante que seus hooks internos nunca sejam "desmontados" da árvore do React. */}
+      {data && (
+        <Pagination paginaAtual={data.pagina || 1} totalPaginas={data.totalPaginas || 1} onPageChange={setPagina} />
+      )}
+      
       <FormularioProduto 
         isOpen={isFormOpen} 
         onClose={onFormClose} 
