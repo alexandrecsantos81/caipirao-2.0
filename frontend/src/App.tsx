@@ -6,8 +6,8 @@ import { Routes, Route, Outlet } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
 import { BottomNavBar } from '@/components/BottomNavBar';
-import ProtectedRoute from '@/components/ProtectedRoute'; // Usaremos para agrupar rotas
-import AdminRoute from '@/components/AdminRoute'; // Usaremos para agrupar rotas de admin
+import ProtectedRoute from '@/components/ProtectedRoute';
+import AdminRoute from '@/components/AdminRoute';
 
 import LoginPage from '@/pages/LoginPage';
 import DashboardPage from '@/pages/DashboardPage';
@@ -20,7 +20,6 @@ import RelatoriosPage from '@/pages/RelatoriosPage';
 import SolicitarAcessoPage from '@/pages/SolicitarAcessoPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 
-// Componente de Layout Principal que SEMPRE será renderizado para rotas protegidas
 const MainLayout = () => {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const isMobile = useBreakpointValue({ base: true, md: false });
@@ -28,21 +27,21 @@ const MainLayout = () => {
 
   return (
     <Box>
-      {!isMobile && (
-        <>
-          <Sidebar isCollapsed={!isSidebarOpen} />
-          <Header onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)} isSidebarOpen={isSidebarOpen} />
-        </>
-      )}
+      {/* O Header agora é renderizado para mobile também, mas o botão de toggle é interno */}
+      <Header onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)} isSidebarOpen={isSidebarOpen} />
+      
+      {/* A Sidebar só é renderizada em desktop */}
+      {!isMobile && <Sidebar isCollapsed={!isSidebarOpen} />}
 
       <Box
         as="main"
-        ml={sidebarWidth}
+        // ✅ CORREÇÃO: Adicionar um padding-top para não ficar sob o Header fixo
+        pt="14" // "14" é a altura do Header (h="14")
+        ml={{ base: 0, md: sidebarWidth }} // Margem correta para desktop
         p={{ base: 4, md: 8 }}
-        pb={{ base: '80px', md: 8 }}
+        pb={{ base: '80px', md: 8 }} // Padding-bottom para não ficar sob o BottomNavBar
         transition="margin-left 0.2s ease-in-out"
       >
-        {/* As rotas filhas (páginas) serão renderizadas aqui */}
         <Outlet />
       </Box>
 
@@ -55,27 +54,18 @@ const MainLayout = () => {
 function App() {
   return (
     <Routes>
-      {/* 1. Rotas Públicas (não precisam de layout nem autenticação) */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/solicitar-acesso" element={<SolicitarAcessoPage />} />
 
-      {/* 2. Agrupador de Rotas Protegidas */}
-      {/* O componente ProtectedRoute verifica a autenticação. Se ok, renderiza o Outlet. */}
       <Route element={<ProtectedRoute />}>
-        {/* 3. Layout Principal para TODAS as rotas protegidas */}
-        {/* O MainLayout é renderizado e as páginas aparecem dentro dele via Outlet */}
         <Route element={<MainLayout />}>
           
-          {/* Rotas para todos os usuários logados */}
           <Route path="/movimentacoes" element={<MovimentacoesPage />} />
           <Route path="/clientes" element={<ClientesPage />} />
           <Route path="/produtos" element={<ProdutosPage />} />
           
-          {/* 4. Agrupador de Rotas de Admin */}
-          {/* O AdminRoute verifica se o perfil é ADMIN. Se ok, renderiza o Outlet. */}
           <Route element={<AdminRoute />}>
-            {/* As rotas aqui dentro só são acessíveis por Admins */}
-            <Route path="/" element={<DashboardPage />} /> {/* Rota padrão para / */}
+            <Route path="/" element={<DashboardPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/relatorios" element={<RelatoriosPage />} />
             <Route path="/fornecedores" element={<FornecedoresPage />} />
@@ -85,7 +75,6 @@ function App() {
         </Route>
       </Route>
 
-      {/* Rota 404 para qualquer caminho não correspondido */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

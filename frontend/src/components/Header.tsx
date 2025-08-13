@@ -7,6 +7,7 @@ import {
   useColorModeValue,
   Heading,
   Spacer,
+  useBreakpointValue, // Importar useBreakpointValue
 } from '@chakra-ui/react';
 import { BsLayoutSidebarInset, BsLayoutSidebarInsetReverse } from 'react-icons/bs';
 import { FiMoon, FiSun } from 'react-icons/fi';
@@ -31,6 +32,10 @@ export const Header = ({ onToggleSidebar, isSidebarOpen }: HeaderProps) => {
   const { colorMode, toggleColorMode } = useColorMode();
   const location = useLocation();
 
+  // ✅ CORREÇÃO: Calcular a largura da sidebar aqui também
+  const isMobile = useBreakpointValue({ base: true, md: false });
+  const sidebarWidth = isMobile ? 0 : (isSidebarOpen ? '240px' : '72px');
+
   const pageTitle = routeTitles[location.pathname] || 'Caipirão 3.0';
 
   return (
@@ -38,22 +43,31 @@ export const Header = ({ onToggleSidebar, isSidebarOpen }: HeaderProps) => {
       as="header"
       align="center"
       justify="space-between"
-      w="full"
+      // ✅ CORREÇÃO: Aplicar a margem esquerda dinâmica no Header
+      ml={{ base: 0, md: sidebarWidth }}
       px="4"
       bg={useColorModeValue('white', 'gray.800')}
       borderBottomWidth="1px"
       borderColor={useColorModeValue('gray.200', 'gray.700')}
       h="14"
+      position="fixed" // Fixar o header no topo
+      top="0"
+      right="0"
+      zIndex="banner" // Garantir que fique acima do conteúdo
+      transition="margin-left 0.2s ease-in-out" // Adicionar transição suave
     >
       <Flex align="center">
-        <IconButton
-          aria-label="Toggle Sidebar"
-          icon={isSidebarOpen ? <BsLayoutSidebarInset /> : <BsLayoutSidebarInsetReverse />}
-          onClick={onToggleSidebar}
-          variant="ghost"
-          mr={3}
-          fontSize="20px"
-        />
+        {/* O botão de toggle só aparece em telas de desktop */}
+        {!isMobile && (
+          <IconButton
+            aria-label="Toggle Sidebar"
+            icon={isSidebarOpen ? <BsLayoutSidebarInset /> : <BsLayoutSidebarInsetReverse />}
+            onClick={onToggleSidebar}
+            variant="ghost"
+            mr={3}
+            fontSize="20px"
+          />
+        )}
         <Heading as="h1" size="md">
           {pageTitle}
         </Heading>
