@@ -213,14 +213,12 @@ const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen:
       if (despesaParaEditar) {
         reset({
           ...despesaParaEditar,
-          // Formata as datas para o formato YYYY-MM-DD que o input[type=date] espera
           data_compra: despesaParaEditar.data_compra.split('T')[0],
           data_vencimento: despesaParaEditar.data_vencimento.split('T')[0],
         });
       } else {
         reset({
           discriminacao: '', tipo_saida: '', valor: '',
-          // Define as datas padrão para hoje
           data_compra: new Date().toISOString().split('T')[0],
           data_vencimento: new Date().toISOString().split('T')[0],
           fornecedor_id: undefined,
@@ -243,7 +241,15 @@ const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen:
           <DrawerCloseButton />
           <DrawerBody>
             <VStack spacing={4}>
-              <FormControl isRequired isInvalid={!!errors.tipo_saida}><FormLabel>Tipo de Saída</FormLabel><Select placeholder="Selecione o tipo da despesa" {...register('tipo_saida', { required: 'Tipo é obrigatório' })}>{tiposDeSaida.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}</Select><FormErrorMessage>{errors.tipo_saida?.message}</FormErrorMessage></FormControl>
+              {/* ===== A CORREÇÃO ESTÁ AQUI, NA LISTA DE OPÇÕES DO SELECT ===== */}
+              <FormControl isRequired isInvalid={!!errors.tipo_saida}>
+                <FormLabel>Tipo de Saída</FormLabel>
+                <Select placeholder="Selecione o tipo da despesa" {...register('tipo_saida', { required: 'Tipo é obrigatório' })}>
+                  {/* A lista de tipos de saída é mapeada aqui */}
+                  {tiposDeSaida.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}
+                </Select>
+                <FormErrorMessage>{errors.tipo_saida?.message}</FormErrorMessage>
+              </FormControl>
               
               <FormControl isRequired isInvalid={!!errors.valor}>
                 <FormLabel>Valor (R$)</FormLabel>
@@ -265,7 +271,6 @@ const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen:
 
               <FormControl isRequired isInvalid={!!errors.discriminacao}><FormLabel>Discriminação (Detalhes)</FormLabel><Textarea placeholder="Detalhes da despesa..." {...register('discriminacao', { required: 'A descrição é obrigatória' })} /><FormErrorMessage>{errors.discriminacao?.message}</FormErrorMessage></FormControl>
               
-              {/* ===== CAMPO "DATA DA COMPRA" ADICIONADO AQUI ===== */}
               <FormControl isRequired isInvalid={!!errors.data_compra}>
                 <FormLabel>Data da Compra</FormLabel>
                 <Input type="date" {...register('data_compra', { required: 'Data da compra é obrigatória' })} />
