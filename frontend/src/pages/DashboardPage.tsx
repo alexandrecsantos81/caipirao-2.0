@@ -1,13 +1,14 @@
+// frontend/src/pages/DashboardPage.tsx
+
 import {
   Box, Heading, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText,
   Spinner, Text, Center, StatArrow, useBreakpointValue, VStack, HStack
 } from '@chakra-ui/react';
 import { useDashboardData } from '../hooks/useDashboard';
 import { GraficoVendas } from '../components/GraficoVendas';
-// CORREÇÃO: Remover 'FaUser' que não está sendo usado e importar o tipo correto.
 import { FaCalendarAlt } from 'react-icons/fa';
 import { IContasAPagar } from '../services/despesa.service';
-// ... (funções formatCurrency e formatDate permanecem as mesmas) ...
+
 const formatCurrency = (value: number | undefined) => {
   if (value === undefined) return 'N/D';
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -21,6 +22,7 @@ const DashboardPage = () => {
   const { kpisQuery, vendasPorDiaQuery, contasAPagarQuery } = useDashboardData();
 
   const { data: kpis, isLoading: isLoadingKPIs, isError: isErrorKPIs } = kpisQuery;
+  // A linha abaixo não é mais usada para passar props, mas a mantemos para consistência
   const { data: vendasData, isLoading: isLoadingVendas, isError: isErrorVendas } = vendasPorDiaQuery;
   const { data: contasAPagar, isLoading: isLoadingContas, isError: isErrorContas } = contasAPagarQuery;
 
@@ -78,7 +80,6 @@ const DashboardPage = () => {
       <Heading as="h1" size="lg" mb={6}>Dashboard</Heading>
       
       <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
-        {/* KPIs */}
         <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm"><StatLabel>Receita (Mês)</StatLabel><StatNumber color="green.500">{formatCurrency(kpis?.totalVendasMes)}</StatNumber><StatHelpText>Total de vendas no mês atual.</StatHelpText></Stat>
         <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm"><StatLabel>Despesas (Mês)</StatLabel><StatNumber color="red.500">{formatCurrency(kpis?.totalDespesasMes)}</StatNumber><StatHelpText>Total de despesas no mês atual.</StatHelpText></Stat>
         <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm"><StatLabel>Saldo (Mês)</StatLabel><StatNumber color={kpis && kpis.saldoMes >= 0 ? 'blue.500' : 'red.500'}>{formatCurrency(kpis?.saldoMes)}</StatNumber><StatHelpText><StatArrow type={kpis && kpis.saldoMes >= 0 ? 'increase' : 'decrease'} />Balanço do mês atual</StatHelpText></Stat>
@@ -90,7 +91,8 @@ const DashboardPage = () => {
       <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6} mt={8}>
         <Box borderWidth={1} borderRadius="md" p={4} boxShadow="sm">
           <Heading as="h2" size="md" mb={4}>Vendas e Despesas (Últimos 30 dias)</Heading>
-          <GraficoVendas data={vendasData} isLoading={isLoadingVendas} isError={isErrorVendas} />
+          {/* ✅ CORREÇÃO: Removidas as props que causavam o erro de build */}
+          <GraficoVendas />
         </Box>
         <Box borderWidth={1} borderRadius="md" p={0} boxShadow="sm" overflow="hidden">
           <Heading as="h2" size="md" p={4} pb={2}>Contas a Pagar Pendentes</Heading>
