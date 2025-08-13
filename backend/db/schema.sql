@@ -102,8 +102,9 @@ CREATE TABLE despesas (
     id SERIAL PRIMARY KEY,
     
     -- Detalhes da Despesa
+    -- ===== NOVO TIPO "Compra de Aves" ADICIONADO À LISTA =====
     tipo_saida VARCHAR(50) NOT NULL CHECK (tipo_saida IN (
-        'Insumos de Produção', 'Mão de Obra', 'Materiais e Embalagens', 
+        'Compra de Aves', 'Insumos de Produção', 'Mão de Obra', 'Materiais e Embalagens', 
         'Despesas Operacionais', 'Encargos e Tributos', 'Despesas Administrativas', 
         'Financeiras', 'Remuneração de Sócios', 'Outros'
     )),
@@ -111,9 +112,9 @@ CREATE TABLE despesas (
     discriminacao TEXT NOT NULL,
     
     -- Datas e Status
-    data_compra DATE NOT NULL DEFAULT CURRENT_DATE, -- <<< NOVO CAMPO ADICIONADO AQUI
+    data_compra DATE NOT NULL DEFAULT CURRENT_DATE,
     data_vencimento DATE NOT NULL,
-    data_pagamento DATE, -- Fica nulo até a despesa ser quitada
+    data_pagamento DATE DEFAULT NULL,
     
     -- Chaves Estrangeiras
     fornecedor_id INT REFERENCES fornecedores(id) ON DELETE SET NULL,
@@ -150,7 +151,7 @@ CREATE INDEX idx_movimentacoes_data_venda ON movimentacoes(data_venda);
 CREATE INDEX idx_movimentacoes_data_vencimento ON movimentacoes(data_vencimento);
 CREATE INDEX idx_fornecedores_nome ON fornecedores(nome);
 CREATE INDEX idx_despesas_vencimento ON despesas(data_vencimento);
-CREATE INDEX idx_despesas_compra ON despesas(data_compra); -- <<< ÍNDICE PARA O NOVO CAMPO
+CREATE INDEX idx_despesas_compra ON despesas(data_compra);
 CREATE INDEX idx_despesas_pagamento ON despesas(data_pagamento);
 CREATE INDEX idx_despesas_fornecedor_id ON despesas(fornecedor_id);
 CREATE INDEX idx_entradas_estoque_produto_id ON entradas_estoque(produto_id);
