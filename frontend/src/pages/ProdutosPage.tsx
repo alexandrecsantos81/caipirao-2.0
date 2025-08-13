@@ -22,8 +22,7 @@ import { useAuth } from '../hooks/useAuth';
 import { ModalEntradaEstoque } from '../components/ModalEntradaEstoque';
 import { IPaginatedResponse } from '@/types/common.types';
 
-// Componentes de formulário permanecem os mesmos, pois não são a causa do erro.
-// ... (FormularioProduto e ModalEntradaEstoque) ...
+// --- SUB-COMPONENTE: FORMULÁRIO DE PRODUTO ---
 type ProdutoFormData = IProdutoForm & {
   outra_unidade_medida?: string;
 };
@@ -127,14 +126,15 @@ const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
 };
 
 
-// --- PÁGINA PRINCIPAL DE PRODUTOS (VERSÃO FINAL E SEGURA) ---
+// --- COMPONENTE PRINCIPAL: PÁGINA DE PRODUTOS ---
 const ProdutosPage = () => {
-  // ✅ HOOKS SÃO CHAMADOS NO TOPO, INCONDICIONALMENTE
+  // Hooks são chamados no topo, incondicionalmente
   const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
   const { isOpen: isEstoqueOpen, onOpen: onEstoqueOpen, onClose: onEstoqueClose } = useDisclosure();
   const toast = useToast();
   const { user } = useAuth();
   
+  // Estados locais para dados, paginação e UI
   const [data, setData] = useState<IPaginatedResponse<IProduto> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
@@ -218,7 +218,7 @@ const ProdutosPage = () => {
   const handleOpenForEdit = (produto: IProduto) => { setEditingProduto(produto); onFormOpen(); };
   const handleOpenForEstoque = (produto: IProduto) => { setProdutoParaEstoque(produto); onEstoqueOpen(); };
 
-  // ✅ LÓGICA DE RENDERIZAÇÃO PRINCIPAL
+  // Função de renderização que decide o que mostrar (Tabela ou Cards)
   const renderContent = () => {
     if (isLoading) return <Center p={10}><Spinner size="xl" /></Center>;
     if (isError) return <Center p={10}><Text color="red.500">Falha ao carregar os produtos.</Text></Center>;
@@ -286,6 +286,7 @@ const ProdutosPage = () => {
 
   return (
     <Box p={{ base: 4, md: 8 }}>
+      {/* Cabeçalho da Página */}
       <Flex justify="space-between" align="center" mb={6} direction={{ base: 'column', md: 'row' }} gap={4}>
         <Heading textAlign={{ base: 'center', md: 'left' }}>Gestão de Produtos</Heading>
         {isAdmin && (
@@ -295,12 +296,15 @@ const ProdutosPage = () => {
         )}
       </Flex>
       
+      {/* Conteúdo Principal (Tabela ou Cards) */}
       {renderContent()}
       
-      {data && (
+      {/* Paginação */}
+      {data && data.totalPaginas > 1 && (
         <Pagination paginaAtual={data.pagina || 1} totalPaginas={data.totalPaginas || 1} onPageChange={setPagina} />
       )}
       
+      {/* Modais e Drawers (Renderizados incondicionalmente para não violar regras de hooks) */}
       <FormularioProduto 
         isOpen={isFormOpen} 
         onClose={onFormClose} 

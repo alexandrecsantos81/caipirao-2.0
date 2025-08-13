@@ -5,7 +5,7 @@ import {
   Spinner, Text, Center, StatArrow, useBreakpointValue, VStack, HStack
 } from '@chakra-ui/react';
 import { useDashboardData } from '../hooks/useDashboard';
-import { GraficoVendas } from '../components/GraficoVendas';
+import { GraficoVendas } from '../components/GraficoVendas'; // A importação já estava aqui
 import { FaCalendarAlt } from 'react-icons/fa';
 import { IContasAPagar } from '../services/despesa.service';
 
@@ -22,7 +22,6 @@ const DashboardPage = () => {
   const { kpisQuery, vendasPorDiaQuery, contasAPagarQuery } = useDashboardData();
 
   const { data: kpis, isLoading: isLoadingKPIs, isError: isErrorKPIs } = kpisQuery;
-  // A linha abaixo não é mais usada para passar props, mas a mantemos para consistência
   const { data: vendasData, isLoading: isLoadingVendas, isError: isErrorVendas } = vendasPorDiaQuery;
   const { data: contasAPagar, isLoading: isLoadingContas, isError: isErrorContas } = contasAPagarQuery;
 
@@ -91,8 +90,8 @@ const DashboardPage = () => {
       <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6} mt={8}>
         <Box borderWidth={1} borderRadius="md" p={4} boxShadow="sm">
           <Heading as="h2" size="md" mb={4}>Vendas e Despesas (Últimos 30 dias)</Heading>
-          {/* ✅ CORREÇÃO: Removidas as props que causavam o erro de build */}
-          <GraficoVendas />
+          {/* ✅ CÓDIGO REATIVADO */}
+          <GraficoVendas data={vendasData} isLoading={isLoadingVendas} isError={isErrorVendas} />
         </Box>
         <Box borderWidth={1} borderRadius="md" p={0} boxShadow="sm" overflow="hidden">
           <Heading as="h2" size="md" p={4} pb={2}>Contas a Pagar Pendentes</Heading>

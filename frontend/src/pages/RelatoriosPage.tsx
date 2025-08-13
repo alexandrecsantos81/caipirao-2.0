@@ -43,7 +43,8 @@ const RelatoriosPage = () => {
   const filters = { startDate, endDate };
   const productFilters = { ...filters, orderBy: productOrderBy };
 
-  const { data: salesSummaryData, isLoading: isLoadingSalesSummary } = useSalesSummary(filters, activeTab === 0);
+  // Hooks para buscar os dados de cada relatório
+  const { data: salesSummaryData, isLoading: isLoadingSalesSummary, isError: isErrorSalesSummary } = useSalesSummary(filters, activeTab === 0);
   const { data: productRankingData, isLoading: isLoadingProductRanking } = useProductRanking(productFilters, activeTab === 1);
   const { data: clientRankingData, isLoading: isLoadingClientRanking } = useClientRanking(filters, activeTab === 2);
   const { data: clientAnalysisData, isLoading: isLoadingClientAnalysis } = useClientAnalysis(activeTab === 3);
@@ -89,8 +90,12 @@ const RelatoriosPage = () => {
         <TabPanels>
           <TabPanel>
             <ReportKPIs kpis={salesSummaryData?.kpis} isLoading={isLoadingSalesSummary} />
-            {/* ✅ CORREÇÃO: Removidas as props que causavam o erro de build */}
-            <SalesEvolutionChart />
+            {/* ✅ CORREÇÃO APLICADA AQUI */}
+            <SalesEvolutionChart 
+              data={salesSummaryData?.evolucaoVendas} 
+              isLoading={isLoadingSalesSummary} 
+              isError={isErrorSalesSummary}
+            />
           </TabPanel>
           <TabPanel>
             <Flex justify="flex-end" mb={4}>
