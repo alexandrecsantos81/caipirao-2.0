@@ -2,7 +2,7 @@
 
 import {
   Box, Button, Center, Drawer, DrawerBody, DrawerCloseButton, DrawerContent,
-  DrawerFooter, DrawerHeader, DrawerOverlay, Flex, FormControl, FormLabel,
+  DrawerFooter, DrawerHeader, DrawerOverlay, Flex, FormControl, FormErrorMessage, FormLabel,
   Heading, IconButton, Input, NumberInput, NumberInputField, Select, Spinner,
   Table, Tbody, Td, Text, Th, Thead, Tr, useDisclosure, useToast,
   useBreakpointValue,
@@ -91,28 +91,25 @@ const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
                   <Input id="outra_unidade_medida" {...register('outra_unidade_medida', { required: unidadeMedida === 'outros' ? 'Especifique a unidade' : false })} />
                 </FormControl>
               )}
-              <FormControl isInvalid={!!errors.price}>
+              <FormControl isRequired isInvalid={!!errors.price}>
                 <FormLabel htmlFor="price">Preço (R$)</FormLabel>
-                <Controller
-                  name="price"
-                  control={control}
-                  rules={{ required: 'Preço é obrigatório', min: { value: 0, message: 'Preço não pode ser negativo' } }}
-                  render={({ field: { onChange, onBlur, value, ref } }) => (
-                    <NumberInput
-                      id="price"
-                      onChange={(_valAsString, valAsNumber) => onChange(valAsNumber)}
-                      onBlur={onBlur}
-                      value={value}
-                      ref={ref}
-                      precision={2}
-                      step={0.1}
-                      min={0}
-                    >
-                      <NumberInputField placeholder="Informe o valor" />
-                    </NumberInput>
-                  )}
+                <Input
+                  id="price"
+                  placeholder="Informe o valor. Ex: 85.50"
+                  type="text"
+                  inputMode="decimal"
+                  {...register('price', {
+                    required: 'Preço é obrigatório',
+                    valueAsNumber: true,
+                    validate: {
+                      isNumber: (value) => !isNaN(parseFloat(String(value))) || 'Por favor, insira um preço válido.',
+                      isPositive: (value) => parseFloat(String(value)) >= 0 || 'O preço não pode ser negativo.'
+                    }
+                  })}
                 />
+                <FormErrorMessage>{errors.price?.message}</FormErrorMessage>
               </FormControl>
+
             </VStack>
           </DrawerBody>
           <DrawerFooter borderTopWidth="1px">

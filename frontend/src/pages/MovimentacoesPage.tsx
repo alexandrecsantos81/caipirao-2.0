@@ -242,22 +242,18 @@ const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen:
               
               <FormControl isRequired isInvalid={!!errors.valor}>
                 <FormLabel>Valor (R$)</FormLabel>
-                <Controller
-                  name="valor"
-                  control={control}
-                  rules={{ required: 'Valor é obrigatório', min: { value: 0.01, message: 'Valor deve ser maior que zero' } }}
-                  render={({ field }) => (
-                    <NumberInput
-                      {...field}
-                      onChange={(_, valueAsNumber) => field.onChange(valueAsNumber)}
-                      value={field.value || ''}
-                      precision={2}
-                      step={0.01}
-                      min={0.01}
-                    >
-                      <NumberInputField placeholder="Ex: 852.50" />
-                    </NumberInput>
-                  )}
+                <Input
+                  placeholder="Ex: 852.50"
+                  type="text"
+                  inputMode="decimal"
+                  {...register('valor', {
+                    required: 'Valor é obrigatório',
+                    valueAsNumber: true,
+                    validate: {
+                      isNumber: (value) => !isNaN(parseFloat(String(value))) || 'Por favor, insira um valor numérico válido.',
+                      isPositive: (value) => parseFloat(String(value)) > 0 || 'O valor deve ser maior que zero.'
+                    }
+                  })}
                 />
                 <FormErrorMessage>{errors.valor?.message}</FormErrorMessage>
               </FormControl>
