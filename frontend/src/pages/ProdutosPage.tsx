@@ -1,4 +1,4 @@
-// frontend/src/pages/ProdutosPage.tsx (VERSÃO FINAL ESTABILIZADA)
+// frontend/src/pages/ProdutosPage.tsx (VERSÃO FINAL COM CACHE DESATIVADO)
 
 import {
   Box, Button, Center, Drawer, DrawerBody, DrawerCloseButton, DrawerContent,
@@ -147,6 +147,10 @@ const ProdutosPage = () => {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['produtos', pagina],
     queryFn: () => getProdutos(pagina, 10),
+    // ✅ CORREÇÃO FINAL: Desativa o cache para esta query.
+    // Isso força a query a ser sempre "nova", evitando o erro #310
+    // que ocorre na re-renderização a partir de dados cacheados.
+    staleTime: 0,
   });
   
   const deleteMutation = useMutation({
@@ -208,11 +212,8 @@ const ProdutosPage = () => {
       {isLoading && <Center p={10}><Spinner size="xl" /></Center>}
       {isError && <Center p={10}><Text color="red.500">Falha ao carregar os produtos.</Text></Center>}
       
-      {/* ✅ CORREÇÃO FINAL: A renderização condicional foi movida para DENTRO dos componentes de Tabela e Lista,
-          em vez de renderizar um ou outro. Usamos as props 'display' do Chakra para mostrar/esconder. */}
       {!isLoading && !isError && data && (
         <>
-          {/* Tabela para Desktop - sempre renderizada, mas escondida em telas pequenas */}
           <TableContainer display={{ base: 'none', md: 'block' }}>
             <Table variant="simple">
               <Thead>
@@ -248,7 +249,6 @@ const ProdutosPage = () => {
             </Table>
           </TableContainer>
 
-          {/* Lista para Mobile - sempre renderizada, mas escondida em telas grandes */}
           <VStack spacing={4} align="stretch" display={{ base: 'flex', md: 'none' }}>
             {data.dados.map((produto) => (
               <Box key={produto.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
