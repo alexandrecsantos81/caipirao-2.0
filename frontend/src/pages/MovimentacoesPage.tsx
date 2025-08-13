@@ -15,7 +15,7 @@ import { Controller, useForm, SubmitHandler } from 'react-hook-form';
 import { FiPlus, FiTrash2, FiEdit } from 'react-icons/fi';
 import { Pagination } from '../components/Pagination';
 import { ICliente, getClientes } from '../services/cliente.service';
-import { IDespesa, IDespesaForm, registrarDespesa, tiposDeSaida, updateDespesa, deleteDespesa } from '../services/despesa.service';
+import { IDespesa, IDespesaForm, registrarDespesa, updateDespesa, deleteDespesa } from '../services/despesa.service';
 import { IProduto, getProdutos } from '../services/produto.service';
 import { IVenda, INovaVenda, createVenda, getVendas, updateVenda, deleteVenda } from '../services/venda.service';
 import { IFornecedor, getFornecedores } from '../services/fornecedor.service';
@@ -32,6 +32,20 @@ interface ProdutoVendaItem {
   unidade_medida: string;
   preco_original: number;
 }
+// --- LISTA DE OPÇÕES PARA O FORMULÁRIO DE DESPESA ---
+const tiposDeSaida = [
+    "Compra de Aves",
+    "Insumos de Produção", 
+    "Mão de Obra", 
+    "Materiais e Embalagens",
+    "Despesas Operacionais", 
+    "Encargos e Tributos", 
+    "Despesas Administrativas",
+    "Financeiras", 
+    "Remuneração de Sócios", 
+    "Outros"
+] as const;
+
 // --- COMPONENTES DE FORMULÁRIO ---
 const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boolean; onClose: () => void; vendaParaEditar: IVenda | null }) => {
   const queryClient = useQueryClient();
@@ -180,7 +194,7 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
               <Flex justify="flex-end" mt={4}><Box textAlign="right"><Text fontSize="lg">Vendedor: {user?.nome}</Text><Heading size="lg" color="teal.500">Total: {valorTotalCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Heading></Box></Flex>
             </VStack>
           </DrawerBody>
-          <DrawerFooter borderTopWidth="1px"><Button variant="outline" mr={3} onClick={onClose}>Cancelar</Button><Button colorScheme="teal" type="submit" isLoading={mutation.isPending}>Salvar Venda</Button></DrawerFooter>
+          <DrawerFooter borderBottomWidth="1px"><Button variant="outline" mr={3} onClick={onClose}>Cancelar</Button><Button colorScheme="teal" type="submit" isLoading={mutation.isPending}>Salvar Venda</Button></DrawerFooter>
         </form>
        </DrawerContent>
     </Drawer>
@@ -241,11 +255,9 @@ const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen:
           <DrawerCloseButton />
           <DrawerBody>
             <VStack spacing={4}>
-              {/* ===== A CORREÇÃO ESTÁ AQUI, NA LISTA DE OPÇÕES DO SELECT ===== */}
               <FormControl isRequired isInvalid={!!errors.tipo_saida}>
                 <FormLabel>Tipo de Saída</FormLabel>
                 <Select placeholder="Selecione o tipo da despesa" {...register('tipo_saida', { required: 'Tipo é obrigatório' })}>
-                  {/* A lista de tipos de saída é mapeada aqui */}
                   {tiposDeSaida.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}
                 </Select>
                 <FormErrorMessage>{errors.tipo_saida?.message}</FormErrorMessage>
@@ -386,7 +398,6 @@ const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => v
               </Flex>
                <Text fontSize="sm" color="gray.400" mt={1}>{despesa.tipo_saida}</Text>
               <Divider my={2} />
-              {/* ===== EXIBIÇÃO DA "DATA DA COMPRA" NO CARD MOBILE ===== */}
               <HStack justify="space-between">
                 <Text fontSize="sm" color="gray.500">Data da Compra:</Text>
                 <Text>{new Date(despesa.data_compra).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Text>
@@ -419,12 +430,10 @@ const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => v
     <>
       <TableContainer>
         <Table variant="striped" __css={{ 'opacity': isLoading ? 0.6 : 1 }}>
-          {/* ===== CABEÇALHO DA TABELA ATUALIZADO ===== */}
           <Thead><Tr><Th>Data da Compra</Th><Th>Vencimento</Th><Th>Discriminação</Th><Th>Tipo</Th><Th>Status</Th><Th isNumeric>Valor</Th>{isAdmin && <Th>Ações</Th>}</Tr></Thead>
           <Tbody>
             {data?.dados.map((despesa: IDespesa) => (
             <Tr key={despesa.id}>
-              {/* ===== CÉLULA DA TABELA COM A NOVA DATA ===== */}
               <Td>{new Date(despesa.data_compra).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
               <Td>{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
               <Td>{despesa.discriminacao}</Td>
