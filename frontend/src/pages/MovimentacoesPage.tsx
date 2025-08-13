@@ -33,8 +33,6 @@ interface ProdutoVendaItem {
   preco_original: number;
 }
 // --- COMPONENTES DE FORMULÁRIO ---
-
-// FormularioNovaVenda (Sem alterações)
 const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boolean; onClose: () => void; vendaParaEditar: IVenda | null }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -251,7 +249,7 @@ const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen:
                   render={({ field }) => (
                     <NumberInput
                       {...field}
-                      onChange={(valueAsString, valueAsNumber) => field.onChange(valueAsNumber)}
+                      onChange={(_, valueAsNumber) => field.onChange(valueAsNumber)}
                       value={field.value || ''}
                       precision={2}
                       step={0.01}
@@ -345,7 +343,7 @@ const TabelaVendas = ({ onEdit, onDelete }: { onEdit: (venda: IVenda) => void; o
   );
 };
 
-// --- COMPONENTE TABELA DESPESAS (COM AS CORREÇÕES) ---
+// --- COMPONENTE TABELA DESPESAS ---
 const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => void; onDelete: (id: number) => void; }) => {
   const [pagina, setPagina] = useState(1);
   const { data, isLoading, isError } = useDespesas(pagina);
