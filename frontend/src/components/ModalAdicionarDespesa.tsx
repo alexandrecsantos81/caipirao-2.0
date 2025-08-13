@@ -1,4 +1,7 @@
+// frontend/src/components/ModalAdicionarDespesa.tsx
+
 import {
+  // ✅ REVERSÃO: Importando os componentes de Modal individualmente
   Modal,
   ModalOverlay,
   ModalContent,
@@ -7,9 +10,11 @@ import {
   ModalBody,
   ModalCloseButton,
   Button,
+  // ✅ REVERSÃO: Importando os componentes de Formulário individualmente
   FormControl,
   FormLabel,
   Input,
+  // ✅ REVERSÃO: Importando os componentes de NumberInput individualmente
   NumberInput,
   NumberInputField,
   NumberInputStepper,
@@ -19,14 +24,13 @@ import {
   FormErrorMessage,
 } from '@chakra-ui/react';
 import { useForm, SubmitHandler } from 'react-hook-form';
-// CORREÇÃO: A interface agora é IDespesaForm
 import { IDespesaForm } from '../services/despesa.service';
 import { useEffect } from 'react';
 
 interface ModalAdicionarDespesaProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: IDespesaForm) => void; // CORREÇÃO: Usar IDespesaForm
+  onSubmit: (data: IDespesaForm) => void;
   isLoading: boolean;
 }
 
@@ -36,7 +40,7 @@ export const ModalAdicionarDespesa = ({ isOpen, onClose, onSubmit, isLoading }: 
     handleSubmit,
     formState: { errors, isSubmitSuccessful },
     reset,
-  } = useForm<IDespesaForm>(); // CORREÇÃO: Usar IDespesaForm
+  } = useForm<IDespesaForm>();
 
   useEffect(() => {
     if (isSubmitSuccessful || !isOpen) {
@@ -44,11 +48,12 @@ export const ModalAdicionarDespesa = ({ isOpen, onClose, onSubmit, isLoading }: 
     }
   }, [isSubmitSuccessful, isOpen, reset]);
 
-  const handleFormSubmit: SubmitHandler<IDespesaForm> = (data) => { // CORREÇÃO: Usar IDespesaForm
+  const handleFormSubmit: SubmitHandler<IDespesaForm> = (data) => {
     onSubmit(data);
   };
 
   return (
+    // ✅ REVERSÃO: Estrutura do Modal da v2
     <Modal isOpen={isOpen} onClose={onClose} isCentered>
       <ModalOverlay />
       <ModalContent>
@@ -69,6 +74,7 @@ export const ModalAdicionarDespesa = ({ isOpen, onClose, onSubmit, isLoading }: 
 
               <FormControl isInvalid={!!errors.valor}>
                 <FormLabel htmlFor="valor">Valor (R$)</FormLabel>
+                {/* ✅ REVERSÃO: Estrutura do NumberInput da v2 */}
                 <NumberInput min={0.01} precision={2}>
                   <NumberInputField
                     id="valor"
@@ -95,6 +101,7 @@ export const ModalAdicionarDespesa = ({ isOpen, onClose, onSubmit, isLoading }: 
             <Button
               colorScheme="red"
               type="submit"
+              // ✅ REVERSÃO: 'loading' para 'isLoading'
               isLoading={isLoading}
               loadingText="Salvando..."
             >
@@ -106,4 +113,3 @@ export const ModalAdicionarDespesa = ({ isOpen, onClose, onSubmit, isLoading }: 
     </Modal>
   );
 };
-//marcação para commit gemini

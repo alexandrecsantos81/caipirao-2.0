@@ -1,4 +1,4 @@
-// src/components/Header.tsx
+// frontend/src/components/Header.tsx
 
 import {
   Flex,
@@ -20,7 +20,7 @@ interface HeaderProps {
 const routeTitles: { [key: string]: string } = {
   '/dashboard': 'Dashboard',
   '/movimentacoes': 'Movimentações',
-  '/relatorios': 'Relatórios Gerenciais', // Adicionado título para a nova página
+  '/relatorios': 'Relatórios Gerenciais',
   '/clientes': 'Clientes',
   '/produtos': 'Produtos',
   '/fornecedores': 'Fornecedores',
@@ -43,7 +43,7 @@ export const Header = ({ onToggleSidebar, isSidebarOpen }: HeaderProps) => {
       bg={useColorModeValue('white', 'gray.800')}
       borderBottomWidth="1px"
       borderColor={useColorModeValue('gray.200', 'gray.700')}
-      h="14" // Define uma altura fixa (56px por padrão no Chakra)
+      h="14"
     >
       <Flex align="center">
         <IconButton

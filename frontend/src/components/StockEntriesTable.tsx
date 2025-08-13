@@ -1,3 +1,5 @@
+// src/components/StockEntriesTable.tsx
+
 import {
   Table, Thead, Tbody, Tr, Th, Td, TableContainer, Skeleton, Text, Center, Tooltip
 } from '@chakra-ui/react';
@@ -84,7 +86,7 @@ export const StockEntriesTable = ({ data, isLoading }: StockEntriesTableProps) =
               <Td isNumeric>{entry.quantidade_adicionada}</Td>
               <Td isNumeric>{formatCurrency(entry.custo_total)}</Td>
               <Td>
-                <Tooltip label={entry.observacao} placement="top" hasArrow>
+                <Tooltip label={entry.observacao || ''} placement="top" hasArrow>
                   <Text isTruncated maxW="150px">
                     {entry.observacao || '---'}
                   </Text>

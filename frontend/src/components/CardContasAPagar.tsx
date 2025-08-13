@@ -1,5 +1,10 @@
+// frontend/src/components/CardContasAPagar.tsx
+
 import {
-  Box, Button, Flex, Heading, Spinner, Text, VStack, HStack, useDisclosure, useToast,
+  Box, Button, Flex, Heading, Spinner, Text, VStack, HStack, useDisclosure,
+  // ✅ REVERSÃO: Voltando a usar o useToast da v2
+  useToast,
+  // ✅ REVERSÃO: Importando os componentes de Modal e Formulário individualmente
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, ModalBody, ModalFooter,
   FormControl, FormLabel, Input, Select
 } from '@chakra-ui/react';
@@ -15,7 +20,9 @@ import { IPaginatedResponse } from '@/types/common.types';
 export const CardContasAPagar = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  // ✅ REVERSÃO: Reintroduzindo o useToast
   const toast = useToast();
+  // ✅ REVERSÃO: useDisclosure agora retorna 'isOpen'
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [selectedDespesa, setSelectedDespesa] = useState<IContasAPagar | null>(null);
   const { register, handleSubmit, setValue } = useForm<IQuitacaoData>();
@@ -25,12 +32,11 @@ export const CardContasAPagar = () => {
     queryFn: getContasAPagar,
   });
 
-  // ✅ CORREÇÃO AQUI: A query agora sabe que a API retorna 'IPaginatedResponse'
-  // e o 'select' transforma o resultado final em um array simples 'IUtilizador[]'.
   const { data: admins, isLoading: isLoadingAdmins } = useQuery<IPaginatedResponse<IUtilizador>, Error, IUtilizador[]>({
     queryKey: ['utilizadores', 1, 1000],
     queryFn: () => getUtilizadores(1, 1000),
     select: (data) => data.dados.filter(u => u.perfil === 'ADMIN'),
+    // ✅ REVERSÃO: Habilitar a query com base em 'isOpen'
     enabled: isOpen,
   });
 
@@ -75,6 +81,7 @@ export const CardContasAPagar = () => {
       {isLoading && <Spinner />}
       {isError && <Text color="red.500">Erro ao carregar contas a pagar.</Text>}
       {!isLoading && !isError && (
+        // ✅ REVERSÃO: Usando as props 'spacing' e 'align' diretamente
         <VStack spacing={4} align="stretch">
           {contas && contas.length > 0 ? (
             contas.map((conta) => (
@@ -99,6 +106,7 @@ export const CardContasAPagar = () => {
         </VStack>
       )}
 
+      {/* ✅ REVERSÃO: Estrutura do Modal da v2 */}
       <Modal isOpen={isOpen} onClose={onClose} isCentered>
         <ModalOverlay />
         <ModalContent as="form" onSubmit={handleSubmit(onConfirmarQuitacao)}>
@@ -127,6 +135,7 @@ export const CardContasAPagar = () => {
           </ModalBody>
           <ModalFooter>
             <Button variant="ghost" mr={3} onClick={onClose}>Cancelar</Button>
+            {/* ✅ REVERSÃO: 'loading' para 'isLoading' */}
             <Button colorScheme="green" type="submit" isLoading={quitacaoMutation.isPending}>Confirmar Pagamento</Button>
           </ModalFooter>
         </ModalContent>
@@ -134,5 +143,3 @@ export const CardContasAPagar = () => {
     </Box>
   );
 };
-
-//marcação para commit gemini

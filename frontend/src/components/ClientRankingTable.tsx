@@ -1,7 +1,9 @@
 // src/components/ClientRankingTable.tsx
 
 import {
-  Table, Thead, Tbody, Tr, Th, Td, TableContainer, Skeleton, Text, Center
+  // ✅ REVERSÃO: Importando os componentes de tabela individualmente
+  Table, Thead, Tbody, Tr, Th, Td, TableContainer,
+  Skeleton, Text, Center
 } from '@chakra-ui/react';
 import { IClientRankingItem } from '@/services/report.service';
 
@@ -18,6 +20,7 @@ export const ClientRankingTable = ({ data, isLoading }: ClientRankingTableProps)
   // Se estiver carregando, exibe 5 linhas de esqueleto
   if (isLoading) {
     return (
+      // ✅ REVERSÃO: Estrutura da Tabela da v2
       <TableContainer>
         <Table variant="striped">
           <Thead>

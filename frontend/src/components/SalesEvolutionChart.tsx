@@ -9,7 +9,6 @@ interface SalesEvolutionChartProps {
   isLoading: boolean;
 }
 
-// Função para formatar os valores do eixo Y como moeda
 const formatCurrency = (value: number) => {
   if (typeof value !== 'number') return '';
   return new Intl.NumberFormat('pt-BR', {
@@ -20,10 +19,8 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-// Função para formatar a data no eixo X
 const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    // Adiciona 1 dia para corrigir o fuso horário que pode causar a data "um dia antes"
     date.setDate(date.getDate() + 1); 
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 };

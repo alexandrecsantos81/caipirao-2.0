@@ -5,8 +5,10 @@ import {
   Flex,
   Icon,
   Text,
+  // ✅ REVERSÃO: Voltando a usar o useColorModeValue da v2
   useColorModeValue,
   Link as ChakraLink,
+  // ✅ REVERSÃO: Importando os componentes de Menu individualmente, como na v2
   Menu,
   MenuButton,
   MenuList,
@@ -36,10 +38,12 @@ interface NavItemProps {
 const NavItem = ({ icon, label, to }: NavItemProps) => {
   const location = useLocation();
   const isActive = location.pathname === to;
+  // ✅ REVERSÃO: Reintroduzindo o useColorModeValue
   const activeColor = useColorModeValue('teal.500', 'teal.200');
   const inactiveColor = useColorModeValue('gray.600', 'gray.400');
 
   return (
+    // ✅ REVERSÃO: Usando a prop 'as' para integração com React Router, como na v2
     <ChakraLink
       as={RouterLink}
       to={to}
@@ -66,6 +70,7 @@ export const BottomNavBar = () => {
   const { user, logout } = useAuth();
   const isAdmin = user?.perfil === 'ADMIN';
 
+  // ✅ REVERSÃO: Reintroduzindo o useColorModeValue
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
 
@@ -83,13 +88,12 @@ export const BottomNavBar = () => {
       display={{ base: 'block', md: 'none' }}
     >
       <Flex align="center" justify="space-around" h="60px">
-        {/* Itens comuns a ambos os perfis */}
         <NavItem icon={FiShoppingCart} label="Movim." to="/movimentacoes" />
         <NavItem icon={FiUsers} label="Clientes" to="/clientes" />
         <NavItem icon={FiBox} label="Produtos" to="/produtos" />
 
-        {/* ✅ CORREÇÃO: Renderização condicional DENTRO do Menu, não do Menu inteiro */}
         {isAdmin ? (
+          // ✅ REVERSÃO: Estrutura de Menu da v2
           <Menu>
             <MenuButton
               as={IconButton}
@@ -103,6 +107,7 @@ export const BottomNavBar = () => {
               py={2}
             />
             <MenuList>
+              {/* ✅ REVERSÃO: Passando 'as' e 'icon' como props, como na v2 */}
               <MenuItem as={RouterLink} to="/dashboard" icon={<FiHome />}>Dashboard</MenuItem>
               <MenuItem as={RouterLink} to="/relatorios" icon={<FiBarChart2 />}>Relatórios</MenuItem>
               <MenuItem as={RouterLink} to="/fornecedores" icon={<FiTruck />}>Fornecedores</MenuItem>
@@ -111,7 +116,6 @@ export const BottomNavBar = () => {
             </MenuList>
           </Menu>
         ) : (
-          // Para não-admins, renderiza um botão de Sair simples
           <ChakraLink
             onClick={logout}
             display="flex"

@@ -1,6 +1,13 @@
+// frontend/src/components/FormularioDespesa.tsx
+
 import {
-  Button, Drawer, DrawerBody, DrawerCloseButton, DrawerContent, DrawerFooter, DrawerHeader, DrawerOverlay,
-  FormControl, FormErrorMessage, FormLabel, Input, Select, Textarea, VStack, useToast, HStack
+  Button,
+  // ✅ REVERSÃO: Importando os componentes de Drawer e Formulário individualmente
+  Drawer, DrawerBody, DrawerCloseButton, DrawerContent, DrawerFooter, DrawerHeader, DrawerOverlay,
+  FormControl, FormErrorMessage, FormLabel, Input, Select, Textarea, VStack,
+  // ✅ REVERSÃO: Voltando a usar o useToast
+  useToast,
+  HStack
 } from '@chakra-ui/react';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -16,11 +23,11 @@ interface FormularioDespesaProps {
 
 const FormularioDespesa = ({ isOpen, onClose, onOpenFornecedorForm }: FormularioDespesaProps) => {
   const queryClient = useQueryClient();
+  // ✅ REVERSÃO: Reintroduzindo o useToast
   const toast = useToast();
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<IDespesaForm>();
   const fornecedorSelecionado = watch('fornecedor_id');
   
-  // ✅ CORREÇÃO DA TIPAGEM DA QUERY
   const { data: fornecedores, isLoading: isLoadingFornecedores } = useQuery<IPaginatedResponse<IFornecedor>, Error, IFornecedor[]>({
     queryKey: ['fornecedores', 1, 1000],
     queryFn: () => getFornecedores(1, 1000),
@@ -62,6 +69,7 @@ const FormularioDespesa = ({ isOpen, onClose, onOpenFornecedorForm }: Formulario
   };
 
   return (
+    // ✅ REVERSÃO: Estrutura do Drawer da v2
     <Drawer isOpen={isOpen} placement="right" onClose={() => { reset(); onClose(); }} size="md">
       <DrawerOverlay />
       <DrawerContent>
@@ -69,6 +77,7 @@ const FormularioDespesa = ({ isOpen, onClose, onOpenFornecedorForm }: Formulario
           <DrawerHeader borderBottomWidth="1px">Registrar Nova Despesa</DrawerHeader>
           <DrawerCloseButton />
           <DrawerBody>
+            {/* ✅ REVERSÃO: Usando a prop 'spacing' diretamente */}
             <VStack spacing={4}>
               <FormControl isRequired isInvalid={!!errors.tipo_saida}>
                 <FormLabel>Tipo de Saída</FormLabel>
@@ -117,6 +126,7 @@ const FormularioDespesa = ({ isOpen, onClose, onOpenFornecedorForm }: Formulario
           </DrawerBody>
           <DrawerFooter borderBottomWidth="1px">
             <Button variant="outline" mr={3} onClick={() => { reset(); onClose(); }}>Cancelar</Button>
+            {/* ✅ REVERSÃO: 'loading' para 'isLoading' */}
             <Button colorScheme="teal" type="submit" isLoading={mutation.isPending}>Salvar Despesa</Button>
           </DrawerFooter>
         </form>
@@ -126,5 +136,3 @@ const FormularioDespesa = ({ isOpen, onClose, onOpenFornecedorForm }: Formulario
 };
 
 export default FormularioDespesa;
-
-//marcação para commit gemini

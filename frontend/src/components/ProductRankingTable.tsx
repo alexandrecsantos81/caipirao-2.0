@@ -1,8 +1,9 @@
 // frontend/src/components/ProductRankingTable.tsx
 
 import {
-  Table, Thead, Tbody, Tr, Th, Td, TableContainer, Skeleton, Text, Center
-  // A importação 'Box' foi removida daqui
+  // ✅ REVERSÃO: Importando os componentes de tabela individualmente
+  Table, Thead, Tbody, Tr, Th, Td, TableContainer,
+  Skeleton, Text, Center
 } from '@chakra-ui/react';
 import { IProductRankingItem } from '@/services/report.service';
 
@@ -18,6 +19,7 @@ const formatCurrency = (value: number) => {
 export const ProductRankingTable = ({ data, isLoading }: ProductRankingTableProps) => {
   if (isLoading) {
     return (
+      // ✅ REVERSÃO: Estrutura da Tabela da v2
       <TableContainer>
         <Table variant="striped">
           <Thead>

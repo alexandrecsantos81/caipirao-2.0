@@ -1,3 +1,5 @@
+// frontend/src/pages/ClientesPage.tsx
+
 import {
   Box, Button, Center, Drawer, DrawerBody, DrawerContent, DrawerFooter,
   DrawerHeader, DrawerOverlay, Flex, FormControl, FormLabel, HStack, Heading,
@@ -19,7 +21,6 @@ import {
 } from '../services/cliente.service';
 import { useAuth } from '../hooks/useAuth';
 
-// --- FUNÇÕES AUXILIARES (SEM ALTERAÇÃO) ---
 const formatarTelefone = (telefone: string): string => {
   if (!telefone) return '';
   const digitos = telefone.replace(/\D/g, '');
@@ -30,10 +31,9 @@ const formatarTelefone = (telefone: string): string => {
 
 const openWhatsApp = (phone: string) => {
   const cleanPhone = phone.replace(/\D/g, '');
-  window.open(`https://wa.me/55${cleanPhone}`, '_blank'  );
+  window.open(`https://wa.me/55${cleanPhone}`, '_blank'   );
 };
 
-// --- COMPONENTE DO FORMULÁRIO (SEM ALTERAÇÃO) ---
 const FormularioCliente = ({ isOpen, onClose, cliente, onSave }: {
   isOpen: boolean; onClose: () => void; cliente: ICliente | null; onSave: (data: IClienteForm, id?: number) => void;
 }) => {
@@ -88,7 +88,6 @@ const FormularioCliente = ({ isOpen, onClose, cliente, onSave }: {
   );
 };
 
-// --- PÁGINA PRINCIPAL DE CLIENTES (SEM ALTERAÇÃO) ---
 const ClientesPage = () => {
   const [pagina, setPagina] = useState(1);
   const { isOpen, onOpen, onClose } = useDisclosure();

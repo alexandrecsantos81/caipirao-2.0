@@ -1,7 +1,10 @@
-// src/components/ClientAnalysis.tsx
+// frontend/src/components/ClientAnalysis.tsx
 
 import {
-  Box, Heading, Table, Thead, Tbody, Tr, Th, Td, TableContainer, Text,
+  Box, Heading,
+  // ✅ REVERSÃO: Importando os componentes de tabela individualmente
+  Table, Thead, Tbody, Tr, Th, Td, TableContainer,
+  Text,
   Center, Spinner, VStack, HStack, Icon, Link, Badge
 } from '@chakra-ui/react';
 import { FaWhatsapp } from 'react-icons/fa';
@@ -28,10 +31,11 @@ export const ClientAnalysis = ({ data, isLoading }: ClientAnalysisProps) => {
 
   const openWhatsApp = (phone: string) => {
     const cleanPhone = phone.replace(/\D/g, '');
-    window.open(`https://wa.me/55${cleanPhone}`, '_blank' );
+    window.open(`https://wa.me/55${cleanPhone}`, '_blank'  );
   };
 
   return (
+    // ✅ REVERSÃO: Usando a prop 'spacing' diretamente
     <VStack spacing={8} align="stretch">
       {/* Seção de Clientes Ativos */}
       <Box>
@@ -40,6 +44,7 @@ export const ClientAnalysis = ({ data, isLoading }: ClientAnalysisProps) => {
           <Badge colorScheme="green" fontSize="md">{data.ativos.length}</Badge>
         </HStack>
         <Text color="gray.500" mt={-3} mb={4}>Clientes que realizaram compras nos últimos 90 dias.</Text>
+        {/* ✅ REVERSÃO: Estrutura da Tabela da v2 */}
         <TableContainer borderWidth={1} borderRadius="md">
           <Table variant="simple">
             <Thead>

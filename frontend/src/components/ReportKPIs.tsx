@@ -1,6 +1,10 @@
 // src/components/ReportKPIs.tsx
 
-import { SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText, Skeleton } from '@chakra-ui/react';
+import {
+  // ✅ REVERSÃO: Importando os componentes de Stat individualmente
+  SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText,
+  Skeleton
+} from '@chakra-ui/react';
 import { ISalesSummaryKPIs } from '@/services/report.service';
 
 interface ReportKPIsProps {
@@ -15,6 +19,7 @@ const formatCurrency = (value: number) => {
 
 export const ReportKPIs = ({ kpis, isLoading }: ReportKPIsProps) => {
   return (
+    // ✅ REVERSÃO: Usando a prop 'spacing' diretamente
     <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6} mb={8}>
       <Stat as={Skeleton} isLoaded={!isLoading} p={5} borderWidth={1} borderRadius={8} boxShadow="sm">
         <StatLabel>Faturamento Total</StatLabel>

@@ -3,8 +3,7 @@
 import {
   Box, VStack, Heading, Link as ChakraLink, Text, Divider, Avatar, HStack, Tag, Icon, Tooltip, useColorModeValue, Flex,
 } from '@chakra-ui/react';
-// CORREÇÃO: Removido 'useNavigate' da importação
-import { NavLink as RouterLink, useLocation, Link } from 'react-router-dom';
+import { Link, NavLink as RouterLink, useLocation } from 'react-router-dom';
 import {
   FiHome, FiShoppingCart, FiUsers, FiBox, FiDollarSign, FiLogOut, FiTruck, FiBarChart2, FiClipboard,
 } from 'react-icons/fi';
@@ -56,8 +55,6 @@ interface SidebarProps {
 export const Sidebar = ({ isCollapsed }: SidebarProps) => {
   const { user, logout } = useAuth();
   const isAdmin = user?.perfil === 'ADMIN';
-  
-  // CORREÇÃO: Removida a linha 'const navigate = useNavigate();'
   
   const homeLink = isAdmin ? '/dashboard' : '/movimentacoes';
 

@@ -1,4 +1,4 @@
-// frontend/src/main.tsx (VERSÃO SIMPLIFICADA E CORRIGIDA)
+// frontend/src/main.tsx
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
@@ -9,16 +9,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import { AuthProvider } from './hooks/useAuth';
 
-// 1. Crie uma instância do QueryClient fora do render.
 const queryClient = new QueryClient();
 
-// 2. Obtenha o elemento root.
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error('Failed to find the root element');
 }
 
-// 3. Renderize a aplicação com a estrutura de provedores mais segura.
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>

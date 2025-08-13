@@ -13,6 +13,7 @@ export const Pagination = ({ paginaAtual, totalPaginas, onPageChange }: Paginati
     <Flex justify="space-between" align="center" mt={6}>
       <Button
         onClick={() => onPageChange(paginaAtual - 1)}
+        // ✅ REVERSÃO: Voltando a usar 'isDisabled'
         isDisabled={paginaAtual <= 1}
       >
         Anterior
@@ -22,6 +23,7 @@ export const Pagination = ({ paginaAtual, totalPaginas, onPageChange }: Paginati
       </Text>
       <Button
         onClick={() => onPageChange(paginaAtual + 1)}
+        // ✅ REVERSÃO: Voltando a usar 'isDisabled'
         isDisabled={paginaAtual >= totalPaginas}
       >
         Próxima

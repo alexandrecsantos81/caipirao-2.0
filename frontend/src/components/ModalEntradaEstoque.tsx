@@ -1,6 +1,7 @@
 // frontend/src/components/ModalEntradaEstoque.tsx
 
 import {
+  // ✅ REVERSÃO: Importando os componentes de Modal individualmente
   Modal,
   ModalOverlay,
   ModalContent,
@@ -9,6 +10,7 @@ import {
   ModalBody,
   ModalCloseButton,
   Button,
+  // ✅ REVERSÃO: Importando os componentes de Formulário individualmente
   FormControl,
   FormLabel,
   NumberInput,
@@ -40,14 +42,11 @@ export const ModalEntradaEstoque = ({ isOpen, onClose, onSubmit, produto, isLoad
     register,
     handleSubmit,
     formState: { errors },
-    reset, // Removido isSubmitSuccessful daqui, pois não será mais usado no useEffect
+    reset,
   } = useForm<IEntradaEstoqueFormComData>();
 
-  // ✅ CORREÇÃO: Simplificando o useEffect para depender apenas de 'isOpen'.
-  // Esta é a forma mais segura de resetar um formulário dentro de um modal.
   useEffect(() => {
     if (isOpen) {
-      // Quando o modal abrir, reseta o formulário com a data atual.
       reset({
         data_entrada: new Date().toISOString().split('T')[0],
         quantidade_adicionada: undefined,
@@ -55,7 +54,7 @@ export const ModalEntradaEstoque = ({ isOpen, onClose, onSubmit, produto, isLoad
         observacao: '',
       });
     }
-  }, [isOpen, reset]); // A dependência agora é apenas em 'isOpen' e 'reset'.
+  }, [isOpen, reset]);
 
   const handleFormSubmit: SubmitHandler<IEntradaEstoqueFormComData> = (data) => {
     onSubmit({
@@ -63,11 +62,10 @@ export const ModalEntradaEstoque = ({ isOpen, onClose, onSubmit, produto, isLoad
       quantidade_adicionada: Number(data.quantidade_adicionada),
       custo_total: Number(data.custo_total),
     });
-    // O reset após o envio pode ser tratado no onSuccess da mutação no componente pai,
-    // mas como o modal fecha, o reset pelo 'isOpen' já é suficiente.
   };
 
   return (
+    // ✅ REVERSÃO: Estrutura do Modal da v2
     <Modal isOpen={isOpen} onClose={onClose} isCentered>
       <ModalOverlay />
       <ModalContent>
@@ -124,9 +122,8 @@ export const ModalEntradaEstoque = ({ isOpen, onClose, onSubmit, produto, isLoad
             </VStack>
           </ModalBody>
           <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onClose}>
-              Cancelar
-            </Button>
+            <Button variant="ghost" mr={3} onClick={onClose}>Cancelar</Button>
+            {/* ✅ REVERSÃO: 'loading' para 'isLoading' */}
             <Button colorScheme="blue" type="submit" isLoading={isLoading}>
               Adicionar ao Estoque
             </Button>
