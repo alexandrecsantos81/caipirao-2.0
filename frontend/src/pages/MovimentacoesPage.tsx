@@ -33,6 +33,8 @@ interface ProdutoVendaItem {
   preco_original: number;
 }
 // --- COMPONENTES DE FORMULÁRIO ---
+
+// FormularioNovaVenda (Sem alterações)
 const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boolean; onClose: () => void; vendaParaEditar: IVenda | null }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -154,9 +156,9 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
     <Drawer isOpen={isOpen} placement="right" onClose={onClose} size={drawerSize}>
       <DrawerOverlay />
       <DrawerContent>
-        <DrawerHeader borderBottomWidth="1px">{vendaParaEditar ? 'Editar Venda' : 'Registrar Nova Venda'}</DrawerHeader>
-        <DrawerCloseButton />
         <form onSubmit={handleSubmit(onSubmit)}>
+          <DrawerHeader borderBottomWidth="1px">{vendaParaEditar ? 'Editar Venda' : 'Registrar Nova Venda'}</DrawerHeader>
+          <DrawerCloseButton />
           <DrawerBody>
             <VStack spacing={4} align="stretch">
                <Flex direction={flexDir} gap={4}>
@@ -186,6 +188,7 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
     </Drawer>
   );
 };
+
 const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen: boolean; onClose: () => void; despesaParaEditar: IDespesa | null }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -238,7 +241,29 @@ const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen:
           <DrawerBody>
             <VStack spacing={4}>
               <FormControl isRequired isInvalid={!!errors.tipo_saida}><FormLabel>Tipo de Saída</FormLabel><Select placeholder="Selecione o tipo da despesa" {...register('tipo_saida', { required: 'Tipo é obrigatório' })}>{tiposDeSaida.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}</Select><FormErrorMessage>{errors.tipo_saida?.message}</FormErrorMessage></FormControl>
-              <FormControl isRequired isInvalid={!!errors.valor}><FormLabel>Valor (R$)</FormLabel><Controller name="valor" control={control} rules={{ required: 'Valor é obrigatório', min: { value: 0.01, message: 'Valor deve ser maior que zero' } }} render={({ field }) => <NumberInput {...field} onChange={(_, valAsNumber) => field.onChange(valAsNumber)} value={field.value as number} min={0.01} precision={2}><NumberInputField /></NumberInput>} /><FormErrorMessage>{errors.valor?.message}</FormErrorMessage></FormControl>
+              
+              <FormControl isRequired isInvalid={!!errors.valor}>
+                <FormLabel>Valor (R$)</FormLabel>
+                <Controller
+                  name="valor"
+                  control={control}
+                  rules={{ required: 'Valor é obrigatório', min: { value: 0.01, message: 'Valor deve ser maior que zero' } }}
+                  render={({ field }) => (
+                    <NumberInput
+                      {...field}
+                      onChange={(valueAsString, valueAsNumber) => field.onChange(valueAsNumber)}
+                      value={field.value || ''}
+                      precision={2}
+                      step={0.01}
+                      min={0.01}
+                    >
+                      <NumberInputField placeholder="Ex: 852.50" />
+                    </NumberInput>
+                  )}
+                />
+                <FormErrorMessage>{errors.valor?.message}</FormErrorMessage>
+              </FormControl>
+
               <FormControl isRequired isInvalid={!!errors.discriminacao}><FormLabel>Discriminação (Detalhes)</FormLabel><Textarea placeholder="Detalhes da despesa..." {...register('discriminacao', { required: 'A descrição é obrigatória' })} /><FormErrorMessage>{errors.discriminacao?.message}</FormErrorMessage></FormControl>
               <FormControl isRequired isInvalid={!!errors.data_vencimento}><FormLabel>Data de Vencimento</FormLabel><Input type="date" {...register('data_vencimento', { required: 'Data de vencimento é obrigatória' })} /><FormErrorMessage>{errors.data_vencimento?.message}</FormErrorMessage></FormControl>
               <FormControl><FormLabel>Fornecedor/Credor (Opcional)</FormLabel><Select placeholder="Selecione um fornecedor" {...register('fornecedor_id')}>{fornecedores?.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}</Select></FormControl>
@@ -323,7 +348,6 @@ const TabelaVendas = ({ onEdit, onDelete }: { onEdit: (venda: IVenda) => void; o
 // --- COMPONENTE TABELA DESPESAS (COM AS CORREÇÕES) ---
 const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => void; onDelete: (id: number) => void; }) => {
   const [pagina, setPagina] = useState(1);
-  // CORREÇÃO: Passando a página atual para o hook
   const { data, isLoading, isError } = useDespesas(pagina);
   
   const { user } = useAuth();
@@ -337,7 +361,6 @@ const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => v
     return (
       <>
         <VStack spacing={4} align="stretch" mt={4}>
-          {/* CORREÇÃO: Acessando data.dados para o map e tipando o parâmetro 'despesa' */}
           {data?.dados.map((despesa: IDespesa) => (
             <Box key={despesa.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
               <Flex justify="space-between" align="center">
@@ -370,7 +393,6 @@ const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => v
             </Box>
           ))}
         </VStack>
-        {/* CORREÇÃO: Passando as propriedades corretas para o componente Pagination */}
         <Pagination paginaAtual={data?.pagina || 1} totalPaginas={data?.totalPaginas || 1} onPageChange={setPagina} />
       </>
     );
@@ -382,7 +404,6 @@ const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => v
         <Table variant="striped" __css={{ 'opacity': isLoading ? 0.6 : 1 }}>
           <Thead><Tr><Th>Vencimento</Th><Th>Discriminação</Th><Th>Tipo</Th><Th>Status</Th><Th isNumeric>Valor</Th>{isAdmin && <Th>Ações</Th>}</Tr></Thead>
           <Tbody>
-            {/* CORREÇÃO: Acessando data.dados e tipando o parâmetro 'despesa' */}
             {data?.dados.map((despesa: IDespesa) => (
             <Tr key={despesa.id}>
               <Td>{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
@@ -398,7 +419,6 @@ const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => v
           ))}</Tbody>
         </Table>
       </TableContainer>
-      {/* CORREÇÃO: Passando as propriedades corretas para o componente Pagination */}
       <Pagination paginaAtual={data?.pagina || 1} totalPaginas={data?.totalPaginas || 1} onPageChange={setPagina} />
     </>
   );
