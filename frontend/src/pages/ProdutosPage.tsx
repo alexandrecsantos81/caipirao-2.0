@@ -1,4 +1,4 @@
-// frontend/src/pages/ProdutosPage.tsx (VERSÃO FINAL CORRIGIDA)
+// frontend/src/pages/ProdutosPage.tsx (VERSÃO FINAL ESTABILIZADA)
 
 import {
   Box, Button, Center, Drawer, DrawerBody, DrawerCloseButton, DrawerContent,
@@ -11,7 +11,7 @@ import {
   VStack,
   TableContainer,
 } from '@chakra-ui/react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'; // Removido keepPreviousData
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Controller, useForm } from 'react-hook-form';
 import { FiEdit, FiPlus, FiTrash2, FiPlusSquare } from 'react-icons/fi';
 import { useEffect, useState } from 'react';
@@ -26,7 +26,7 @@ type ProdutoFormData = IProdutoForm & {
   outra_unidade_medida?: string;
 };
 
-// --- COMPONENTE DO FORMULÁRIO DE PRODUTO (Restaurado) ---
+// --- COMPONENTE DO FORMULÁRIO DE PRODUTO (SEM ALTERAÇÕES) ---
 const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
   isOpen: boolean; onClose: () => void; produto: IProduto | null; onSave: (data: ProdutoFormData) => void; isLoading: boolean;
 }) => {
@@ -132,7 +132,7 @@ const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
 };
 
 
-// --- PÁGINA PRINCIPAL DE PRODUTOS (COM A CORREÇÃO FINAL) ---
+// --- PÁGINA PRINCIPAL DE PRODUTOS ---
 const ProdutosPage = () => {
   const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
   const { isOpen: isEstoqueOpen, onOpen: onEstoqueOpen, onClose: onEstoqueClose } = useDisclosure();
@@ -143,13 +143,10 @@ const ProdutosPage = () => {
   const [produtoParaEstoque, setProdutoParaEstoque] = useState<IProduto | null>(null);
   const { user } = useAuth();
   const isAdmin = user?.perfil === 'ADMIN';
-  const isMobile = useBreakpointValue({ base: true, md: false });
 
-  // ✅ CORREÇÃO FINAL: Removida a opção 'placeholderData: keepPreviousData'
   const { data, isLoading, isError } = useQuery({
     queryKey: ['produtos', pagina],
     queryFn: () => getProdutos(pagina, 10),
-    // A opção 'keepPreviousData' foi removida para simplificar o ciclo de renderização.
   });
   
   const deleteMutation = useMutation({
@@ -210,73 +207,77 @@ const ProdutosPage = () => {
       </Flex>
       {isLoading && <Center p={10}><Spinner size="xl" /></Center>}
       {isError && <Center p={10}><Text color="red.500">Falha ao carregar os produtos.</Text></Center>}
+      
+      {/* ✅ CORREÇÃO FINAL: A renderização condicional foi movida para DENTRO dos componentes de Tabela e Lista,
+          em vez de renderizar um ou outro. Usamos as props 'display' do Chakra para mostrar/esconder. */}
       {!isLoading && !isError && data && (
         <>
-          {isMobile ? (
-            <VStack spacing={4} align="stretch">
-              {data.dados.map((produto) => (
-                <Box key={produto.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
-                  <Flex justify="space-between" align="center">
-                    <Heading size="sm" noOfLines={1}>{produto.nome}</Heading>
-                    <Text fontWeight="bold" color="teal.500">
-                      {produto.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                    </Text>
-                  </Flex>
-                  <Divider my={2} />
-                  <HStack justify="space-between">
-                    <Text fontSize="sm" color="gray.500">Unidade:</Text>
-                    <Text fontWeight="bold">{produto.unidade_medida.toUpperCase()}</Text>
-                  </HStack>
-                  <HStack justify="space-between" mt={1}>
-                    <Text fontSize="sm" color="gray.500">Estoque:</Text>
-                    <Text fontWeight="bold">{produto.quantidade_em_estoque} {produto.unidade_medida}</Text>
-                  </HStack>
-                  {isAdmin && (
-                    <HStack mt={4} justify="space-around" bg={useBreakpointValue({ base: 'gray.100', md: 'transparent' })} _dark={{ bg: 'gray.700' }} p={2} borderRadius="md">
-                      <Button flex="1" size="sm" leftIcon={<FiPlusSquare />} colorScheme="blue" onClick={() => handleOpenForEstoque(produto)}>Estoque</Button>
-                      <IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleOpenForEdit(produto)} />
-                      <IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" onClick={() => deleteMutation.mutate(produto.id)} isLoading={deleteMutation.isPending && deleteMutation.variables === produto.id} />
-                    </HStack>
-                  )}
-                </Box>
-              ))}
-            </VStack>
-          ) : (
-            <TableContainer>
-              <Table variant="simple">
-                <Thead>
-                  <Tr>
-                    <Th>Nome</Th>
-                    <Th>Unidade</Th>
-                    <Th isNumeric>Preço (R$)</Th>
-                    <Th isNumeric>Estoque Atual</Th>
-                    {isAdmin && <Th>Ações</Th>}
+          {/* Tabela para Desktop - sempre renderizada, mas escondida em telas pequenas */}
+          <TableContainer display={{ base: 'none', md: 'block' }}>
+            <Table variant="simple">
+              <Thead>
+                <Tr>
+                  <Th>Nome</Th>
+                  <Th>Unidade</Th>
+                  <Th isNumeric>Preço (R$)</Th>
+                  <Th isNumeric>Estoque Atual</Th>
+                  {isAdmin && <Th>Ações</Th>}
+                </Tr>
+              </Thead>
+              <Tbody>
+                {data.dados.map((produto) => (
+                  <Tr key={produto.id}>
+                    <Td>{produto.nome}</Td>
+                    <Td>{produto.unidade_medida}</Td>
+                    <Td isNumeric>{typeof produto.price === 'number' ? produto.price.toFixed(2) : '0.00'}</Td>
+                    <Td isNumeric>{produto.quantidade_em_estoque}</Td>
+                    {isAdmin && (
+                      <Td>
+                        <HStack spacing={2}>
+                          <Button size="sm" leftIcon={<FiPlusSquare />} variant="outline" colorScheme="blue" onClick={() => handleOpenForEstoque(produto)}>
+                            Entrada
+                          </Button>
+                          <IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleOpenForEdit(produto)} />
+                          <IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" onClick={() => deleteMutation.mutate(produto.id)} isLoading={deleteMutation.isPending && deleteMutation.variables === produto.id} />
+                        </HStack>
+                      </Td>
+                    )}
                   </Tr>
-                </Thead>
-                <Tbody>
-                  {data.dados.map((produto) => (
-                    <Tr key={produto.id}>
-                      <Td>{produto.nome}</Td>
-                      <Td>{produto.unidade_medida}</Td>
-                      <Td isNumeric>{typeof produto.price === 'number' ? produto.price.toFixed(2) : '0.00'}</Td>
-                      <Td isNumeric>{produto.quantidade_em_estoque}</Td>
-                      {isAdmin && (
-                        <Td>
-                          <HStack spacing={2}>
-                            <Button size="sm" leftIcon={<FiPlusSquare />} variant="outline" colorScheme="blue" onClick={() => handleOpenForEstoque(produto)}>
-                              Entrada
-                            </Button>
-                            <IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleOpenForEdit(produto)} />
-                            <IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" onClick={() => deleteMutation.mutate(produto.id)} isLoading={deleteMutation.isPending && deleteMutation.variables === produto.id} />
-                          </HStack>
-                        </Td>
-                      )}
-                    </Tr>
-                  ))}
-                </Tbody>
-              </Table>
-            </TableContainer>
-          )}
+                ))}
+              </Tbody>
+            </Table>
+          </TableContainer>
+
+          {/* Lista para Mobile - sempre renderizada, mas escondida em telas grandes */}
+          <VStack spacing={4} align="stretch" display={{ base: 'flex', md: 'none' }}>
+            {data.dados.map((produto) => (
+              <Box key={produto.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
+                <Flex justify="space-between" align="center">
+                  <Heading size="sm" noOfLines={1}>{produto.nome}</Heading>
+                  <Text fontWeight="bold" color="teal.500">
+                    {produto.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </Text>
+                </Flex>
+                <Divider my={2} />
+                <HStack justify="space-between">
+                  <Text fontSize="sm" color="gray.500">Unidade:</Text>
+                  <Text fontWeight="bold">{produto.unidade_medida.toUpperCase()}</Text>
+                </HStack>
+                <HStack justify="space-between" mt={1}>
+                  <Text fontSize="sm" color="gray.500">Estoque:</Text>
+                  <Text fontWeight="bold">{produto.quantidade_em_estoque} {produto.unidade_medida}</Text>
+                </HStack>
+                {isAdmin && (
+                  <HStack mt={4} justify="space-around" bg={useBreakpointValue({ base: 'gray.100', md: 'transparent' })} _dark={{ bg: 'gray.700' }} p={2} borderRadius="md">
+                    <Button flex="1" size="sm" leftIcon={<FiPlusSquare />} colorScheme="blue" onClick={() => handleOpenForEstoque(produto)}>Estoque</Button>
+                    <IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleOpenForEdit(produto)} />
+                    <IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" onClick={() => deleteMutation.mutate(produto.id)} isLoading={deleteMutation.isPending && deleteMutation.variables === produto.id} />
+                  </HStack>
+                )}
+              </Box>
+            ))}
+          </VStack>
+
           <Pagination paginaAtual={data.pagina} totalPaginas={data.totalPaginas} onPageChange={(page) => setPagina(page)} />
         </>
       )}
