@@ -1,10 +1,12 @@
-// frontend/src/pages/LoginPage.tsx
-
 import { useState } from 'react';
 import {
   Box, Button, FormControl, FormErrorMessage, FormLabel, Input, VStack, Heading, useToast, Text, Link as ChakraLink,
-  Flex // 1. Importe o componente Flex
+  Flex,
+  InputGroup,         // <-- Importar
+  InputRightElement,  // <-- Importar
+  IconButton,         // <-- Importar
 } from '@chakra-ui/react';
+import { ViewIcon, ViewOffIcon } from '@chakra-ui/icons'; // <-- Importar ícones
 import { useMutation } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
 
@@ -14,6 +16,7 @@ import { useAuth } from '../hooks/useAuth';
 const LoginPage = () => {
   const [credencial, setCredencial] = useState('');
   const [senha, setSenha] = useState('');
+  const [showPassword, setShowPassword] = useState(false); // <-- Estado para controlar a visibilidade
   const toast = useToast();
   const { login: authLogin } = useAuth();
 
@@ -49,11 +52,10 @@ const LoginPage = () => {
   };
 
   return (
-    // 2. Envolva tudo em um Flex container
     <Flex
-      minH="100vh" // Garante que o container ocupe no mínimo 100% da altura da tela
-      align="center" // Centraliza verticalmente
-      justify="center" // Centraliza horizontalmente
+      minH="100vh"
+      align="center"
+      justify="center"
     >
       <Box p={8} width="full" maxWidth="400px" borderWidth={1} borderRadius={8} boxShadow="lg">
         <form onSubmit={handleSubmit}>
@@ -67,18 +69,35 @@ const LoginPage = () => {
                 placeholder="Digite sua credencial"
               />
             </FormControl>
+
+            {/* CAMPO DE SENHA MODIFICADO */}
             <FormControl isRequired isInvalid={loginMutation.isError}>
               <FormLabel>Senha</FormLabel>
-              <Input
-                type="password"
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                placeholder="********"
-              />
+              <InputGroup>
+                <Input
+                  type={showPassword ? 'text' : 'password'} // <-- Tipo dinâmico
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  placeholder="********"
+                />
+                <InputRightElement>
+                  <IconButton
+                    aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                    variant="ghost"
+                    icon={showPassword ? <ViewOffIcon /> : <ViewIcon />}
+                    // Revela a senha ao pressionar e oculta ao soltar
+                    onMouseDown={() => setShowPassword(true)}
+                    onMouseUp={() => setShowPassword(false)}
+                    onTouchStart={() => setShowPassword(true)} // Para dispositivos móveis
+                    onTouchEnd={() => setShowPassword(false)}   // Para dispositivos móveis
+                  />
+                </InputRightElement>
+              </InputGroup>
               {loginMutation.isError && (
                   <FormErrorMessage>Credenciais inválidas. Tente novamente.</FormErrorMessage>
               )}
             </FormControl>
+
             <Button
               type="submit"
               colorScheme="teal"
