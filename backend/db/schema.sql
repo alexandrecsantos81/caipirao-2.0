@@ -14,6 +14,7 @@
 -- Exclui as tabelas se elas já existirem, para garantir um começo limpo.
 -- A ordem é importante por causa das chaves estrangeiras.
 DROP TABLE IF EXISTS movimentacoes;
+DROP TABLE IF EXISTS entradas_estoque; -- Adicionado para garantir a ordem correta de exclusão
 DROP TABLE IF EXISTS despesas; -- Adicionado para garantir a ordem correta de exclusão
 DROP TABLE IF EXISTS fornecedores; -- Adicionado para garantir a ordem correta de exclusão
 DROP TABLE IF EXISTS produtos;
@@ -61,6 +62,7 @@ CREATE TABLE produtos (
     unidade_medida VARCHAR(20) NOT NULL,
     price NUMERIC(10, 2) NOT NULL CHECK (price >= 0),
     quantidade_em_estoque NUMERIC(10, 3) NOT NULL DEFAULT 0,
+    custo_medio NUMERIC(10, 2) DEFAULT 0,
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -81,7 +83,7 @@ CREATE TABLE movimentacoes (
 
 
 -- =====================================================================
---  FASE 2: GESTÃO DE DESPESAS E FORNECEDORES
+--  FASE 2: GESTÃO DE DESPESAS, FORNECEDORES E ESTOQUE
 -- =====================================================================
 
 -- Tabela para Fornecedores/Credores
@@ -109,6 +111,7 @@ CREATE TABLE despesas (
     discriminacao TEXT NOT NULL,
     
     -- Datas e Status
+    data_compra DATE NOT NULL DEFAULT CURRENT_DATE, -- <<< NOVO CAMPO ADICIONADO AQUI
     data_vencimento DATE NOT NULL,
     data_pagamento DATE, -- Fica nulo até a despesa ser quitada
     
@@ -117,6 +120,17 @@ CREATE TABLE despesas (
     responsavel_pagamento_id INT REFERENCES utilizadores(id) ON DELETE SET NULL,
     
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tabela de Histórico de Entradas de Estoque
+CREATE TABLE entradas_estoque (
+    id SERIAL PRIMARY KEY,
+    produto_id INT NOT NULL REFERENCES produtos(id) ON DELETE CASCADE,
+    utilizador_id INT REFERENCES utilizadores(id) ON DELETE SET NULL,
+    quantidade_adicionada NUMERIC(10, 3) NOT NULL,
+    custo_total NUMERIC(10, 2) NOT NULL,
+    observacao TEXT,
+    data_entrada TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 
@@ -136,12 +150,14 @@ CREATE INDEX idx_movimentacoes_data_venda ON movimentacoes(data_venda);
 CREATE INDEX idx_movimentacoes_data_vencimento ON movimentacoes(data_vencimento);
 CREATE INDEX idx_fornecedores_nome ON fornecedores(nome);
 CREATE INDEX idx_despesas_vencimento ON despesas(data_vencimento);
+CREATE INDEX idx_despesas_compra ON despesas(data_compra); -- <<< ÍNDICE PARA O NOVO CAMPO
 CREATE INDEX idx_despesas_pagamento ON despesas(data_pagamento);
 CREATE INDEX idx_despesas_fornecedor_id ON despesas(fornecedor_id);
+CREATE INDEX idx_entradas_estoque_produto_id ON entradas_estoque(produto_id);
+CREATE INDEX idx_entradas_estoque_data_entrada ON entradas_estoque(data_entrada);
 
 -- Inserir um utilizador ADMIN padrão para o primeiro login
 -- A senha 'admin' deve ser registrada pela API para ser criptografada corretamente.
 -- Este hash é apenas um exemplo e não corresponde a uma senha real.
 INSERT INTO utilizadores (nome, email, nickname, telefone, senha, perfil, status) VALUES 
 ('Admin Principal', 'admin@caipirao.com', 'admin', '00000000000', '$2a$10$ExemploDeHashSeguroNaoUseIsso', 'ADMIN', 'ATIVO');
-

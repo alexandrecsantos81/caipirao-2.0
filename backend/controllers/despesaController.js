@@ -6,17 +6,21 @@ const pool = require('../db');
  * @access  Protegido (Admin)
  */
 const registrarDespesa = async (req, res) => {
-    const { tipo_saida, valor, discriminacao, data_vencimento, fornecedor_id } = req.body;
-    if (!tipo_saida || !valor || !discriminacao || !data_vencimento) {
-        return res.status(400).json({ error: 'Campos obrigatórios: tipo, valor, discriminação e vencimento.' });
+    // 1. EXTRAIR O NOVO CAMPO 'data_compra' DO CORPO DA REQUISIÇÃO
+    const { tipo_saida, valor, discriminacao, data_vencimento, data_compra, fornecedor_id } = req.body;
+
+    // 2. ATUALIZAR A VALIDAÇÃO PARA INCLUIR 'data_compra'
+    if (!tipo_saida || !valor || !discriminacao || !data_vencimento || !data_compra) {
+        return res.status(400).json({ error: 'Campos obrigatórios: tipo, valor, discriminação, data da compra e vencimento.' });
     }
 
     try {
+        // 3. ATUALIZAR A QUERY DE INSERT PARA INCLUIR A NOVA COLUNA
         const novaDespesa = await pool.query(
-            `INSERT INTO despesas (tipo_saida, valor, discriminacao, data_vencimento, fornecedor_id)
-             VALUES ($1, $2, $3, $4, $5)
+            `INSERT INTO despesas (tipo_saida, valor, discriminacao, data_vencimento, data_compra, fornecedor_id)
+             VALUES ($1, $2, $3, $4, $5, $6)
              RETURNING *`,
-            [tipo_saida, valor, discriminacao, data_vencimento, fornecedor_id]
+            [tipo_saida, valor, discriminacao, data_vencimento, data_compra, fornecedor_id]
         );
         res.status(201).json(novaDespesa.rows[0]);
     } catch (error) {
@@ -37,6 +41,7 @@ const getDespesas = async (req, res) => {
         const totalPromise = pool.query('SELECT COUNT(*) FROM despesas');
 
         const offset = (pagina - 1) * limite;
+        // 4. ATUALIZAR A QUERY DE SELECT PARA TRAZER A 'data_compra'
         const despesasPromise = pool.query(`
             SELECT 
                 d.*, 
@@ -134,17 +139,21 @@ const getDespesasAPagar = async (req, res) => {
  */
 const updateDespesa = async (req, res) => {
     const { id } = req.params;
-    const { tipo_saida, valor, discriminacao, data_vencimento, fornecedor_id } = req.body;
-    if (!tipo_saida || !valor || !discriminacao || !data_vencimento) {
-        return res.status(400).json({ error: 'Campos obrigatórios: tipo, valor, discriminação e vencimento.' });
+    // 5. EXTRAIR O NOVO CAMPO 'data_compra' DO CORPO DA REQUISIÇÃO
+    const { tipo_saida, valor, discriminacao, data_vencimento, data_compra, fornecedor_id } = req.body;
+
+    // 6. ATUALIZAR A VALIDAÇÃO PARA INCLUIR 'data_compra'
+    if (!tipo_saida || !valor || !discriminacao || !data_vencimento || !data_compra) {
+        return res.status(400).json({ error: 'Campos obrigatórios: tipo, valor, discriminação, data da compra e vencimento.' });
     }
 
     try {
+        // 7. ATUALIZAR A QUERY DE UPDATE PARA INCLUIR A NOVA COLUNA
         const despesaAtualizada = await pool.query(
             `UPDATE despesas 
-             SET tipo_saida = $1, valor = $2, discriminacao = $3, data_vencimento = $4, fornecedor_id = $5
-             WHERE id = $6 RETURNING *`,
-            [tipo_saida, valor, discriminacao, data_vencimento, fornecedor_id, id]
+             SET tipo_saida = $1, valor = $2, discriminacao = $3, data_vencimento = $4, data_compra = $5, fornecedor_id = $6
+             WHERE id = $7 RETURNING *`,
+            [tipo_saida, valor, discriminacao, data_vencimento, data_compra, fornecedor_id, id]
         );
 
         if (despesaAtualizada.rowCount === 0) {
@@ -185,5 +194,3 @@ module.exports = {
     updateDespesa,
     deleteDespesa,
 };
-
-//marcação para commit gemini

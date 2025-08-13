@@ -1,5 +1,3 @@
-// frontend/src/services/despesa.service.ts
-
 import axios from 'axios';
 import { IPaginatedResponse } from '@/types/common.types'; // Importação centralizada
 
@@ -34,6 +32,7 @@ export interface IDespesa {
   tipo_saida: TipoSaida;
   valor: number;
   discriminacao: string;
+  data_compra: string; // <<< NOVO CAMPO ADICIONADO AQUI
   data_vencimento: string; // Formato YYYY-MM-DD
   data_pagamento?: string | null;
   fornecedor_id?: number | null;
@@ -45,6 +44,7 @@ export interface IDespesaForm {
   tipo_saida: TipoSaida | '';
   valor: number | string;
   discriminacao: string;
+  data_compra: string; // <<< NOVO CAMPO ADICIONADO AQUI
   data_vencimento: string;
   fornecedor_id?: number | null;
 }

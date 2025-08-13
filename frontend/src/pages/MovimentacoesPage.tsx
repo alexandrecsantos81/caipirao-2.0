@@ -213,12 +213,17 @@ const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen:
       if (despesaParaEditar) {
         reset({
           ...despesaParaEditar,
+          // Formata as datas para o formato YYYY-MM-DD que o input[type=date] espera
+          data_compra: despesaParaEditar.data_compra.split('T')[0],
           data_vencimento: despesaParaEditar.data_vencimento.split('T')[0],
         });
       } else {
         reset({
           discriminacao: '', tipo_saida: '', valor: '',
-          data_vencimento: new Date().toISOString().split('T')[0], fornecedor_id: undefined,
+          // Define as datas padrão para hoje
+          data_compra: new Date().toISOString().split('T')[0],
+          data_vencimento: new Date().toISOString().split('T')[0],
+          fornecedor_id: undefined,
         });
       }
     }
@@ -259,6 +264,14 @@ const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen:
               </FormControl>
 
               <FormControl isRequired isInvalid={!!errors.discriminacao}><FormLabel>Discriminação (Detalhes)</FormLabel><Textarea placeholder="Detalhes da despesa..." {...register('discriminacao', { required: 'A descrição é obrigatória' })} /><FormErrorMessage>{errors.discriminacao?.message}</FormErrorMessage></FormControl>
+              
+              {/* ===== CAMPO "DATA DA COMPRA" ADICIONADO AQUI ===== */}
+              <FormControl isRequired isInvalid={!!errors.data_compra}>
+                <FormLabel>Data da Compra</FormLabel>
+                <Input type="date" {...register('data_compra', { required: 'Data da compra é obrigatória' })} />
+                <FormErrorMessage>{errors.data_compra?.message}</FormErrorMessage>
+              </FormControl>
+
               <FormControl isRequired isInvalid={!!errors.data_vencimento}><FormLabel>Data de Vencimento</FormLabel><Input type="date" {...register('data_vencimento', { required: 'Data de vencimento é obrigatória' })} /><FormErrorMessage>{errors.data_vencimento?.message}</FormErrorMessage></FormControl>
               <FormControl><FormLabel>Fornecedor/Credor (Opcional)</FormLabel><Select placeholder="Selecione um fornecedor" {...register('fornecedor_id')}>{fornecedores?.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}</Select></FormControl>
             </VStack>
@@ -368,6 +381,11 @@ const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => v
               </Flex>
                <Text fontSize="sm" color="gray.400" mt={1}>{despesa.tipo_saida}</Text>
               <Divider my={2} />
+              {/* ===== EXIBIÇÃO DA "DATA DA COMPRA" NO CARD MOBILE ===== */}
+              <HStack justify="space-between">
+                <Text fontSize="sm" color="gray.500">Data da Compra:</Text>
+                <Text>{new Date(despesa.data_compra).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Text>
+              </HStack>
               <HStack justify="space-between">
                 <Text fontSize="sm" color="gray.500">Vencimento:</Text>
                 <Text>{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Text>
@@ -396,10 +414,13 @@ const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => v
     <>
       <TableContainer>
         <Table variant="striped" __css={{ 'opacity': isLoading ? 0.6 : 1 }}>
-          <Thead><Tr><Th>Vencimento</Th><Th>Discriminação</Th><Th>Tipo</Th><Th>Status</Th><Th isNumeric>Valor</Th>{isAdmin && <Th>Ações</Th>}</Tr></Thead>
+          {/* ===== CABEÇALHO DA TABELA ATUALIZADO ===== */}
+          <Thead><Tr><Th>Data da Compra</Th><Th>Vencimento</Th><Th>Discriminação</Th><Th>Tipo</Th><Th>Status</Th><Th isNumeric>Valor</Th>{isAdmin && <Th>Ações</Th>}</Tr></Thead>
           <Tbody>
             {data?.dados.map((despesa: IDespesa) => (
             <Tr key={despesa.id}>
+              {/* ===== CÉLULA DA TABELA COM A NOVA DATA ===== */}
+              <Td>{new Date(despesa.data_compra).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
               <Td>{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
               <Td>{despesa.discriminacao}</Td>
               <Td>{despesa.tipo_saida}</Td>
