@@ -1,4 +1,4 @@
-// frontend/src/pages/ProdutosPage.tsx (VERSÃO FINAL COM CACHE DESATIVADO)
+// frontend/src/pages/ProdutosPage.tsx (VERSÃO FINAL SEM REACT-QUERY)
 
 import {
   Box, Button, Center, Drawer, DrawerBody, DrawerCloseButton, DrawerContent,
@@ -11,7 +11,6 @@ import {
   VStack,
   TableContainer,
 } from '@chakra-ui/react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Controller, useForm } from 'react-hook-form';
 import { FiEdit, FiPlus, FiTrash2, FiPlusSquare } from 'react-icons/fi';
 import { useEffect, useState } from 'react';
@@ -21,6 +20,7 @@ import {
 import { Pagination } from '../components/Pagination';
 import { useAuth } from '../hooks/useAuth';
 import { ModalEntradaEstoque } from '../components/ModalEntradaEstoque';
+import { IPaginatedResponse } from '@/types/common.types';
 
 type ProdutoFormData = IProdutoForm & {
   outra_unidade_medida?: string;
@@ -137,67 +137,97 @@ const ProdutosPage = () => {
   const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
   const { isOpen: isEstoqueOpen, onOpen: onEstoqueOpen, onClose: onEstoqueClose } = useDisclosure();
   const toast = useToast();
-  const queryClient = useQueryClient();
+  
+  // ✅ SUBSTITUIÇÃO DE REACT-QUERY POR ESTADO LOCAL
+  const [data, setData] = useState<IPaginatedResponse<IProduto> | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
+  const [isMutating, setIsMutating] = useState(false); // Para controlar o estado de loading dos botões
+
   const [pagina, setPagina] = useState(1);
   const [editingProduto, setEditingProduto] = useState<IProduto | null>(null);
   const [produtoParaEstoque, setProdutoParaEstoque] = useState<IProduto | null>(null);
   const { user } = useAuth();
   const isAdmin = user?.perfil === 'ADMIN';
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['produtos', pagina],
-    queryFn: () => getProdutos(pagina, 10),
-    // ✅ CORREÇÃO FINAL: Desativa o cache para esta query.
-    // Isso força a query a ser sempre "nova", evitando o erro #310
-    // que ocorre na re-renderização a partir de dados cacheados.
-    staleTime: 0,
-  });
-  
-  const deleteMutation = useMutation({
-    mutationFn: deleteProduto,
-    onSuccess: () => {
-      toast({ title: 'Produto deletado!', status: 'success', duration: 3000, isClosable: true });
-      queryClient.invalidateQueries({ queryKey: ['produtos'] });
-    },
-    onError: (error: any) => {
-      toast({ title: 'Erro ao deletar.', description: error.response?.data?.error || error.message, status: 'error', duration: 5000, isClosable: true });
-    }
-  });
+  // ✅ LÓGICA DE BUSCA DE DADOS COM useEffect
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      setIsError(false);
+      try {
+        const result = await getProdutos(pagina, 10);
+        setData(result);
+      } catch (error) {
+        setIsError(true);
+        toast({ title: 'Erro ao buscar produtos', status: 'error' });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, [pagina, toast]); // Re-executa quando a página muda
 
-  const saveMutation = useMutation({
-    mutationFn: (data: { formData: IProdutoForm; id?: number }) => (data.id ? updateProduto(data.id, data.formData) : createProduto(data.formData)),
-    onSuccess: () => {
-      toast({ title: `Produto salvo com sucesso!`, status: 'success', duration: 3000, isClosable: true });
-      queryClient.invalidateQueries({ queryKey: ['produtos'] });
+  const refreshData = async () => {
+    try {
+      const result = await getProdutos(pagina, 10);
+      setData(result);
+    } catch {
+      toast({ title: 'Erro ao atualizar dados', status: 'error' });
+    }
+  };
+
+  // ✅ LÓGICA DE MUTATIONS MANUAL
+  const handleDelete = async (id: number) => {
+    setIsMutating(true);
+    try {
+      await deleteProduto(id);
+      toast({ title: 'Produto deletado!', status: 'success' });
+      await refreshData();
+    } catch (error: any) {
+      toast({ title: 'Erro ao deletar.', description: error.message, status: 'error' });
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
+  const handleSave = async (formData: IProdutoForm) => {
+    setIsMutating(true);
+    try {
+      if (editingProduto?.id) {
+        await updateProduto(editingProduto.id, formData);
+      } else {
+        await createProduto(formData);
+      }
+      toast({ title: 'Produto salvo com sucesso!', status: 'success' });
       onFormClose();
-    },
-    onError: (error: any) => {
-      toast({ title: `Erro ao salvar produto.`, description: error.response?.data?.error || error.message, status: 'error', duration: 5000, isClosable: true });
+      await refreshData();
+    } catch (error: any) {
+      toast({ title: 'Erro ao salvar produto.', description: error.message, status: 'error' });
+    } finally {
+      setIsMutating(false);
     }
-  });
+  };
 
-  const entradaEstoqueMutation = useMutation({
-    mutationFn: (data: { id: number; formData: IEntradaEstoqueForm }) => registrarEntradaEstoque({ id: data.id, data: data.formData }),
-    onSuccess: () => {
-      toast({ title: 'Estoque atualizado!', status: 'success', duration: 3000, isClosable: true });
-      queryClient.invalidateQueries({ queryKey: ['produtos'] });
-      onEstoqueClose();
-    },
-    onError: (error: any) => {
-      toast({ title: 'Erro ao adicionar estoque.', description: error.response?.data?.error || error.message, status: 'error', duration: 5000, isClosable: true });
+  const handleSaveEstoque = async (formData: IEntradaEstoqueForm) => {
+    if (produtoParaEstoque) {
+      setIsMutating(true);
+      try {
+        await registrarEntradaEstoque({ id: produtoParaEstoque.id, data: formData });
+        toast({ title: 'Estoque atualizado!', status: 'success' });
+        onEstoqueClose();
+        await refreshData();
+      } catch (error: any) {
+        toast({ title: 'Erro ao adicionar estoque.', description: error.message, status: 'error' });
+      } finally {
+        setIsMutating(false);
+      }
     }
-  });
+  };
 
   const handleOpenForCreate = () => { setEditingProduto(null); onFormOpen(); };
   const handleOpenForEdit = (produto: IProduto) => { setEditingProduto(produto); onFormOpen(); };
   const handleOpenForEstoque = (produto: IProduto) => { setProdutoParaEstoque(produto); onEstoqueOpen(); };
-
-  const handleSave = (formData: IProdutoForm) => { saveMutation.mutate({ formData, id: editingProduto?.id }); };
-  const handleSaveEstoque = (formData: IEntradaEstoqueForm) => {
-    if (produtoParaEstoque) {
-      entradaEstoqueMutation.mutate({ id: produtoParaEstoque.id, formData });
-    }
-  };
 
   return (
     <Box p={{ base: 4, md: 8 }}>
@@ -239,7 +269,7 @@ const ProdutosPage = () => {
                             Entrada
                           </Button>
                           <IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleOpenForEdit(produto)} />
-                          <IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" onClick={() => deleteMutation.mutate(produto.id)} isLoading={deleteMutation.isPending && deleteMutation.variables === produto.id} />
+                          <IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDelete(produto.id)} isLoading={isMutating} />
                         </HStack>
                       </Td>
                     )}
@@ -271,7 +301,7 @@ const ProdutosPage = () => {
                   <HStack mt={4} justify="space-around" bg={useBreakpointValue({ base: 'gray.100', md: 'transparent' })} _dark={{ bg: 'gray.700' }} p={2} borderRadius="md">
                     <Button flex="1" size="sm" leftIcon={<FiPlusSquare />} colorScheme="blue" onClick={() => handleOpenForEstoque(produto)}>Estoque</Button>
                     <IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleOpenForEdit(produto)} />
-                    <IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" onClick={() => deleteMutation.mutate(produto.id)} isLoading={deleteMutation.isPending && deleteMutation.variables === produto.id} />
+                    <IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDelete(produto.id)} isLoading={isMutating} />
                   </HStack>
                 )}
               </Box>
@@ -287,14 +317,14 @@ const ProdutosPage = () => {
         onClose={onFormClose} 
         produto={editingProduto} 
         onSave={handleSave} 
-        isLoading={saveMutation.isPending} 
+        isLoading={isMutating} 
       />
       <ModalEntradaEstoque 
         isOpen={isEstoqueOpen && isAdmin} 
         onClose={onEstoqueClose} 
         produto={produtoParaEstoque} 
         onSubmit={handleSaveEstoque} 
-        isLoading={entradaEstoqueMutation.isPending} 
+        isLoading={isMutating} 
       />
     </Box>
   );
