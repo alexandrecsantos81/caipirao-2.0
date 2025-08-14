@@ -231,7 +231,7 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
                   
                   {/* ✅ ALTERAÇÃO 2: Rótulo e placeholder atualizados */}
                   <FormControl flex={1}>
-                    <FormLabel>Qtd (un) / Peso (kg)</FormLabel>
+                    <FormLabel>Qtd(un)/Peso(kg)</FormLabel>
                     <Controller 
                       name="quantidade" 
                       control={control} 
