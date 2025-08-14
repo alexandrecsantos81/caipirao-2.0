@@ -66,12 +66,21 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
   const { data: produtos } = useQuery<IPaginatedResponse<IProduto>, Error, IProduto[]>({ queryKey: ['todosProdutos'], queryFn: () => getProdutos(1, 1000), enabled: isOpen, select: data => data.dados });
   const dataVendaValue = watch('data_venda');
 
+  // ==================================================================
+  // ============  INÍCIO DO CÓDIGO-CHAVE PARA O CÁLCULO  ============
+  // ==================================================================
   const valorTotalCalculado = useMemo(() => {
     return produtosNaVenda.reduce((total, item) => {
+      // Se o usuário digitou um preço manual, usa esse. Senão, usa o preço original do produto.
       const preco = item.preco_manual ?? item.preco_original;
+      
+      // Multiplica a quantidade pelo preço definido e soma ao total.
       return total + (item.quantidade * preco);
     }, 0);
-  }, [produtosNaVenda]);
+  }, [produtosNaVenda]); // Recalcula apenas quando a lista de produtos na venda muda.
+  // ==================================================================
+  // ==============  FIM DO CÓDIGO-CHAVE PARA O CÁLCULO  ==============
+  // ==================================================================
   
   const mutation = useMutation({
     mutationFn: (data: { vendaData: INovaVenda, id?: number }) => 
@@ -185,13 +194,17 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
                  <Heading size="sm" mb={3}>Adicionar Produtos</Heading>
                 <Flex direction={flexDir} gap={2} align="flex-end">
                   <FormControl flex={3}><FormLabel>Produto</FormLabel><Select placeholder="Selecione..." {...register('produto_selecionado_id')}>{produtos?.map((p: IProduto) => <option key={p.id} value={p.id}>{p.nome}</option>)}</Select></FormControl>
-                  <FormControl flex={1}><FormLabel>Qtd/Peso</FormLabel><Controller name="quantidade" control={control} render={({ field }) => <NumberInput {...field} min={0.001}><NumberInputField /></NumberInput>} /></FormControl>
-                  <FormControl flex={1}><FormLabel>Preço Manual (R$)</FormLabel><Input placeholder="Opcional" {...register('preco_manual')} /></FormControl>
+                  {/* O Controller garante a integração com o NumberInput do Chakra UI */}
+                  <FormControl flex={1}><FormLabel>Qtd/Peso</FormLabel><Controller name="quantidade" control={control} render={({ field }) => <NumberInput {...field} min={0.001} precision={3}><NumberInputField /></NumberInput>} /></FormControl>
+                  <FormControl flex={1}><FormLabel>Preço Manual (R$)</FormLabel><Input placeholder="Opcional" {...register('preco_manual')} type="number" step="0.01" /></FormControl>
                   <Button colorScheme="green" onClick={handleAddProduto} alignSelf={{ base: 'stretch', md: 'flex-end' }}><FiPlus /></Button>
                 </Flex>
               </Box>
               <VStack spacing={2} align="stretch" mt={4}>{produtosNaVenda.map(p => (<Flex key={p.produto_id} justify="space-between" align="center" p={2} borderWidth={1} borderRadius="md"><Box><Text fontWeight="bold">{p.nome}</Text><Text fontSize="sm" color="gray.500">{p.quantidade} {p.unidade_medida} x {(p.preco_manual ?? p.preco_original).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}{p.preco_manual !== undefined && <Badge ml={2} colorScheme="orange">Manual</Badge>}</Text></Box><IconButton aria-label="Remover" icon={<FiTrash2 />} size="sm" colorScheme="red" onClick={() => handleRemoveProduto(p.produto_id)} /></Flex>))}</VStack>
-              <Flex justify="flex-end" mt={4}><Box textAlign="right"><Text fontSize="lg">Vendedor: {user?.nome}</Text><Heading size="lg" color="teal.500">Total: {valorTotalCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Heading></Box></Flex>
+              <Flex justify="flex-end" mt={4}><Box textAlign="right"><Text fontSize="lg">Vendedor: {user?.nome}</Text>
+                {/* Exibe o valor total calculado dinamicamente */}
+                <Heading size="lg" color="teal.500">Total: {valorTotalCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Heading>
+              </Box></Flex>
             </VStack>
           </DrawerBody>
           <DrawerFooter borderBottomWidth="1px"><Button variant="outline" mr={3} onClick={onClose}>Cancelar</Button><Button colorScheme="teal" type="submit" isLoading={mutation.isPending}>Salvar Venda</Button></DrawerFooter>
