@@ -9,10 +9,16 @@ import {
   Divider,
   VStack,
   Icon,
-  FormErrorMessage, // Importar FormErrorMessage
+  FormErrorMessage,
+  AlertDialog, // Importar AlertDialog
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react'; // Importar useRef
 import { SubmitHandler, useForm } from 'react-hook-form';
 import { FiEdit, FiPhone, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
@@ -105,13 +111,16 @@ const FormularioCliente = ({ isOpen, onClose, cliente, onSave }: {
 
 const ClientesPage = () => {
   const [pagina, setPagina] = useState(1);
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen: isDrawerOpen, onOpen: onDrawerOpen, onClose: onDrawerClose } = useDisclosure();
+  const { isOpen: isAlertOpen, onOpen: onAlertOpen, onClose: onAlertClose } = useDisclosure();
+  const [clienteParaDeletar, setClienteParaDeletar] = useState<ICliente | null>(null);
   const [editingCliente, setEditingCliente] = useState<ICliente | null>(null);
   const toast = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const isAdmin = user?.perfil === 'ADMIN';
   const isMobile = useBreakpointValue({ base: true, md: false });
+  const cancelRef = useRef<HTMLButtonElement>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['clientes', pagina],
@@ -125,10 +134,10 @@ const ClientesPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clientes'] });
       toast({ title: 'Cliente salvo com sucesso!', status: 'success', duration: 3000, isClosable: true });
-      onClose();
+      onDrawerClose();
     },
     onError: (error: any) => {
-      toast({ title: 'Erro ao salvar cliente.', description: error.message, status: 'error', duration: 5000, isClosable: true });
+      toast({ title: 'Erro ao salvar cliente.', description: error.response?.data?.error || error.message, status: 'error', duration: 5000, isClosable: true });
     },
   });
 
@@ -137,19 +146,31 @@ const ClientesPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clientes'] });
       toast({ title: 'Cliente deletado!', status: 'success', duration: 3000, isClosable: true });
+      onAlertClose();
     },
     onError: (error: any) => {
-      toast({ title: 'Erro ao deletar.', description: error.message, status: 'error', duration: 5000, isClosable: true });
+      toast({ title: 'Erro ao deletar.', description: error.response?.data?.error || error.message, status: 'error', duration: 5000, isClosable: true });
     },
   });
 
   const handleOpenForm = (cliente: ICliente | null) => {
     setEditingCliente(cliente);
-    onOpen();
+    onDrawerOpen();
   };
 
   const handleSave = (formData: IClienteForm, id?: number) => {
     saveMutation.mutate({ data: formData, id });
+  };
+
+  const handleDeleteClick = (cliente: ICliente) => {
+    setClienteParaDeletar(cliente);
+    onAlertOpen();
+  };
+
+  const handleConfirmDelete = () => {
+    if (clienteParaDeletar) {
+      deleteMutation.mutate(clienteParaDeletar.id);
+    }
   };
 
   return (
@@ -181,8 +202,7 @@ const ClientesPage = () => {
                       {isAdmin && (
                         <IconButton
                           aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" size="sm"
-                          onClick={() => deleteMutation.mutate(cliente.id)}
-                          isLoading={deleteMutation.isPending && deleteMutation.variables === cliente.id}
+                          onClick={() => handleDeleteClick(cliente)}
                         />
                       )}
                     </HStack>
@@ -232,8 +252,7 @@ const ClientesPage = () => {
                           {isAdmin && (
                             <IconButton
                               aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" size="sm"
-                              onClick={() => deleteMutation.mutate(cliente.id)}
-                              isLoading={deleteMutation.isPending && deleteMutation.variables === cliente.id}
+                              onClick={() => handleDeleteClick(cliente)}
                             />
                           )}
                         </HStack>
@@ -253,7 +272,32 @@ const ClientesPage = () => {
         </>
       )}
 
-      <FormularioCliente isOpen={isOpen} onClose={onClose} cliente={editingCliente} onSave={handleSave} />
+      <FormularioCliente isOpen={isDrawerOpen} onClose={onDrawerClose} cliente={editingCliente} onSave={handleSave} />
+
+      <AlertDialog
+        isOpen={isAlertOpen}
+        leastDestructiveRef={cancelRef}
+        onClose={onAlertClose}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Confirmar Exclusão
+            </AlertDialogHeader>
+            <AlertDialogBody>
+              Tem certeza que deseja excluir o cliente <strong>{clienteParaDeletar?.nome}</strong>? Esta ação não pode ser desfeita.
+            </AlertDialogBody>
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={onAlertClose}>
+                Cancelar
+              </Button>
+              <Button colorScheme="red" onClick={handleConfirmDelete} ml={3} isLoading={deleteMutation.isPending}>
+                Sim, Excluir
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </Box>
   );
 };

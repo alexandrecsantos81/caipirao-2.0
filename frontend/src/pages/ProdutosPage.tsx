@@ -10,10 +10,18 @@ import {
   HStack,
   VStack,
   TableContainer,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
 } from '@chakra-ui/react';
 import { useForm } from 'react-hook-form';
 import { FiEdit, FiPlus, FiTrash2, FiPlusSquare } from 'react-icons/fi';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+// ✅ CORREÇÃO: Importando os hooks que faltavam do react-query
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import {
   IProduto, createProduto, deleteProduto, getProdutos, updateProduto, IProdutoForm, IEntradaEstoqueForm, registrarEntradaEstoque,
 } from '../services/produto.service';
@@ -22,7 +30,6 @@ import { useAuth } from '../hooks/useAuth';
 import { ModalEntradaEstoque } from '../components/ModalEntradaEstoque';
 import { IPaginatedResponse } from '@/types/common.types';
 
-// --- SUB-COMPONENTE: FORMULÁRIO DE PRODUTO (sem alterações necessárias aqui) ---
 type ProdutoFormData = IProdutoForm & {
   outra_unidade_medida?: string;
 };
@@ -69,13 +76,17 @@ const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
         <form onSubmit={handleSubmit(handleFormSubmit)}>
           <DrawerBody>
             <VStack spacing={4}>
-              <FormControl isInvalid={!!errors.nome}>
+              <FormControl isRequired isInvalid={!!errors.nome}>
                 <FormLabel htmlFor="nome">Nome do Produto</FormLabel>
                 <Input
                   id="nome"
                   placeholder="Informe o nome do produto"
-                  {...register('nome', { required: 'Nome é obrigatório' })}
+                  {...register('nome', { 
+                    required: 'Nome é obrigatório',
+                    validate: (value) => (value && value.trim() !== '') || 'O nome não pode ser apenas espaços'
+                  })}
                 />
+                <FormErrorMessage>{errors.nome?.message}</FormErrorMessage>
               </FormControl>
               <FormControl isInvalid={!!errors.unidade_medida}>
                 <FormLabel htmlFor="unidade_medida">Unidade de Medida</FormLabel>
@@ -121,110 +132,97 @@ const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
   );
 };
 
-
-// --- COMPONENTE PRINCIPAL: PÁGINA DE PRODUTOS (VERSÃO CORRIGIDA) ---
 const ProdutosPage = () => {
-  // Hooks são chamados no topo, incondicionalmente
   const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
   const { isOpen: isEstoqueOpen, onOpen: onEstoqueOpen, onClose: onEstoqueClose } = useDisclosure();
+  const { isOpen: isAlertOpen, onOpen: onAlertOpen, onClose: onAlertClose } = useDisclosure();
   const toast = useToast();
   const { user } = useAuth();
+  const queryClient = useQueryClient(); // ✅ CORREÇÃO: useQueryClient() é um hook e deve ser chamado aqui.
   
-  // Estados locais para dados, paginação e UI
-  const [data, setData] = useState<IPaginatedResponse<IProduto> | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isError, setIsError] = useState(false);
-  const [isMutating, setIsMutating] = useState(false);
   const [pagina, setPagina] = useState(1);
   const [editingProduto, setEditingProduto] = useState<IProduto | null>(null);
   const [produtoParaEstoque, setProdutoParaEstoque] = useState<IProduto | null>(null);
+  const [produtoParaDeletar, setProdutoParaDeletar] = useState<IProduto | null>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
   
   const isAdmin = user?.perfil === 'ADMIN';
   const isMobile = useBreakpointValue({ base: true, md: false });
-
-  // ✅ SOLUÇÃO: Chamar o hook UMA VEZ no nível superior do componente.
-  // O resultado (a cor do fundo) será armazenado nesta constante.
   const mobileActionsBg = useBreakpointValue({ base: 'gray.100', md: 'transparent' });
 
-  // Funções de manipulação de dados
-  const fetchData = async (page: number) => {
-    setIsLoading(true);
-    setIsError(false);
-    try {
-      const result = await getProdutos(page, 10);
-      setData(result);
-    } catch (error) {
-      setIsError(true);
-      toast({ title: 'Erro ao buscar produtos', status: 'error' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { data, isLoading, isError } = useQuery<IPaginatedResponse<IProduto>>({
+    queryKey: ['produtos', pagina],
+    queryFn: () => getProdutos(pagina, 10),
+    placeholderData: keepPreviousData,
+  });
 
-  useEffect(() => {
-    fetchData(pagina);
-  }, [pagina]);
-
-  const refreshData = () => fetchData(pagina);
-
-  const handleDelete = async (id: number) => {
-    setIsMutating(true);
-    try {
-      await deleteProduto(id);
-      toast({ title: 'Produto deletado!', status: 'success' });
-      await refreshData();
-    } catch (error: any) {
-      toast({ title: 'Erro ao deletar.', description: error.response?.data?.message || 'Ocorreu um erro', status: 'error' });
-    } finally {
-      setIsMutating(false);
-    }
-  };
-
-  const handleSave = async (formData: IProdutoForm) => {
-    setIsMutating(true);
-    try {
-      if (editingProduto?.id) {
-        await updateProduto(editingProduto.id, formData);
-      } else {
-        await createProduto(formData);
-      }
+  const saveMutation = useMutation({
+    mutationFn: (formData: IProdutoForm) => 
+      editingProduto?.id ? updateProduto(editingProduto.id, formData) : createProduto(formData),
+    onSuccess: () => {
       toast({ title: 'Produto salvo com sucesso!', status: 'success' });
       onFormClose();
-      await refreshData();
-    } catch (error: any) {
-      toast({ title: 'Erro ao salvar produto.', description: error.response?.data?.message || 'Ocorreu um erro', status: 'error' });
-    } finally {
-      setIsMutating(false);
+      queryClient.invalidateQueries({ queryKey: ['produtos'] });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Erro ao salvar produto.', description: error.response?.data?.msg || 'Ocorreu um erro', status: 'error' });
     }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteProduto,
+    onSuccess: () => {
+      toast({ title: 'Produto deletado!', status: 'success' });
+      onAlertClose();
+      queryClient.invalidateQueries({ queryKey: ['produtos'] });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Erro ao deletar.', description: error.response?.data?.msg || 'Ocorreu um erro', status: 'error' });
+    }
+  });
+
+  const estoqueMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: IEntradaEstoqueForm }) => registrarEntradaEstoque({ id, data }),
+    onSuccess: () => {
+      toast({ title: 'Estoque atualizado!', status: 'success' });
+      onEstoqueClose();
+      queryClient.invalidateQueries({ queryKey: ['produtos'] });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Erro ao adicionar estoque.', description: error.response?.data?.error || 'Ocorreu um erro', status: 'error' });
+    }
+  });
+
+  const handleSave = (formData: IProdutoForm) => {
+    saveMutation.mutate(formData);
+  };
+// frontend/src/pages/ProdutosPage.tsx (continuação)
+
+  // ✅ CORREÇÃO: Adicionando o tipo IProduto ao parâmetro
+  const handleDeleteClick = (produto: IProduto) => {
+    setProdutoParaDeletar(produto);
+    onAlertOpen();
   };
 
-  const handleSaveEstoque = async (formData: IEntradaEstoqueForm) => {
-    if (produtoParaEstoque) {
-      setIsMutating(true);
-      try {
-        await registrarEntradaEstoque({ id: produtoParaEstoque.id, data: formData });
-        toast({ title: 'Estoque atualizado!', status: 'success' });
-        onEstoqueClose();
-        await refreshData();
-      } catch (error: any) {
-        toast({ title: 'Erro ao adicionar estoque.', description: error.response?.data?.message || 'Ocorreu um erro', status: 'error' });
-      } finally {
-        setIsMutating(false);
-      }
+  const handleConfirmDelete = () => {
+    if (produtoParaDeletar) {
+      deleteMutation.mutate(produtoParaDeletar.id);
     }
   };
 
   const handleOpenForCreate = () => { setEditingProduto(null); onFormOpen(); };
+  
+  // ✅ CORREÇÃO: Adicionando o tipo IProduto ao parâmetro
   const handleOpenForEdit = (produto: IProduto) => { setEditingProduto(produto); onFormOpen(); };
+  
+  // ✅ CORREÇÃO: Adicionando o tipo IProduto ao parâmetro
   const handleOpenForEstoque = (produto: IProduto) => { setProdutoParaEstoque(produto); onEstoqueOpen(); };
 
-  // Função de renderização que decide o que mostrar (Tabela ou Cards)
   const renderContent = () => {
-    if (isLoading) return <Center p={10}><Spinner size="xl" /></Center>;
+    if (isLoading && !data) return <Center p={10}><Spinner size="xl" /></Center>;
     if (isError) return <Center p={10}><Text color="red.500">Falha ao carregar os produtos.</Text></Center>;
     if (!data?.dados || data.dados.length === 0) return <Center p={10}><Text>Nenhum produto encontrado.</Text></Center>;
 
-    // Se for mobile, renderiza a lista de cards
     if (isMobile) {
       return (
         <VStack spacing={4} align="stretch">
@@ -238,12 +236,10 @@ const ProdutosPage = () => {
               <HStack justify="space-between"><Text fontSize="sm" color="gray.500">Unidade:</Text><Text fontWeight="bold">{produto.unidade_medida.toUpperCase()}</Text></HStack>
               <HStack justify="space-between" mt={1}><Text fontSize="sm" color="gray.500">Estoque:</Text><Text fontWeight="bold">{produto.quantidade_em_estoque} {produto.unidade_medida}</Text></HStack>
               {isAdmin && (
-                // ✅ SOLUÇÃO: Usar a variável aqui dentro do laço.
-                // Agora não há mais chamada de hook, apenas o uso de um valor.
                 <HStack mt={4} justify="space-around" bg={mobileActionsBg} _dark={{ bg: 'gray.700' }} p={2} borderRadius="md">
                   <Button flex="1" size="sm" leftIcon={<FiPlusSquare />} colorScheme="blue" onClick={() => handleOpenForEstoque(produto)}>Estoque</Button>
                   <IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleOpenForEdit(produto)} />
-                  <IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDelete(produto.id)} isLoading={isMutating} />
+                  <IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDeleteClick(produto)} isLoading={deleteMutation.isPending && deleteMutation.variables === produto.id} />
                 </HStack>
               )}
             </Box>
@@ -252,7 +248,6 @@ const ProdutosPage = () => {
       );
     }
 
-    // Se for desktop, renderiza a tabela
     return (
       <TableContainer>
         <Table variant="simple">
@@ -274,7 +269,7 @@ const ProdutosPage = () => {
                     <HStack spacing={2}>
                       <Button size="sm" leftIcon={<FiPlusSquare />} variant="outline" colorScheme="blue" onClick={() => handleOpenForEstoque(produto)}>Entrada</Button>
                       <IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleOpenForEdit(produto)} />
-                      <IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDelete(produto.id)} isLoading={isMutating} />
+                      <IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDeleteClick(produto)} isLoading={deleteMutation.isPending && deleteMutation.variables === produto.id} />
                     </HStack>
                   </Td>
                 )}
@@ -288,7 +283,6 @@ const ProdutosPage = () => {
 
   return (
     <Box p={{ base: 4, md: 8 }}>
-      {/* Cabeçalho da Página */}
       <Flex justify="space-between" align="center" mb={6} direction={{ base: 'column', md: 'row' }} gap={4}>
         <Heading textAlign={{ base: 'center', md: 'left' }}>Gestão de Produtos</Heading>
         {isAdmin && (
@@ -298,29 +292,50 @@ const ProdutosPage = () => {
         )}
       </Flex>
       
-      {/* Conteúdo Principal (Tabela ou Cards) */}
       {renderContent()}
       
-      {/* Paginação */}
       {data && data.totalPaginas > 1 && (
         <Pagination paginaAtual={data.pagina || 1} totalPaginas={data.totalPaginas || 1} onPageChange={setPagina} />
       )}
       
-      {/* Modais e Drawers (Renderizados incondicionalmente para não violar regras de hooks) */}
       <FormularioProduto 
         isOpen={isFormOpen} 
         onClose={onFormClose} 
         produto={editingProduto} 
         onSave={handleSave} 
-        isLoading={isMutating} 
+        isLoading={saveMutation.isPending} 
       />
       <ModalEntradaEstoque 
         isOpen={isEstoqueOpen} 
         onClose={onEstoqueClose} 
         produto={produtoParaEstoque} 
-        onSubmit={handleSaveEstoque} 
-        isLoading={isMutating} 
+        onSubmit={(formData) => produtoParaEstoque && estoqueMutation.mutate({ id: produtoParaEstoque.id, data: formData })} 
+        isLoading={estoqueMutation.isPending} 
       />
+      <AlertDialog
+        isOpen={isAlertOpen}
+        leastDestructiveRef={cancelRef}
+        onClose={onAlertClose}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Confirmar Exclusão
+            </AlertDialogHeader>
+            <AlertDialogBody>
+              Tem certeza que deseja excluir o produto <strong>{produtoParaDeletar?.nome}</strong>? Esta ação não pode ser desfeita e pode afetar relatórios de vendas antigos.
+            </AlertDialogBody>
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={onAlertClose}>
+                Cancelar
+              </Button>
+              <Button colorScheme="red" onClick={handleConfirmDelete} ml={3} isLoading={deleteMutation.isPending}>
+                Sim, Excluir
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </Box>
   );
 };
