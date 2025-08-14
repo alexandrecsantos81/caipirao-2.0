@@ -56,18 +56,14 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
   const drawerSize = useBreakpointValue({ base: 'full', md: 'xl' });
   const flexDir = useBreakpointValue<'column' |'row'>({ base: 'column', md: 'row' });
 
+  // ✅ ALTERAÇÃO 1: Mudar o valor padrão de 'quantidade' para string vazia para permitir o placeholder.
   const { control, register, handleSubmit, watch, reset, setValue, getValues, formState: { errors } } = useForm({
     defaultValues: {
       cliente_id: '', data_venda: new Date().toISOString().split('T')[0], data_vencimento: '',
-      produto_selecionado_id: '', quantidade: 1, preco_manual: '',
+      produto_selecionado_id: '', quantidade: '', preco_manual: '', // Alterado de '1' para ''
     },
   });
 
-  // ==================================================================
-  // ============  INÍCIO DA SEÇÃO DE CÓDIGO ATUALIZADA  ============
-  // ==================================================================
-
-  // 1. Observar os campos do formulário em tempo real
   const produtoIdAtual = watch('produto_selecionado_id');
   const quantidadeAtual = watch('quantidade');
   const precoManualAtual = watch('preco_manual');
@@ -76,26 +72,21 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
   const { data: produtos } = useQuery<IPaginatedResponse<IProduto>, Error, IProduto[]>({ queryKey: ['todosProdutos'], queryFn: () => getProdutos(1, 1000), enabled: isOpen, select: data => data.dados });
   const dataVendaValue = watch('data_venda');
 
-  // 2. Atualizar o useMemo para incluir os valores atuais do formulário
   const valorTotalCalculado = useMemo(() => {
-    // Calcula o total dos produtos já adicionados à lista
     const totalDosItensAdicionados = produtosNaVenda.reduce((total, item) => {
       const preco = item.preco_manual ?? item.preco_original;
       return total + (item.quantidade * preco);
     }, 0);
 
-    // Calcula o valor do item que está sendo digitado agora
     let valorDoItemAtual = 0;
     const produtoInfo = produtos?.find(p => p.id === Number(produtoIdAtual));
     if (produtoInfo) {
       const quantidade = Number(quantidadeAtual) || 0;
       const precoManual = Number(precoManualAtual) || 0;
-      // Usa o preço manual se for maior que zero, senão, o preço do produto
       const preco = precoManual > 0 ? precoManual : produtoInfo.price;
       valorDoItemAtual = quantidade * preco;
     }
 
-    // O total final é a soma dos itens já na lista com o item atual
     return totalDosItensAdicionados + valorDoItemAtual;
 
   }, [
@@ -104,11 +95,7 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
     quantidadeAtual, 
     precoManualAtual, 
     produtos
-  ]); // 3. Adicionar as novas dependências
-
-  // ==================================================================
-  // ==============  FIM DA SEÇÃO DE CÓDIGO ATUALIZADA  ==============
-  // ==================================================================
+  ]);
   
   const mutation = useMutation({
     mutationFn: (data: { vendaData: INovaVenda, id?: number }) => 
@@ -142,7 +129,7 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
         }));
         setProdutosNaVenda(produtosEdit);
       } else {
-        reset({ cliente_id: '', data_venda: new Date().toISOString().split('T')[0], data_vencimento: '', produto_selecionado_id: '', quantidade: 1, preco_manual: '' });
+        reset({ cliente_id: '', data_venda: new Date().toISOString().split('T')[0], data_vencimento: '', produto_selecionado_id: '', quantidade: '', preco_manual: '' });
         setProdutosNaVenda([]);
         setOpcaoPagamento('À VISTA');
       }
@@ -173,9 +160,8 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
       unidade_medida: produtoInfo.unidade_medida,
       preco_original: produtoInfo.price,
     }]);
-    // Limpa os campos após adicionar
     setValue('produto_selecionado_id', '');
-    setValue('quantidade', 1);
+    setValue('quantidade', '');
     setValue('preco_manual', '');
   };
 
@@ -184,13 +170,11 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
   };
 
   const onSubmit: SubmitHandler<any> = (data) => {
-    // Se não houver produtos na lista e nenhum produto sendo digitado, não faz nada.
     if (produtosNaVenda.length === 0 && !getValues('produto_selecionado_id')) {
       toast({ title: "Nenhum produto adicionado", status: "error", duration: 4000, isClosable: true });
       return;
     }
 
-    // Adiciona o item atual à lista antes de submeter, se ele for válido
     const itemAtual = getValues();
     const produtosParaEnviar = [...produtosNaVenda];
     if (itemAtual.produto_selecionado_id && Number(itemAtual.quantidade) > 0) {
@@ -198,9 +182,9 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
             produto_id: Number(itemAtual.produto_selecionado_id),
             quantidade: Number(itemAtual.quantidade),
             preco_manual: itemAtual.preco_manual ? Number(itemAtual.preco_manual) : undefined,
-            nome: '', // Não é necessário para a API
-            unidade_medida: '', // Não é necessário para a API
-            preco_original: 0, // Não é necessário para a API
+            nome: '',
+            unidade_medida: '',
+            preco_original: 0,
         });
     }
 
@@ -244,7 +228,21 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
                  <Heading size="sm" mb={3}>Adicionar Produtos</Heading>
                 <Flex direction={flexDir} gap={2} align="flex-end">
                   <FormControl flex={3}><FormLabel>Produto</FormLabel><Select placeholder="Selecione..." {...register('produto_selecionado_id')}>{produtos?.map((p: IProduto) => <option key={p.id} value={p.id}>{p.nome}</option>)}</Select></FormControl>
-                  <FormControl flex={1}><FormLabel>Qtd/Peso</FormLabel><Controller name="quantidade" control={control} render={({ field }) => <NumberInput {...field} min={0.001} precision={3}><NumberInputField /></NumberInput>} /></FormControl>
+                  
+                  {/* ✅ ALTERAÇÃO 2: Rótulo e placeholder atualizados */}
+                  <FormControl flex={1}>
+                    <FormLabel>Qtd (un) / Peso (kg)</FormLabel>
+                    <Controller 
+                      name="quantidade" 
+                      control={control} 
+                      render={({ field }) => (
+                        <NumberInput {...field} min={0.001} precision={3}>
+                          <NumberInputField placeholder="Info Qtd/Peso" />
+                        </NumberInput>
+                      )} 
+                    />
+                  </FormControl>
+
                   <FormControl flex={1}><FormLabel>Preço Manual (R$)</FormLabel><Input placeholder="Opcional" {...register('preco_manual')} type="number" step="0.01" /></FormControl>
                   <Button colorScheme="green" onClick={handleAddProduto} alignSelf={{ base: 'stretch', md: 'flex-end' }}><FiPlus /></Button>
                 </Flex>
