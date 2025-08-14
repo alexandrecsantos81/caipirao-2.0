@@ -3,7 +3,7 @@
 import {
   Box, Button, Center, Drawer, DrawerBody, DrawerCloseButton, DrawerContent,
   DrawerFooter, DrawerHeader, DrawerOverlay, Flex, FormControl, FormErrorMessage, FormLabel,
-  Heading, IconButton, Input, NumberInput, NumberInputField, Select, Spinner,
+  Heading, IconButton, Input, Select, Spinner,
   Table, Tbody, Td, Text, Th, Thead, Tr, useDisclosure, useToast,
   useBreakpointValue,
   Divider,
@@ -11,7 +11,7 @@ import {
   VStack,
   TableContainer,
 } from '@chakra-ui/react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { FiEdit, FiPlus, FiTrash2, FiPlusSquare } from 'react-icons/fi';
 import { useEffect, useState } from 'react';
 import {
@@ -22,7 +22,7 @@ import { useAuth } from '../hooks/useAuth';
 import { ModalEntradaEstoque } from '../components/ModalEntradaEstoque';
 import { IPaginatedResponse } from '@/types/common.types';
 
-// --- SUB-COMPONENTE: FORMULÁRIO DE PRODUTO ---
+// --- SUB-COMPONENTE: FORMULÁRIO DE PRODUTO (sem alterações necessárias aqui) ---
 type ProdutoFormData = IProdutoForm & {
   outra_unidade_medida?: string;
 };
@@ -30,7 +30,7 @@ type ProdutoFormData = IProdutoForm & {
 const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
   isOpen: boolean; onClose: () => void; produto: IProduto | null; onSave: (data: ProdutoFormData) => void; isLoading: boolean;
 }) => {
-  const { register, handleSubmit, setValue, reset, watch, control, formState: { errors } } = useForm<ProdutoFormData>();
+  const { register, handleSubmit, setValue, reset, watch, formState: { errors } } = useForm<ProdutoFormData>();
   const unidadeMedida = watch('unidade_medida');
   const drawerSize = useBreakpointValue({ base: 'full', md: 'md' });
 
@@ -109,7 +109,6 @@ const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
                 />
                 <FormErrorMessage>{errors.price?.message}</FormErrorMessage>
               </FormControl>
-
             </VStack>
           </DrawerBody>
           <DrawerFooter borderTopWidth="1px">
@@ -123,7 +122,7 @@ const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
 };
 
 
-// --- COMPONENTE PRINCIPAL: PÁGINA DE PRODUTOS ---
+// --- COMPONENTE PRINCIPAL: PÁGINA DE PRODUTOS (VERSÃO CORRIGIDA) ---
 const ProdutosPage = () => {
   // Hooks são chamados no topo, incondicionalmente
   const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
@@ -142,6 +141,10 @@ const ProdutosPage = () => {
   
   const isAdmin = user?.perfil === 'ADMIN';
   const isMobile = useBreakpointValue({ base: true, md: false });
+
+  // ✅ SOLUÇÃO: Chamar o hook UMA VEZ no nível superior do componente.
+  // O resultado (a cor do fundo) será armazenado nesta constante.
+  const mobileActionsBg = useBreakpointValue({ base: 'gray.100', md: 'transparent' });
 
   // Funções de manipulação de dados
   const fetchData = async (page: number) => {
@@ -235,7 +238,9 @@ const ProdutosPage = () => {
               <HStack justify="space-between"><Text fontSize="sm" color="gray.500">Unidade:</Text><Text fontWeight="bold">{produto.unidade_medida.toUpperCase()}</Text></HStack>
               <HStack justify="space-between" mt={1}><Text fontSize="sm" color="gray.500">Estoque:</Text><Text fontWeight="bold">{produto.quantidade_em_estoque} {produto.unidade_medida}</Text></HStack>
               {isAdmin && (
-                <HStack mt={4} justify="space-around" bg={useBreakpointValue({ base: 'gray.100', md: 'transparent' })} _dark={{ bg: 'gray.700' }} p={2} borderRadius="md">
+                // ✅ SOLUÇÃO: Usar a variável aqui dentro do laço.
+                // Agora não há mais chamada de hook, apenas o uso de um valor.
+                <HStack mt={4} justify="space-around" bg={mobileActionsBg} _dark={{ bg: 'gray.700' }} p={2} borderRadius="md">
                   <Button flex="1" size="sm" leftIcon={<FiPlusSquare />} colorScheme="blue" onClick={() => handleOpenForEstoque(produto)}>Estoque</Button>
                   <IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleOpenForEdit(produto)} />
                   <IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDelete(produto.id)} isLoading={isMutating} />
