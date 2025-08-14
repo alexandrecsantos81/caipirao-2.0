@@ -8,6 +8,7 @@ import {
   useBreakpointValue,
   Divider,
   Textarea,
+  useColorModeValue,
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useEffect, useState, useMemo, useRef } from 'react';
@@ -46,21 +47,24 @@ const tiposDeSaida = [
     "Outros"
 ] as const;
 
-// --- COMPONENTES DE FORMULÁRIO ---
+// --- COMPONENTES DE FORMULÁRIO (VERSÃO COM CAMPO DE ESTOQUE) ---
 const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boolean; onClose: () => void; vendaParaEditar: IVenda | null }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { user } = useAuth();
   const [produtosNaVenda, setProdutosNaVenda] = useState<ProdutoVendaItem[]>([]);
   const [opcaoPagamento, setOpcaoPagamento] = useState<'À VISTA' | 'A PRAZO'>('À VISTA');
+  
+  // ✅ ALTERAÇÃO 1: Adicionar um estado para o estoque do produto selecionado
+  const [estoqueAtual, setEstoqueAtual] = useState<number | null>(null);
+
   const drawerSize = useBreakpointValue({ base: 'full', md: 'xl' });
   const flexDir = useBreakpointValue<'column' |'row'>({ base: 'column', md: 'row' });
 
-  // ✅ ALTERAÇÃO 1: Mudar o valor padrão de 'quantidade' para string vazia para permitir o placeholder.
   const { control, register, handleSubmit, watch, reset, setValue, getValues, formState: { errors } } = useForm({
     defaultValues: {
       cliente_id: '', data_venda: new Date().toISOString().split('T')[0], data_vencimento: '',
-      produto_selecionado_id: '', quantidade: '', preco_manual: '', // Alterado de '1' para ''
+      produto_selecionado_id: '', quantidade: '', preco_manual: '',
     },
   });
 
@@ -71,6 +75,16 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
   const { data: clientes } = useQuery<IPaginatedResponse<ICliente>, Error, ICliente[]>({ queryKey: ['todosClientes'], queryFn: () => getClientes(1, 1000), enabled: isOpen, select: data => data.dados });
   const { data: produtos } = useQuery<IPaginatedResponse<IProduto>, Error, IProduto[]>({ queryKey: ['todosProdutos'], queryFn: () => getProdutos(1, 1000), enabled: isOpen, select: data => data.dados });
   const dataVendaValue = watch('data_venda');
+
+  // ✅ ALTERAÇÃO 2: Usar useEffect para atualizar o estoque quando um produto é selecionado
+  useEffect(() => {
+    if (produtoIdAtual && produtos) {
+      const produtoInfo = produtos.find(p => p.id === Number(produtoIdAtual));
+      setEstoqueAtual(produtoInfo ? produtoInfo.quantidade_em_estoque : null);
+    } else {
+      setEstoqueAtual(null); // Limpa o estoque se nenhum produto for selecionado
+    }
+  }, [produtoIdAtual, produtos]); // Roda sempre que o produto selecionado ou a lista de produtos mudar
 
   const valorTotalCalculado = useMemo(() => {
     const totalDosItensAdicionados = produtosNaVenda.reduce((total, item) => {
@@ -229,9 +243,20 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
                 <Flex direction={flexDir} gap={2} align="flex-end">
                   <FormControl flex={3}><FormLabel>Produto</FormLabel><Select placeholder="Selecione..." {...register('produto_selecionado_id')}>{produtos?.map((p: IProduto) => <option key={p.id} value={p.id}>{p.nome}</option>)}</Select></FormControl>
                   
-                  {/* ✅ ALTERAÇÃO 2: Rótulo e placeholder atualizados */}
+                  {/* ✅ ALTERAÇÃO 3: Adicionar o novo campo de Estoque Atual */}
                   <FormControl flex={1}>
-                    <FormLabel>Qtd(un)/Peso(kg)</FormLabel>
+                    <FormLabel>Estoque Atual</FormLabel>
+                    <Input 
+                      isReadOnly 
+                      value={estoqueAtual !== null ? estoqueAtual : '---'}
+                      textAlign="center"
+                      fontWeight="bold"
+                      bg={useColorModeValue('gray.100', 'gray.700')}
+                    />
+                  </FormControl>
+
+                  <FormControl flex={1}>
+                    <FormLabel>Qtd (un) / Peso (kg)</FormLabel>
                     <Controller 
                       name="quantidade" 
                       control={control} 
