@@ -1,3 +1,5 @@
+// frontend/src/pages/FornecedoresPage.tsx
+
 import {
   Box, Button, Flex, Heading, IconButton, Spinner, Table, TableContainer, Tbody, Td, Text,
   Th, Thead, Tr, useDisclosure, useToast, VStack, HStack,
@@ -18,44 +20,29 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { Pagination } from '../components/Pagination';
 
-// --- COMPONENTE: FORMULÁRIO DE FORNECEDOR (SEM ALTERAÇÕES) ---
-export const FormularioFornecedor = ({ isOpen, onClose, fornecedor }: { isOpen: boolean; onClose: () => void; fornecedor: IFornecedor | null; }) => {
-  const queryClient = useQueryClient();
-  const toast = useToast();
-  const { register, handleSubmit, reset, formState: { errors }, setValue } = useForm<IFornecedorForm>();
+// --- COMPONENTE: FORMULÁRIO DE FORNECEDOR (COM VALIDAÇÃO) ---
+export const FormularioFornecedor = ({ isOpen, onClose, fornecedor, onSave, isLoading }: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  fornecedor: IFornecedor | null; 
+  onSave: (data: IFornecedorForm, id?: number) => void;
+  isLoading: boolean;
+}) => {
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<IFornecedorForm>();
   const drawerSize = useBreakpointValue({ base: 'full', md: 'md' });
   
   useEffect(() => {
-    if (fornecedor) {
-      setValue('nome', fornecedor.nome);
-      setValue('cnpj_cpf', fornecedor.cnpj_cpf || '');
-      setValue('telefone', fornecedor.telefone || '');
-      setValue('email', fornecedor.email || '');
-      setValue('endereco', fornecedor.endereco || '');
-    } else {
-      reset({ nome: '', cnpj_cpf: '', telefone: '', email: '', endereco: '' });
-    }
-  }, [fornecedor, setValue, reset]);
-  
-  const mutation = useMutation({
-    mutationFn: (data: IFornecedorForm) => {
+    if (isOpen) {
       if (fornecedor) {
-        return updateFornecedor({ id: fornecedor.id, ...data });
+        reset(fornecedor);
+      } else {
+        reset({ nome: '', cnpj_cpf: '', telefone: '', email: '', endereco: '' });
       }
-      return createFornecedor(data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['fornecedores'] });
-      toast({ title: `Fornecedor ${fornecedor ? 'atualizado' : 'criado'} com sucesso!`, status: 'success' });
-      onClose();
-    },
-    onError: (error: any) => {
-      toast({ title: 'Erro ao salvar fornecedor', description: error.response?.data?.error || error.message, status: 'error' });
     }
-  });
+  }, [fornecedor, isOpen, reset]);
 
   const onSubmit: SubmitHandler<IFornecedorForm> = (data) => {
-    mutation.mutate(data);
+    onSave(data, fornecedor?.id);
   };
 
   return (
@@ -67,7 +54,16 @@ export const FormularioFornecedor = ({ isOpen, onClose, fornecedor }: { isOpen: 
           <DrawerCloseButton />
           <DrawerBody>
             <VStack spacing={4}>
-              <FormControl isRequired isInvalid={!!errors.nome}><FormLabel>Nome</FormLabel><Input {...register('nome', { required: 'Nome é obrigatório' })} /><FormErrorMessage>{errors.nome?.message}</FormErrorMessage></FormControl>
+              <FormControl isRequired isInvalid={!!errors.nome}>
+                <FormLabel>Nome</FormLabel>
+                <Input 
+                  {...register('nome', { 
+                    required: 'Nome é obrigatório',
+                    validate: (value) => (value && value.trim() !== '') || 'O campo nome não pode conter apenas espaços'
+                  })} 
+                />
+                <FormErrorMessage>{errors.nome?.message}</FormErrorMessage>
+              </FormControl>
               <FormControl isInvalid={!!errors.cnpj_cpf}><FormLabel>CNPJ/CPF</FormLabel><Input {...register('cnpj_cpf')} /><FormErrorMessage>{errors.cnpj_cpf?.message}</FormErrorMessage></FormControl>
               <FormControl isInvalid={!!errors.telefone}><FormLabel>Telefone</FormLabel><Input {...register('telefone')} /><FormErrorMessage>{errors.telefone?.message}</FormErrorMessage></FormControl>
               <FormControl isInvalid={!!errors.email}><FormLabel>Email</FormLabel><Input type="email" {...register('email')} /><FormErrorMessage>{errors.email?.message}</FormErrorMessage></FormControl>
@@ -76,7 +72,7 @@ export const FormularioFornecedor = ({ isOpen, onClose, fornecedor }: { isOpen: 
           </DrawerBody>
           <DrawerFooter borderBottomWidth="1px">
             <Button variant="outline" mr={3} onClick={onClose}>Cancelar</Button>
-            <Button colorScheme="teal" type="submit" isLoading={mutation.isPending}>Salvar</Button>
+            <Button colorScheme="teal" type="submit" isLoading={isLoading}>Salvar</Button>
           </DrawerFooter>
         </form>
       </DrawerContent>
@@ -84,7 +80,7 @@ export const FormularioFornecedor = ({ isOpen, onClose, fornecedor }: { isOpen: 
   );
 };
 
-// --- PÁGINA PRINCIPAL DE GESTÃO DE FORNECEDORES ---
+// --- PÁGINA PRINCIPAL DE GESTÃO DE FORNECEDORES (INÍCIO) ---
 const FornecedoresPage = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -100,6 +96,19 @@ const FornecedoresPage = () => {
     queryKey: ['fornecedores', pagina],
     queryFn: () => getFornecedores(pagina, 10),
     placeholderData: keepPreviousData,
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: ({ data, id }: { data: IFornecedorForm; id?: number }) => 
+      id ? updateFornecedor({ id, ...data }) : createFornecedor(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['fornecedores'] });
+      toast({ title: `Fornecedor salvo com sucesso!`, status: 'success' });
+      onDrawerClose();
+    },
+    onError: (error: any) => {
+      toast({ title: 'Erro ao salvar fornecedor', description: error.response?.data?.error || error.message, status: 'error' });
+    }
   });
   
   const deleteMutation = useMutation({
@@ -118,19 +127,28 @@ const FornecedoresPage = () => {
     setSelectedFornecedor(null);
     onDrawerOpen();
   };
+
   const handleEditClick = (fornecedor: IFornecedor) => {
     setSelectedFornecedor(fornecedor);
     onDrawerOpen();
   };
+
   const handleDeleteClick = (fornecedor: IFornecedor) => {
     setSelectedFornecedor(fornecedor);
     onConfirmModalOpen();
   };
+
   const handleConfirmDelete = () => {
     if (selectedFornecedor) {
       deleteMutation.mutate(selectedFornecedor.id);
     }
   };
+
+  const handleSave = (formData: IFornecedorForm, id?: number) => {
+    saveMutation.mutate({ data: formData, id });
+  };
+
+// frontend/src/pages/FornecedoresPage.tsx (continuação)
 
   if (isLoading) return <Center p={8}><Spinner size="xl" /></Center>;
   if (isError) return <Center p={8}><Text color="red.500">Erro ao carregar fornecedores.</Text></Center>;
@@ -229,12 +247,16 @@ const FornecedoresPage = () => {
       </Modal>
 
       {isDrawerOpen && (
-        <FormularioFornecedor isOpen={isDrawerOpen} onClose={onDrawerClose} fornecedor={selectedFornecedor} />
+        <FormularioFornecedor 
+          isOpen={isDrawerOpen} 
+          onClose={onDrawerClose} 
+          fornecedor={selectedFornecedor} 
+          onSave={handleSave}
+          isLoading={saveMutation.isPending}
+        />
       )}
     </Box>
   );
 };
 
 export default FornecedoresPage;
-
-//marcação para commit gemini

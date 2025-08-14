@@ -1,3 +1,5 @@
+// backend/controllers/fornecedorController.js
+
 const pool = require('../db');
 
 /**
@@ -43,13 +45,16 @@ const getFornecedores = async (req, res) => {
  */
 const createFornecedor = async (req, res) => {
     const { nome, cnpj_cpf, telefone, email, endereco } = req.body;
-    if (!nome) {
+
+    // Validação: Garante que o nome não seja apenas espaços em branco
+    if (!nome || nome.trim() === '') {
         return res.status(400).json({ error: 'O campo "nome" é obrigatório.' });
     }
     try {
         const novoFornecedor = await pool.query(
             'INSERT INTO fornecedores (nome, cnpj_cpf, telefone, email, endereco) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [nome, cnpj_cpf, telefone, email, endereco]
+            // Aplica trim() para remover espaços antes de salvar
+            [nome.trim(), cnpj_cpf, telefone, email, endereco]
         );
         res.status(201).json(novoFornecedor.rows[0]);
     } catch (error) {
@@ -69,13 +74,16 @@ const createFornecedor = async (req, res) => {
 const updateFornecedor = async (req, res) => {
     const { id } = req.params;
     const { nome, cnpj_cpf, telefone, email, endereco } = req.body;
-    if (!nome) {
+    
+    // Validação: Garante que o nome não seja apenas espaços em branco
+    if (!nome || nome.trim() === '') {
         return res.status(400).json({ error: 'O campo "nome" é obrigatório.' });
     }
     try {
         const fornecedorAtualizado = await pool.query(
             'UPDATE fornecedores SET nome = $1, cnpj_cpf = $2, telefone = $3, email = $4, endereco = $5 WHERE id = $6 RETURNING *',
-            [nome, cnpj_cpf, telefone, email, endereco, id]
+            // Aplica trim() para remover espaços antes de salvar
+            [nome.trim(), cnpj_cpf, telefone, email, endereco, id]
         );
         if (fornecedorAtualizado.rowCount === 0) {
             return res.status(404).json({ error: 'Fornecedor não encontrado.' });
@@ -119,5 +127,3 @@ module.exports = {
     updateFornecedor,
     deleteFornecedor,
 };
-
-//marcação para commit gemini

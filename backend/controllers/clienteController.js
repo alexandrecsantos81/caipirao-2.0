@@ -1,3 +1,5 @@
+// backend/controllers/clienteController.js
+
 const pool = require('../db');
 
 // Função auxiliar para converter strings vazias em NULL
@@ -9,11 +11,9 @@ const toNull = (value) => (value === '' ? null : value);
  * @access  Protegido
  */
 const getClientes = async (req, res) => {
-    // 1. Captura os parâmetros de paginação da query, com valores padrão.
     const { pagina = 1, limite = 10 } = req.query;
 
     try {
-        // 2. Executa duas consultas em paralelo: uma para contar o total e outra para buscar os dados da página.
         const totalPromise = pool.query('SELECT COUNT(*) FROM clientes');
         
         const offset = (pagina - 1) * limite;
@@ -27,7 +27,6 @@ const getClientes = async (req, res) => {
         const totalItens = parseInt(totalResult.rows[0].count, 10);
         const totalPaginas = Math.ceil(totalItens / limite);
 
-        // 3. Retorna o objeto de resposta padronizado com os metadados de paginação.
         res.status(200).json({
             dados: clientesResult.rows,
             total: totalItens,
@@ -51,7 +50,8 @@ const createCliente = async (req, res) => {
     const { nome, telefone, responsavel, tem_whatsapp, endereco } = req.body;
     const email = toNull(req.body.email);
 
-    if (!nome || !telefone) {
+    // Validação: Garante que os campos obrigatórios não sejam apenas espaços em branco
+    if (!nome || nome.trim() === '' || !telefone || telefone.trim() === '') {
         return res.status(400).json({ error: 'Os campos "nome" e "telefone" são obrigatórios.' });
     }
 
@@ -60,13 +60,14 @@ const createCliente = async (req, res) => {
             `INSERT INTO clientes (nome, email, telefone, endereco, responsavel, tem_whatsapp) 
              VALUES ($1, $2, $3, $4, $5, $6) 
              RETURNING *`,
-            [nome, email, telefone, endereco, responsavel, tem_whatsapp || false]
+            // Aplica trim() para remover espaços antes de salvar
+            [nome.trim(), email, telefone.trim(), endereco, responsavel, tem_whatsapp || false]
         );
         res.status(201).json(newCliente.rows[0]);
     } catch (err) {
         console.error('Erro ao criar cliente:', err.message);
-        if (err.code === '23505') { // [cite: 1132]
-            return res.status(409).json({ error: 'O email fornecido já está em uso.' }); // [cite: 1132]
+        if (err.code === '23505') {
+            return res.status(409).json({ error: 'O email fornecido já está em uso.' });
         }
         res.status(500).json({ error: 'Erro interno do servidor.' });
     }
@@ -82,8 +83,9 @@ const updateCliente = async (req, res) => {
     const { nome, telefone, responsavel, tem_whatsapp, endereco } = req.body;
     const email = toNull(req.body.email);
 
-    if (!nome || !telefone) {
-        return res.status(400).json({ error: 'Os campos "nome" e "telefone" são obrigatórios.' }); // [cite: 1137]
+    // Validação: Garante que os campos obrigatórios não sejam apenas espaços em branco
+    if (!nome || nome.trim() === '' || !telefone || telefone.trim() === '') {
+        return res.status(400).json({ error: 'Os campos "nome" e "telefone" são obrigatórios.' });
     }
 
     try {
@@ -92,18 +94,19 @@ const updateCliente = async (req, res) => {
              SET nome = $1, email = $2, telefone = $3, endereco = $4, responsavel = $5, tem_whatsapp = $6
              WHERE id = $7 
              RETURNING *`,
-            [nome, email, telefone, endereco, responsavel, tem_whatsapp || false, id]
+            // Aplica trim() para remover espaços antes de salvar
+            [nome.trim(), email, telefone.trim(), endereco, responsavel, tem_whatsapp || false, id]
         );
 
-        if (updatedCliente.rowCount === 0) { // [cite: 1140]
-            return res.status(404).json({ error: 'Cliente não encontrado.' }); // [cite: 1140]
+        if (updatedCliente.rowCount === 0) {
+            return res.status(404).json({ error: 'Cliente não encontrado.' });
         }
 
         res.status(200).json(updatedCliente.rows[0]);
     } catch (err) {
         console.error('Erro ao atualizar cliente:', err.message);
-        if (err.code === '23505') { // [cite: 1142]
-            return res.status(409).json({ error: 'O email fornecido já está em uso por outro cliente.' }); // [cite: 1142]
+        if (err.code === '23505') {
+            return res.status(409).json({ error: 'O email fornecido já está em uso por outro cliente.' });
         }
         res.status(500).json({ error: 'Erro interno do servidor.' });
     }
@@ -119,14 +122,14 @@ const deleteCliente = async (req, res) => {
     try {
         const deleteOp = await pool.query('DELETE FROM clientes WHERE id = $1', [id]);
 
-        if (deleteOp.rowCount === 0) { // [cite: 1146]
-            return res.status(404).json({ error: 'Cliente não encontrado.' }); // [cite: 1146]
+        if (deleteOp.rowCount === 0) {
+            return res.status(404).json({ error: 'Cliente não encontrado.' });
         }
         res.status(200).json({ message: 'Cliente deletado com sucesso.' });
     } catch (err) {
         console.error('Erro ao deletar cliente:', err.message);
-        if (err.code === '23503') { // [cite: 1149]
-            return res.status(400).json({ error: 'Não é possível excluir este cliente, pois ele está associado a movimentações existentes.' }); // [cite: 1149]
+        if (err.code === '23503') {
+            return res.status(400).json({ error: 'Não é possível excluir este cliente, pois ele está associado a movimentações existentes.' });
         }
         res.status(500).json({ error: 'Erro interno do servidor.' });
     }
@@ -138,5 +141,3 @@ module.exports = {
     updateCliente,
     deleteCliente
 };
-
-//marcação para commit gemini

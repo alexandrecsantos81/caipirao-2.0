@@ -9,6 +9,7 @@ import {
   Divider,
   VStack,
   Icon,
+  FormErrorMessage, // Importar FormErrorMessage
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
@@ -31,7 +32,7 @@ const formatarTelefone = (telefone: string): string => {
 
 const openWhatsApp = (phone: string) => {
   const cleanPhone = phone.replace(/\D/g, '');
-  window.open(`https://wa.me/55${cleanPhone}`, '_blank'   );
+  window.open(`https://wa.me/55${cleanPhone}`, '_blank'    );
 };
 
 const FormularioCliente = ({ isOpen, onClose, cliente, onSave }: {
@@ -62,7 +63,14 @@ const FormularioCliente = ({ isOpen, onClose, cliente, onSave }: {
               <Flex direction={flexDir} gap={4}>
                 <FormControl isRequired isInvalid={!!errors.nome} flex={1}>
                   <FormLabel>Nome</FormLabel>
-                  <Input {...register('nome', { required: 'Nome é obrigatório' })} placeholder="Nome completo do cliente" />
+                  <Input 
+                    {...register('nome', { 
+                      required: 'Nome é obrigatório',
+                      validate: (value) => value.trim() !== '' || 'O campo nome não pode conter apenas espaços'
+                    })} 
+                    placeholder="Nome completo do cliente" 
+                  />
+                  <FormErrorMessage>{errors.nome?.message}</FormErrorMessage>
                 </FormControl>
                 <FormControl flex={1}>
                   <FormLabel>Responsável (Opcional)</FormLabel>
@@ -71,7 +79,14 @@ const FormularioCliente = ({ isOpen, onClose, cliente, onSave }: {
               </Flex>
               <FormControl isRequired isInvalid={!!errors.telefone}>
                 <FormLabel>Telefone</FormLabel>
-                <Input {...register('telefone', { required: 'Telefone é obrigatório' })} placeholder="(xx) xxxxx-xxxx" />
+                <Input 
+                  {...register('telefone', { 
+                    required: 'Telefone é obrigatório',
+                    validate: (value) => value.trim() !== '' || 'O campo telefone não pode conter apenas espaços'
+                  })} 
+                  placeholder="(xx) xxxxx-xxxx" 
+                />
+                <FormErrorMessage>{errors.telefone?.message}</FormErrorMessage>
               </FormControl>
               <Checkbox {...register('tem_whatsapp')}>É WhatsApp?</Checkbox>
               <FormControl><FormLabel>Endereço Completo</FormLabel><Input {...register('endereco')} placeholder="Avenida, Rua, Quadra, Lote, Bairro..." /></FormControl>
