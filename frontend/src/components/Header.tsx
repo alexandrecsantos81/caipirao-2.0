@@ -36,20 +36,19 @@ export const Header = ({ onToggleSidebar, isSidebarOpen }: HeaderProps) => {
   const pageTitle = routeTitles[location.pathname] || 'Caipirão 3.0';
 
   return (
-    // ✅ O Flex do Header agora ocupa a largura total disponível
     <Flex
       as="header"
       align="center"
       justify="space-between"
-      w="full" // Ocupa a largura total do seu container pai
+      w="full"
       px="4"
-      bg={useColorModeValue('white', 'gray.800')}
-      borderBottomWidth="1px"
-      borderColor={useColorModeValue('gray.200', 'gray.700')}
+      // A cor de fundo é transparente para herdar do container pai
+      bg="transparent" 
+      // ✅ A borda foi removida, pois o container pai agora tem sombra
+      borderBottomWidth="0px" 
       h="14"
     >
       <Flex align="center">
-        {/* O botão de toggle só aparece em telas de desktop */}
         {!isMobile && (
           <IconButton
             aria-label="Toggle Sidebar"

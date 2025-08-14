@@ -1,6 +1,6 @@
 // frontend/src/App.tsx
 
-import { Box, useBreakpointValue, Flex } from '@chakra-ui/react'; // Adicionado Flex
+import { Box, useBreakpointValue, Flex } from '@chakra-ui/react';
 import { useState } from 'react';
 import { Routes, Route, Outlet } from 'react-router-dom';
 import { Header } from '@/components/Header';
@@ -26,22 +26,32 @@ const MainLayout = () => {
   const sidebarWidth = isMobile ? 0 : (isSidebarOpen ? '240px' : '72px');
 
   return (
-    <Box>
+    <Flex h="100vh" bg="gray.50" _dark={{ bg: 'gray.900' }}>
       {/* A Sidebar é renderizada primeiro e posicionada de forma fixa */}
       {!isMobile && <Sidebar isCollapsed={!isSidebarOpen} />}
 
-      {/* ✅ CORREÇÃO: Um novo Flex container para o conteúdo principal */}
+      {/* Container principal para Header e Conteúdo */}
       <Flex
         direction="column"
         as="main"
-        ml={{ base: 0, md: sidebarWidth }} // A margem dinâmica é aplicada aqui
-        pb={{ base: '80px', md: 0 }} // Padding para o BottomNavBar em mobile
+        flex="1" // Ocupa todo o espaço restante
+        ml={{ base: 0, md: sidebarWidth }} // Margem dinâmica para a sidebar
+        pb={{ base: '60px', md: 0 }} // Padding para o BottomNavBar em mobile
         transition="margin-left 0.2s ease-in-out"
+        overflowY="auto" // ✅ A barra de rolagem agora pertence a este container
       >
-        {/* O Header fica no topo deste container */}
-        <Header onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)} isSidebarOpen={isSidebarOpen} />
+        {/* O Header fica fixo no topo deste container */}
+        <Box
+          position="sticky"
+          top="0"
+          zIndex="docked" // Garante que o header fique acima do conteúdo
+          bg="chakra-body-bg" // Usa a cor de fundo do tema
+          boxShadow="sm" // Adiciona uma sombra para destacar
+        >
+          <Header onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)} isSidebarOpen={isSidebarOpen} />
+        </Box>
         
-        {/* O conteúdo da página (Outlet) vem logo abaixo */}
+        {/* O conteúdo da página (Outlet) vem logo abaixo e é a área que rola */}
         <Box p={{ base: 4, md: 8 }}>
           <Outlet />
         </Box>
@@ -49,7 +59,7 @@ const MainLayout = () => {
 
       {/* O BottomNavBar continua fixo para mobile */}
       {isMobile && <BottomNavBar />}
-    </Box>
+    </Flex>
   );
 };
 
