@@ -20,7 +20,6 @@ import {
 import { useForm } from 'react-hook-form';
 import { FiEdit, FiPlus, FiTrash2, FiPlusSquare } from 'react-icons/fi';
 import { useEffect, useState, useRef } from 'react';
-// ✅ CORREÇÃO: Importando os hooks que faltavam do react-query
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import {
   IProduto, createProduto, deleteProduto, getProdutos, updateProduto, IProdutoForm, IEntradaEstoqueForm, registrarEntradaEstoque,
@@ -46,23 +45,23 @@ const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
       if (produto) {
         setValue('nome', produto.nome);
         setValue('price', produto.price);
-        const unidadesPadrao = ['un', 'kg'];
-        if (unidadesPadrao.includes(produto.unidade_medida)) {
-          setValue('unidade_medida', produto.unidade_medida);
+        const unidadesPadrao = ['UN', 'KG']; // Comparar com caixa alta
+        if (unidadesPadrao.includes(produto.unidade_medida.toUpperCase())) {
+          setValue('unidade_medida', produto.unidade_medida.toUpperCase());
           setValue('outra_unidade_medida', '');
         } else {
-          setValue('unidade_medida', 'outros');
+          setValue('unidade_medida', 'OUTROS');
           setValue('outra_unidade_medida', produto.unidade_medida);
         }
       } else {
-        reset({ nome: '', price: undefined, unidade_medida: 'un', outra_unidade_medida: '' });
+        reset({ nome: '', price: undefined, unidade_medida: 'UN', outra_unidade_medida: '' });
       }
     }
   }, [isOpen, produto, setValue, reset]);
 
   const handleFormSubmit = (data: ProdutoFormData) => {
     const finalData = { ...data };
-    if (data.unidade_medida === 'outros' && data.outra_unidade_medida) {
+    if (data.unidade_medida === 'OUTROS' && data.outra_unidade_medida) {
       finalData.unidade_medida = data.outra_unidade_medida;
     }
     onSave(finalData);
@@ -81,6 +80,7 @@ const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
                 <Input
                   id="nome"
                   placeholder="Informe o nome do produto"
+                  textTransform="uppercase" // ✅ Caixa alta
                   {...register('nome', { 
                     required: 'Nome é obrigatório',
                     validate: (value) => (value && value.trim() !== '') || 'O nome não pode ser apenas espaços'
@@ -91,15 +91,19 @@ const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
               <FormControl isInvalid={!!errors.unidade_medida}>
                 <FormLabel htmlFor="unidade_medida">Unidade de Medida</FormLabel>
                 <Select id="unidade_medida" {...register('unidade_medida', { required: 'Unidade de medida é obrigatória' })}>
-                  <option value="un">Unidade (un)</option>
-                  <option value="kg">Quilo (kg)</option>
-                  <option value="outros">Outros</option>
+                  <option value="UN">Unidade (UN)</option>
+                  <option value="KG">Quilo (KG)</option>
+                  <option value="OUTROS">Outros</option>
                 </Select>
               </FormControl>
-              {unidadeMedida === 'outros' && (
+              {unidadeMedida === 'OUTROS' && (
                 <FormControl isInvalid={!!errors.outra_unidade_medida}>
-                  <FormLabel htmlFor="outra_unidade_medida">Especifique a Unidade (ex: dz, cx)</FormLabel>
-                  <Input id="outra_unidade_medida" {...register('outra_unidade_medida', { required: unidadeMedida === 'outros' ? 'Especifique a unidade' : false })} />
+                  <FormLabel htmlFor="outra_unidade_medida">Especifique a Unidade (ex: DZ, CX)</FormLabel>
+                  <Input 
+                    id="outra_unidade_medida" 
+                    textTransform="uppercase" // ✅ Caixa alta
+                    {...register('outra_unidade_medida', { required: unidadeMedida === 'OUTROS' ? 'Especifique a unidade' : false })} 
+                  />
                 </FormControl>
               )}
               <FormControl isRequired isInvalid={!!errors.price}>

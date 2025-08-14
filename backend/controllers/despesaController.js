@@ -1,10 +1,7 @@
+// backend/controllers/despesaController.js
+
 const pool = require('../db');
 
-/**
- * @desc    Registrar uma nova despesa
- * @route   POST /api/despesas
- * @access  Protegido (Admin)
- */
 const registrarDespesa = async (req, res) => {
     const { tipo_saida, valor, discriminacao, data_vencimento, data_compra, fornecedor_id } = req.body;
 
@@ -12,8 +9,6 @@ const registrarDespesa = async (req, res) => {
         return res.status(400).json({ error: 'Campos obrigatórios: tipo, valor, discriminação, data da compra e vencimento.' });
     }
 
-    // A lógica de data_pagamento agora é tratada pelo banco de dados.
-    // Apenas verificamos se devemos preencher o responsável pelo pagamento.
     const data_pagamento = data_compra === data_vencimento ? data_compra : null;
     const responsavel_pagamento_id = data_pagamento ? req.user.id : null;
 
@@ -22,7 +17,8 @@ const registrarDespesa = async (req, res) => {
             `INSERT INTO despesas (tipo_saida, valor, discriminacao, data_vencimento, data_compra, fornecedor_id, data_pagamento, responsavel_pagamento_id)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING *`,
-            [tipo_saida, valor, discriminacao, data_vencimento, data_compra, fornecedor_id, data_pagamento, responsavel_pagamento_id]
+            // ✅ Converte discriminação para caixa alta
+            [tipo_saida, valor, discriminacao.trim().toUpperCase(), data_vencimento, data_compra, fornecedor_id, data_pagamento, responsavel_pagamento_id]
         );
         res.status(201).json(novaDespesa.rows[0]);
     } catch (error) {
@@ -31,11 +27,6 @@ const registrarDespesa = async (req, res) => {
     }
 };
 
-/**
- * @desc    Listar despesas com paginação
- * @route   GET /api/despesas
- * @access  Protegido
- */
 const getDespesas = async (req, res) => {
     const { pagina = 1, limite = 10 } = req.query;
 
@@ -72,11 +63,6 @@ const getDespesas = async (req, res) => {
     }
 };
 
-/**
- * @desc    Quitar uma despesa
- * @route   PUT /api/despesas/:id/quitar
- * @access  Protegido (Admin)
- */
 const quitarDespesa = async (req, res) => {
     const { id } = req.params;
     const { data_pagamento, responsavel_pagamento_id } = req.body;
@@ -107,14 +93,8 @@ const quitarDespesa = async (req, res) => {
     }
 };
 
-/**
- * @desc    Listar despesas a pagar (para o card de notificações)
- * @route   GET /api/despesas/a-pagar
- * @access  Protegido
- */
 const getDespesasAPagar = async (req, res) => {
     try {
-        // ✅ ALTERAÇÃO: A consulta SQL foi modificada aqui.
         const query = `
             SELECT 
                 d.id,
@@ -123,11 +103,11 @@ const getDespesasAPagar = async (req, res) => {
                 f.nome as nome_fornecedor
             FROM despesas d
             LEFT JOIN fornecedores f ON d.fornecedor_id = f.id
-            WHERE d.data_pagamento IS NULL -- 1. Busca TODAS as despesas não pagas
-            ORDER BY d.data_vencimento ASC; -- 2. Ordena pela data de vencimento mais próxima
+            WHERE d.data_pagamento IS NULL
+            ORDER BY d.data_vencimento ASC;
         `;
         
-        const resultado = await pool.query(query); // A consulta agora não precisa de parâmetros
+        const resultado = await pool.query(query);
         res.status(200).json(resultado.rows);
 
     } catch (error) {
@@ -136,11 +116,6 @@ const getDespesasAPagar = async (req, res) => {
     }
 };
 
-/**
- * @desc    Atualizar uma despesa existente
- * @route   PUT /api/despesas/:id
- * @access  Protegido (Admin)
- */
 const updateDespesa = async (req, res) => {
     const { id } = req.params;
     const { tipo_saida, valor, discriminacao, data_vencimento, data_compra, fornecedor_id } = req.body;
@@ -156,7 +131,8 @@ const updateDespesa = async (req, res) => {
             `UPDATE despesas 
              SET tipo_saida = $1, valor = $2, discriminacao = $3, data_vencimento = $4, data_compra = $5, fornecedor_id = $6, data_pagamento = $7
              WHERE id = $8 RETURNING *`,
-            [tipo_saida, valor, discriminacao, data_vencimento, data_compra, fornecedor_id, data_pagamento, id]
+            // ✅ Converte discriminação para caixa alta
+            [tipo_saida, valor, discriminacao.trim().toUpperCase(), data_vencimento, data_compra, fornecedor_id, data_pagamento, id]
         );
 
         if (despesaAtualizada.rowCount === 0) {
@@ -170,11 +146,6 @@ const updateDespesa = async (req, res) => {
     }
 };
 
-/**
- * @desc    Deletar uma despesa
- * @route   DELETE /api/despesas/:id
- * @access  Protegido (Admin)
- */
 const deleteDespesa = async (req, res) => {
     const { id } = req.params;
     try {
@@ -182,7 +153,7 @@ const deleteDespesa = async (req, res) => {
         if (resultado.rowCount === 0) {
             return res.status(404).json({ error: 'Despesa não encontrada.' });
         }
-        res.status(204).send(); // Sucesso, sem conteúdo
+        res.status(204).send();
     } catch (error) {
         console.error('Erro ao deletar despesa:', error);
         res.status(500).json({ error: 'Erro interno do servidor.' });

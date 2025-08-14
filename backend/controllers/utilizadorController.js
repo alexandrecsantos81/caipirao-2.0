@@ -1,12 +1,9 @@
+// backend/controllers/utilizadorController.js
+
 const pool = require('../db');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
-/**
- * @desc    Admin cria um novo utilizador diretamente, já ativo.
- * @route   POST /api/utilizadores
- * @access  Admin
- */
 const createUtilizadorByAdmin = async (req, res) => {
     const { nome, email, telefone, nickname, senha, perfil } = req.body;
     if (!nome || !email || !nickname || !senha || !perfil) {
@@ -21,11 +18,12 @@ const createUtilizadorByAdmin = async (req, res) => {
             `INSERT INTO utilizadores (nome, email, telefone, nickname, senha, perfil, status)
              VALUES ($1, $2, $3, $4, $5, $6, 'ATIVO')
              RETURNING id, nome, email, telefone, nickname, perfil, status`,
-            [nome, email, telefone, nickname, senhaCriptografada, perfil]
+            // ✅ Converte para caixa alta
+            [nome.trim().toUpperCase(), email.toLowerCase(), telefone, nickname.trim().toUpperCase(), senhaCriptografada, perfil]
         );
         res.status(201).json(novoUtilizador.rows[0]);
     } catch (error) {
-        if (error.code === '23505') { // Violação de chave única
+        if (error.code === '23505') {
             return res.status(409).json({ error: 'Email, telefone ou nickname já cadastrado.' });
         }
         console.error('Erro ao criar utilizador:', error);
@@ -33,12 +31,6 @@ const createUtilizadorByAdmin = async (req, res) => {
     }
 };
 
-
-/**
- * @desc    Utilizador não autenticado solicita acesso ao sistema.
- * @route   POST /api/utilizadores/solicitar-acesso
- * @access  Público
- */
 const solicitarAcesso = async (req, res) => {
     const { nome, email, telefone } = req.body;
     if (!nome || !email || !telefone) {
@@ -50,7 +42,8 @@ const solicitarAcesso = async (req, res) => {
             `INSERT INTO utilizadores (nome, email, telefone, perfil, status)
              VALUES ($1, $2, $3, 'PENDENTE', 'INATIVO')
              RETURNING id, nome, email, status`,
-            [nome, email, telefone]
+            // ✅ Converte para caixa alta
+            [nome.trim().toUpperCase(), email.toLowerCase(), telefone]
         );
         res.status(201).json({ 
             message: 'Solicitação de acesso enviada com sucesso! Um administrador irá revisar seus dados.',
@@ -65,11 +58,6 @@ const solicitarAcesso = async (req, res) => {
     }
 };
 
-/**
- * @desc    Admin ativa um utilizador pendente.
- * @route   PUT /api/utilizadores/:id/ativar
- * @access  Admin
- */
 const ativarUtilizador = async (req, res) => {
     const { id } = req.params;
     const { perfil } = req.body;
@@ -106,11 +94,6 @@ const ativarUtilizador = async (req, res) => {
     }
 };
 
-/**
- * @desc    Admin busca todos os utilizadores com paginação
- * @route   GET /api/utilizadores
- * @access  Admin
- */
 const getUtilizadores = async (req, res) => {
     const { pagina = 1, limite = 10 } = req.query;
     
@@ -145,11 +128,6 @@ const getUtilizadores = async (req, res) => {
     }
 };
 
-/**
- * @desc    Admin atualiza um utilizador.
- * @route   PUT /api/utilizadores/:id
- * @access  Admin
- */
 const updateUtilizador = async (req, res) => {
     const { id } = req.params;
     const { nome, email, telefone, nickname, perfil, status } = req.body;
@@ -162,7 +140,8 @@ const updateUtilizador = async (req, res) => {
             `UPDATE utilizadores 
              SET nome = $1, email = $2, telefone = $3, nickname = $4, perfil = $5, status = $6
              WHERE id = $7 RETURNING *`,
-            [nome, email, telefone, nickname, perfil, status, id]
+            // ✅ Converte para caixa alta
+            [nome.trim().toUpperCase(), email.toLowerCase(), telefone, nickname.trim().toUpperCase(), perfil, status, id]
         );
 
         if (utilizadorAtualizado.rowCount === 0) {
@@ -179,11 +158,6 @@ const updateUtilizador = async (req, res) => {
     }
 };
 
-/**
- * @desc    Admin deleta um utilizador.
- * @route   DELETE /api/utilizadores/:id
- * @access  Admin
- */
 const deleteUtilizador = async (req, res) => {
     const { id } = req.params;
     try {
@@ -206,6 +180,3 @@ module.exports = {
     updateUtilizador,
     deleteUtilizador,
 };
-
-
-//marcação para commit gemini

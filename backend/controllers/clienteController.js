@@ -3,7 +3,7 @@
 const pool = require('../db');
 
 // Função auxiliar para converter strings vazias em NULL
-const toNull = (value) => (value === '' ? null : value);
+const toNull = (value) => (value === '' || value === null ? null : value);
 
 /**
  * @desc    Listar todos os clientes com paginação
@@ -50,7 +50,6 @@ const createCliente = async (req, res) => {
     const { nome, telefone, responsavel, tem_whatsapp, endereco } = req.body;
     const email = toNull(req.body.email);
 
-    // Validação: Garante que os campos obrigatórios não sejam apenas espaços em branco
     if (!nome || nome.trim() === '' || !telefone || telefone.trim() === '') {
         return res.status(400).json({ error: 'Os campos "nome" e "telefone" são obrigatórios.' });
     }
@@ -60,8 +59,15 @@ const createCliente = async (req, res) => {
             `INSERT INTO clientes (nome, email, telefone, endereco, responsavel, tem_whatsapp) 
              VALUES ($1, $2, $3, $4, $5, $6) 
              RETURNING *`,
-            // Aplica trim() para remover espaços antes de salvar
-            [nome.trim(), email, telefone.trim(), endereco, responsavel, tem_whatsapp || false]
+            // ✅ Converte para caixa alta antes de salvar
+            [
+                nome.trim().toUpperCase(), 
+                email, 
+                telefone.trim(), 
+                endereco ? endereco.toUpperCase() : null, 
+                responsavel ? responsavel.toUpperCase() : null, 
+                tem_whatsapp || false
+            ]
         );
         res.status(201).json(newCliente.rows[0]);
     } catch (err) {
@@ -83,7 +89,6 @@ const updateCliente = async (req, res) => {
     const { nome, telefone, responsavel, tem_whatsapp, endereco } = req.body;
     const email = toNull(req.body.email);
 
-    // Validação: Garante que os campos obrigatórios não sejam apenas espaços em branco
     if (!nome || nome.trim() === '' || !telefone || telefone.trim() === '') {
         return res.status(400).json({ error: 'Os campos "nome" e "telefone" são obrigatórios.' });
     }
@@ -94,8 +99,16 @@ const updateCliente = async (req, res) => {
              SET nome = $1, email = $2, telefone = $3, endereco = $4, responsavel = $5, tem_whatsapp = $6
              WHERE id = $7 
              RETURNING *`,
-            // Aplica trim() para remover espaços antes de salvar
-            [nome.trim(), email, telefone.trim(), endereco, responsavel, tem_whatsapp || false, id]
+            // ✅ Converte para caixa alta antes de salvar
+            [
+                nome.trim().toUpperCase(), 
+                email, 
+                telefone.trim(), 
+                endereco ? endereco.toUpperCase() : null, 
+                responsavel ? responsavel.toUpperCase() : null, 
+                tem_whatsapp || false, 
+                id
+            ]
         );
 
         if (updatedCliente.rowCount === 0) {

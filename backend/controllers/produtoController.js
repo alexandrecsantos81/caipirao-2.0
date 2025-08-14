@@ -1,3 +1,5 @@
+// backend/controllers/produtoController.js
+
 const pool = require('../db');
 
 /**
@@ -22,8 +24,10 @@ const getProdutos = async (req, res) => {
 
         res.json({
             dados: produtosResult.rows,
-            totalPaginas,
-            paginaAtual: pagina,
+            total: totalItens,
+            pagina: pagina,
+            limite: limite,
+            totalPaginas: totalPaginas,
         });
     } catch (err) {
         console.error(err.message);
@@ -40,7 +44,7 @@ const createProduto = async (req, res) => {
   try {
     const { nome, unidade_medida, price } = req.body;
 
-    if (!nome || price === undefined || price === null || !unidade_medida) {
+    if (!nome || nome.trim() === '' || price === undefined || price === null || !unidade_medida || unidade_medida.trim() === '') {
       return res.status(400).json({ msg: 'Nome, preço e unidade de medida são obrigatórios.' });
     }
 
@@ -52,7 +56,8 @@ const createProduto = async (req, res) => {
 
     const novoProduto = await pool.query(
       'INSERT INTO produtos (nome, unidade_medida, price) VALUES ($1, $2, $3) RETURNING *',
-      [nome, unidade_medida, precoNumerico]
+      // ✅ Converte para caixa alta
+      [nome.trim().toUpperCase(), unidade_medida.trim().toUpperCase(), precoNumerico]
     );
 
     res.status(201).json(novoProduto.rows[0]);
@@ -72,7 +77,7 @@ const updateProduto = async (req, res) => {
     const { id } = req.params;
     const { nome, unidade_medida, price } = req.body;
 
-    if (!nome || price === undefined || price === null || !unidade_medida) {
+    if (!nome || nome.trim() === '' || price === undefined || price === null || !unidade_medida || unidade_medida.trim() === '') {
       return res.status(400).json({ msg: 'Nome, preço e unidade de medida são obrigatórios.' });
     }
 
@@ -84,7 +89,8 @@ const updateProduto = async (req, res) => {
 
     const produtoAtualizado = await pool.query(
       'UPDATE produtos SET nome = $1, unidade_medida = $2, price = $3 WHERE id = $4 RETURNING *',
-      [nome, unidade_medida, precoNumerico, id]
+      // ✅ Converte para caixa alta
+      [nome.trim().toUpperCase(), unidade_medida.trim().toUpperCase(), precoNumerico, id]
     );
 
     if (produtoAtualizado.rows.length === 0) {
@@ -130,7 +136,7 @@ const deleteProduto = async (req, res) => {
 const registrarEntradaEstoque = async (req, res) => {
   const { id: produto_id } = req.params;
   const { quantidade_adicionada, custo_total, observacao } = req.body;
-  const utilizador_id = req.user.id; // Pega o ID do usuário logado
+  const utilizador_id = req.user.id;
 
   if (!quantidade_adicionada || quantidade_adicionada <= 0 || custo_total === undefined || custo_total < 0) {
     return res.status(400).json({ error: 'Quantidade adicionada e custo total são obrigatórios e devem ser valores positivos.' });
@@ -140,7 +146,6 @@ const registrarEntradaEstoque = async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // 1. Atualiza a quantidade em estoque do produto
     const produtoAtualizado = await client.query(
       'UPDATE produtos SET quantidade_em_estoque = quantidade_em_estoque + $1 WHERE id = $2 RETURNING *',
       [quantidade_adicionada, produto_id]
@@ -150,11 +155,11 @@ const registrarEntradaEstoque = async (req, res) => {
       throw new Error('Produto não encontrado.');
     }
 
-    // 2. Insere o registro na nova tabela de histórico de entradas
     await client.query(
       `INSERT INTO entradas_estoque (produto_id, utilizador_id, quantidade_adicionada, custo_total, observacao)
        VALUES ($1, $2, $3, $4, $5)`,
-      [produto_id, utilizador_id, quantidade_adicionada, custo_total, observacao]
+      // ✅ Converte observacao para caixa alta
+      [produto_id, utilizador_id, quantidade_adicionada, custo_total, observacao ? observacao.toUpperCase() : null]
     );
 
     await client.query('COMMIT');

@@ -13,14 +13,13 @@ import {
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
 import { useForm, SubmitHandler } from 'react-hook-form';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   IFornecedor, IFornecedorForm, getFornecedores, createFornecedor, updateFornecedor, deleteFornecedor
 } from '../services/fornecedor.service';
 import { useAuth } from '../hooks/useAuth';
 import { Pagination } from '../components/Pagination';
 
-// --- COMPONENTE: FORMULÁRIO DE FORNECEDOR (COM VALIDAÇÃO) ---
 export const FormularioFornecedor = ({ isOpen, onClose, fornecedor, onSave, isLoading }: { 
   isOpen: boolean; 
   onClose: () => void; 
@@ -60,14 +59,22 @@ export const FormularioFornecedor = ({ isOpen, onClose, fornecedor, onSave, isLo
                   {...register('nome', { 
                     required: 'Nome é obrigatório',
                     validate: (value) => (value && value.trim() !== '') || 'O campo nome não pode conter apenas espaços'
-                  })} 
+                  })}
+                  textTransform="uppercase" // ✅ Caixa alta
                 />
                 <FormErrorMessage>{errors.nome?.message}</FormErrorMessage>
               </FormControl>
               <FormControl isInvalid={!!errors.cnpj_cpf}><FormLabel>CNPJ/CPF</FormLabel><Input {...register('cnpj_cpf')} /><FormErrorMessage>{errors.cnpj_cpf?.message}</FormErrorMessage></FormControl>
               <FormControl isInvalid={!!errors.telefone}><FormLabel>Telefone</FormLabel><Input {...register('telefone')} /><FormErrorMessage>{errors.telefone?.message}</FormErrorMessage></FormControl>
               <FormControl isInvalid={!!errors.email}><FormLabel>Email</FormLabel><Input type="email" {...register('email')} /><FormErrorMessage>{errors.email?.message}</FormErrorMessage></FormControl>
-              <FormControl isInvalid={!!errors.endereco}><FormLabel>Endereço</FormLabel><Input {...register('endereco')} /><FormErrorMessage>{errors.endereco?.message}</FormErrorMessage></FormControl>
+              <FormControl isInvalid={!!errors.endereco}>
+                <FormLabel>Endereço</FormLabel>
+                <Input 
+                  {...register('endereco')} 
+                  textTransform="uppercase" // ✅ Caixa alta
+                />
+                <FormErrorMessage>{errors.endereco?.message}</FormErrorMessage>
+              </FormControl>
             </VStack>
           </DrawerBody>
           <DrawerFooter borderBottomWidth="1px">
@@ -80,7 +87,6 @@ export const FormularioFornecedor = ({ isOpen, onClose, fornecedor, onSave, isLo
   );
 };
 
-// --- PÁGINA PRINCIPAL DE GESTÃO DE FORNECEDORES (INÍCIO) ---
 const FornecedoresPage = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -91,6 +97,7 @@ const FornecedoresPage = () => {
   const [selectedFornecedor, setSelectedFornecedor] = useState<IFornecedor | null>(null);
   const [pagina, setPagina] = useState(1);
   const isMobile = useBreakpointValue({ base: true, md: false });
+  const cancelRef = useRef<HTMLButtonElement>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['fornecedores', pagina],
@@ -147,8 +154,6 @@ const FornecedoresPage = () => {
   const handleSave = (formData: IFornecedorForm, id?: number) => {
     saveMutation.mutate({ data: formData, id });
   };
-
-// frontend/src/pages/FornecedoresPage.tsx (continuação)
 
   if (isLoading) return <Center p={8}><Spinner size="xl" /></Center>;
   if (isError) return <Center p={8}><Text color="red.500">Erro ao carregar fornecedores.</Text></Center>;

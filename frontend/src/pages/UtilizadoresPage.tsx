@@ -1,3 +1,5 @@
+// frontend/src/pages/UtilizadoresPage.tsx
+
 import {
   Box, Button, Flex, IconButton, Link, Spinner, Table, TableContainer,
   Tag, Tbody, Td, Text, Th, Thead, Tr, useDisclosure, useToast, VStack, HStack,
@@ -21,7 +23,6 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { Pagination } from '../components/Pagination';
 
-// --- COMPONENTES DE FORMULÁRIO (SEM MUDANÇAS) ---
 const FormularioAdicionarUtilizador = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -55,10 +56,10 @@ const FormularioAdicionarUtilizador = ({ isOpen, onClose }: { isOpen: boolean; o
           <DrawerCloseButton />
           <DrawerBody>
             <VStack spacing={4}>
-              <FormControl isRequired isInvalid={!!errors.nome}><FormLabel>Nome Completo</FormLabel><Input {...register('nome', { required: 'Nome é obrigatório' })} /><FormErrorMessage>{errors.nome?.message}</FormErrorMessage></FormControl>
+              <FormControl isRequired isInvalid={!!errors.nome}><FormLabel>Nome Completo</FormLabel><Input {...register('nome', { required: 'Nome é obrigatório' })} textTransform="uppercase" /><FormErrorMessage>{errors.nome?.message}</FormErrorMessage></FormControl>
               <FormControl isRequired isInvalid={!!errors.email}><FormLabel>Email</FormLabel><Input type="email" {...register('email', { required: 'Email é obrigatório' })} /><FormErrorMessage>{errors.email?.message}</FormErrorMessage></FormControl>
               <FormControl isRequired isInvalid={!!errors.telefone}><FormLabel>Telefone</FormLabel><Input {...register('telefone', { required: 'Telefone é obrigatório' })} /><FormErrorMessage>{errors.telefone?.message}</FormErrorMessage></FormControl>
-              <FormControl isRequired isInvalid={!!errors.nickname}><FormLabel>Nickname (Apelido)</FormLabel><Input {...register('nickname', { required: 'Nickname é obrigatório' })} /><FormErrorMessage>{errors.nickname?.message}</FormErrorMessage></FormControl>
+              <FormControl isRequired isInvalid={!!errors.nickname}><FormLabel>Nickname (Apelido)</FormLabel><Input {...register('nickname', { required: 'Nickname é obrigatório' })} textTransform="uppercase" /><FormErrorMessage>{errors.nickname?.message}</FormErrorMessage></FormControl>
               <FormControl isRequired isInvalid={!!errors.senha}><FormLabel>Senha Provisória</FormLabel><Input type="password" {...register('senha', { required: 'Senha é obrigatória', minLength: { value: 6, message: 'A senha deve ter no mínimo 6 caracteres' } })} /><FormErrorMessage>{errors.senha?.message}</FormErrorMessage></FormControl>
               <FormControl isRequired isInvalid={!!errors.perfil}><FormLabel>Perfil</FormLabel><Select placeholder="Selecione um perfil" {...register('perfil', { required: 'Perfil é obrigatório' })}><option value="VENDEDOR">Vendedor</option><option value="GERENTE">Gerente</option><option value="ADMINISTRATIVO">Administrativo</option><option value="ADMIN">Admin</option></Select><FormErrorMessage>{errors.perfil?.message}</FormErrorMessage></FormControl>
             </VStack>
@@ -72,6 +73,7 @@ const FormularioAdicionarUtilizador = ({ isOpen, onClose }: { isOpen: boolean; o
     </Drawer>
   );
 };
+
 const FormularioEditarUtilizador = ({ isOpen, onClose, utilizador }: { isOpen: boolean; onClose: () => void; utilizador: IUtilizador | null; }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -112,10 +114,10 @@ const FormularioEditarUtilizador = ({ isOpen, onClose, utilizador }: { isOpen: b
           <DrawerCloseButton />
           <DrawerBody>
             <VStack spacing={4}>
-              <FormControl isRequired isInvalid={!!errors.nome}><FormLabel>Nome Completo</FormLabel><Input {...register('nome', { required: 'Nome é obrigatório' })} /></FormControl>
+              <FormControl isRequired isInvalid={!!errors.nome}><FormLabel>Nome Completo</FormLabel><Input {...register('nome', { required: 'Nome é obrigatório' })} textTransform="uppercase" /></FormControl>
               <FormControl isRequired isInvalid={!!errors.email}><FormLabel>Email</FormLabel><Input type="email" {...register('email', { required: 'Email é obrigatório' })} /></FormControl>
               <FormControl isRequired isInvalid={!!errors.telefone}><FormLabel>Telefone</FormLabel><Input {...register('telefone', { required: 'Telefone é obrigatório' })} /></FormControl>
-              <FormControl isRequired isInvalid={!!errors.nickname}><FormLabel>Nickname</FormLabel><Input {...register('nickname', { required: 'Nickname é obrigatório' })} /></FormControl>
+              <FormControl isRequired isInvalid={!!errors.nickname}><FormLabel>Nickname</FormLabel><Input {...register('nickname', { required: 'Nickname é obrigatório' })} textTransform="uppercase" /></FormControl>
               <FormControl isRequired isInvalid={!!errors.perfil}><FormLabel>Perfil</FormLabel><Select placeholder="Selecione" {...register('perfil', { required: 'Perfil é obrigatório' })}><option value="VENDEDOR">Vendedor</option><option value="GERENTE">Gerente</option><option value="ADMINISTRATIVO">Administrativo</option><option value="ADMIN">Admin</option></Select></FormControl>
             </VStack>
           </DrawerBody>
@@ -129,7 +131,6 @@ const FormularioEditarUtilizador = ({ isOpen, onClose, utilizador }: { isOpen: b
   );
 };
 
-// --- PÁGINA PRINCIPAL DE GESTÃO DE UTILIZADORES ---
 const UtilizadoresPage = () => {
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
@@ -230,7 +231,7 @@ const UtilizadoresPage = () => {
               </HStack>
               <HStack mt={4} justify="space-around" bg="gray.700" p={2} borderRadius="md">
                  <Tooltip label={user.status === 'ATIVO' ? 'Desativar' : 'Ativar'}><Box><Switch isChecked={user.status === 'ATIVO'} onChange={() => updateStatusMutation.mutate(user)} isDisabled={user.id === currentUser?.id} /></Box></Tooltip>
-                <Tooltip label="WhatsApp"><IconButton as={Link} href={`https://wa.me/55${user.telefone.replace(/\D/g, ''  )}`} target="_blank" aria-label="WhatsApp" icon={<FaWhatsapp />} variant="ghost" /></Tooltip>
+                <Tooltip label="WhatsApp"><IconButton as={Link} href={`https://wa.me/55${user.telefone.replace(/\D/g, ''   )}`} target="_blank" aria-label="WhatsApp" icon={<FaWhatsapp />} variant="ghost" /></Tooltip>
                 <Tooltip label="Editar"><IconButton aria-label="Editar" icon={<FiEdit />} variant="ghost" onClick={() => handleEditClick(user)} /></Tooltip>
                 <Tooltip label="Excluir"><IconButton aria-label="Excluir" icon={<FiTrash2 />} variant="ghost" colorScheme="red" onClick={() => handleDeleteClick(user)} isDisabled={user.id === currentUser?.id} /></Tooltip>
               </HStack>
@@ -251,7 +252,7 @@ const UtilizadoresPage = () => {
                   <Td>
                     <HStack spacing={2}>
                       <Tooltip label={user.status === 'ATIVO' ? 'Desativar usuário' : 'Ativar usuário'} hasArrow><Box><Switch isChecked={user.status === 'ATIVO'} onChange={() => updateStatusMutation.mutate(user)} isDisabled={user.id === currentUser?.id} /></Box></Tooltip>
-                      <Tooltip label="WhatsApp" hasArrow><IconButton as={Link} href={`https://wa.me/55${user.telefone.replace(/\D/g, ''  )}`} target="_blank" aria-label="WhatsApp" icon={<FaWhatsapp />} variant="ghost" /></Tooltip>
+                      <Tooltip label="WhatsApp" hasArrow><IconButton as={Link} href={`https://wa.me/55${user.telefone.replace(/\D/g, ''   )}`} target="_blank" aria-label="WhatsApp" icon={<FaWhatsapp />} variant="ghost" /></Tooltip>
                       <Tooltip label="Editar" hasArrow><IconButton aria-label="Editar" icon={<FiEdit />} variant="ghost" onClick={() => handleEditClick(user)} /></Tooltip>
                       <Tooltip label="Excluir" hasArrow><IconButton aria-label="Excluir" icon={<FiTrash2 />} variant="ghost" colorScheme="red" onClick={() => handleDeleteClick(user)} isDisabled={user.id === currentUser?.id} /></Tooltip>
                     </HStack>
@@ -287,5 +288,3 @@ const UtilizadoresPage = () => {
 };
 
 export default UtilizadoresPage;
-
-//marcação para commit gemini

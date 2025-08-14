@@ -46,19 +46,24 @@ const getFornecedores = async (req, res) => {
 const createFornecedor = async (req, res) => {
     const { nome, cnpj_cpf, telefone, email, endereco } = req.body;
 
-    // Validação: Garante que o nome não seja apenas espaços em branco
     if (!nome || nome.trim() === '') {
         return res.status(400).json({ error: 'O campo "nome" é obrigatório.' });
     }
     try {
         const novoFornecedor = await pool.query(
             'INSERT INTO fornecedores (nome, cnpj_cpf, telefone, email, endereco) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            // Aplica trim() para remover espaços antes de salvar
-            [nome.trim(), cnpj_cpf, telefone, email, endereco]
+            // ✅ Converte para caixa alta
+            [
+                nome.trim().toUpperCase(), 
+                cnpj_cpf, 
+                telefone, 
+                email, 
+                endereco ? endereco.toUpperCase() : null
+            ]
         );
         res.status(201).json(novoFornecedor.rows[0]);
     } catch (error) {
-        if (error.code === '23505') { // Violação de chave única (cnpj_cpf)
+        if (error.code === '23505') {
             return res.status(409).json({ error: 'CNPJ/CPF já cadastrado.' });
         }
         console.error('Erro ao criar fornecedor:', error);
@@ -75,15 +80,21 @@ const updateFornecedor = async (req, res) => {
     const { id } = req.params;
     const { nome, cnpj_cpf, telefone, email, endereco } = req.body;
     
-    // Validação: Garante que o nome não seja apenas espaços em branco
     if (!nome || nome.trim() === '') {
         return res.status(400).json({ error: 'O campo "nome" é obrigatório.' });
     }
     try {
         const fornecedorAtualizado = await pool.query(
             'UPDATE fornecedores SET nome = $1, cnpj_cpf = $2, telefone = $3, email = $4, endereco = $5 WHERE id = $6 RETURNING *',
-            // Aplica trim() para remover espaços antes de salvar
-            [nome.trim(), cnpj_cpf, telefone, email, endereco, id]
+            // ✅ Converte para caixa alta
+            [
+                nome.trim().toUpperCase(), 
+                cnpj_cpf, 
+                telefone, 
+                email, 
+                endereco ? endereco.toUpperCase() : null, 
+                id
+            ]
         );
         if (fornecedorAtualizado.rowCount === 0) {
             return res.status(404).json({ error: 'Fornecedor não encontrado.' });
@@ -110,10 +121,9 @@ const deleteFornecedor = async (req, res) => {
         if (resultado.rowCount === 0) {
             return res.status(404).json({ error: 'Fornecedor não encontrado.' });
         }
-        res.status(204).send(); // Sucesso, sem conteúdo
+        res.status(204).send();
     } catch (error) {
-        // Verifica se a exclusão falha por causa de uma despesa vinculada
-        if (error.code === '23503') { // Violação de chave estrangeira
+        if (error.code === '23503') {
             return res.status(400).json({ error: 'Não é possível excluir o fornecedor, pois ele está vinculado a uma ou mais despesas.' });
         }
         console.error('Erro ao deletar fornecedor:', error);

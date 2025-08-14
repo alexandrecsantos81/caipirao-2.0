@@ -10,7 +10,7 @@ import {
   VStack,
   Icon,
   FormErrorMessage,
-  AlertDialog, // Importar AlertDialog
+  AlertDialog,
   AlertDialogBody,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -18,7 +18,7 @@ import {
   AlertDialogOverlay,
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { useEffect, useState, useRef } from 'react'; // Importar useRef
+import { useEffect, useState, useRef } from 'react';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import { FiEdit, FiPhone, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
@@ -74,13 +74,18 @@ const FormularioCliente = ({ isOpen, onClose, cliente, onSave }: {
                       required: 'Nome é obrigatório',
                       validate: (value) => value.trim() !== '' || 'O campo nome não pode conter apenas espaços'
                     })} 
-                    placeholder="Nome completo do cliente" 
+                    placeholder="Nome completo do cliente"
+                    textTransform="uppercase" // ✅ Caixa alta
                   />
                   <FormErrorMessage>{errors.nome?.message}</FormErrorMessage>
                 </FormControl>
                 <FormControl flex={1}>
                   <FormLabel>Responsável (Opcional)</FormLabel>
-                  <Input {...register('responsavel')} placeholder="Nome do responsável" />
+                  <Input 
+                    {...register('responsavel')} 
+                    placeholder="Nome do responsável"
+                    textTransform="uppercase" // ✅ Caixa alta
+                  />
                 </FormControl>
               </Flex>
               <FormControl isRequired isInvalid={!!errors.telefone}>
@@ -95,7 +100,14 @@ const FormularioCliente = ({ isOpen, onClose, cliente, onSave }: {
                 <FormErrorMessage>{errors.telefone?.message}</FormErrorMessage>
               </FormControl>
               <Checkbox {...register('tem_whatsapp')}>É WhatsApp?</Checkbox>
-              <FormControl><FormLabel>Endereço Completo</FormLabel><Input {...register('endereco')} placeholder="Avenida, Rua, Quadra, Lote, Bairro..." /></FormControl>
+              <FormControl>
+                <FormLabel>Endereço Completo</FormLabel>
+                <Input 
+                  {...register('endereco')} 
+                  placeholder="Avenida, Rua, Quadra, Lote, Bairro..."
+                  textTransform="uppercase" // ✅ Caixa alta
+                />
+              </FormControl>
               <FormControl><FormLabel>Email (Opcional)</FormLabel><Input type="email" {...register('email')} placeholder="email@exemplo.com" /></FormControl>
             </Stack>
           </DrawerBody>
