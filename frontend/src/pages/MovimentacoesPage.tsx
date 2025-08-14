@@ -62,24 +62,52 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
       produto_selecionado_id: '', quantidade: 1, preco_manual: '',
     },
   });
+
+  // ==================================================================
+  // ============  INÍCIO DA SEÇÃO DE CÓDIGO ATUALIZADA  ============
+  // ==================================================================
+
+  // 1. Observar os campos do formulário em tempo real
+  const produtoIdAtual = watch('produto_selecionado_id');
+  const quantidadeAtual = watch('quantidade');
+  const precoManualAtual = watch('preco_manual');
+
   const { data: clientes } = useQuery<IPaginatedResponse<ICliente>, Error, ICliente[]>({ queryKey: ['todosClientes'], queryFn: () => getClientes(1, 1000), enabled: isOpen, select: data => data.dados });
   const { data: produtos } = useQuery<IPaginatedResponse<IProduto>, Error, IProduto[]>({ queryKey: ['todosProdutos'], queryFn: () => getProdutos(1, 1000), enabled: isOpen, select: data => data.dados });
   const dataVendaValue = watch('data_venda');
 
-  // ==================================================================
-  // ============  INÍCIO DO CÓDIGO-CHAVE PARA O CÁLCULO  ============
-  // ==================================================================
+  // 2. Atualizar o useMemo para incluir os valores atuais do formulário
   const valorTotalCalculado = useMemo(() => {
-    return produtosNaVenda.reduce((total, item) => {
-      // Se o usuário digitou um preço manual, usa esse. Senão, usa o preço original do produto.
+    // Calcula o total dos produtos já adicionados à lista
+    const totalDosItensAdicionados = produtosNaVenda.reduce((total, item) => {
       const preco = item.preco_manual ?? item.preco_original;
-      
-      // Multiplica a quantidade pelo preço definido e soma ao total.
       return total + (item.quantidade * preco);
     }, 0);
-  }, [produtosNaVenda]); // Recalcula apenas quando a lista de produtos na venda muda.
+
+    // Calcula o valor do item que está sendo digitado agora
+    let valorDoItemAtual = 0;
+    const produtoInfo = produtos?.find(p => p.id === Number(produtoIdAtual));
+    if (produtoInfo) {
+      const quantidade = Number(quantidadeAtual) || 0;
+      const precoManual = Number(precoManualAtual) || 0;
+      // Usa o preço manual se for maior que zero, senão, o preço do produto
+      const preco = precoManual > 0 ? precoManual : produtoInfo.price;
+      valorDoItemAtual = quantidade * preco;
+    }
+
+    // O total final é a soma dos itens já na lista com o item atual
+    return totalDosItensAdicionados + valorDoItemAtual;
+
+  }, [
+    produtosNaVenda, 
+    produtoIdAtual, 
+    quantidadeAtual, 
+    precoManualAtual, 
+    produtos
+  ]); // 3. Adicionar as novas dependências
+
   // ==================================================================
-  // ==============  FIM DO CÓDIGO-CHAVE PARA O CÁLCULO  ==============
+  // ==============  FIM DA SEÇÃO DE CÓDIGO ATUALIZADA  ==============
   // ==================================================================
   
   const mutation = useMutation({
@@ -145,6 +173,7 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
       unidade_medida: produtoInfo.unidade_medida,
       preco_original: produtoInfo.price,
     }]);
+    // Limpa os campos após adicionar
     setValue('produto_selecionado_id', '');
     setValue('quantidade', 1);
     setValue('preco_manual', '');
@@ -155,16 +184,37 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
   };
 
   const onSubmit: SubmitHandler<any> = (data) => {
-    if (produtosNaVenda.length === 0) {
+    // Se não houver produtos na lista e nenhum produto sendo digitado, não faz nada.
+    if (produtosNaVenda.length === 0 && !getValues('produto_selecionado_id')) {
       toast({ title: "Nenhum produto adicionado", status: "error", duration: 4000, isClosable: true });
       return;
     }
+
+    // Adiciona o item atual à lista antes de submeter, se ele for válido
+    const itemAtual = getValues();
+    const produtosParaEnviar = [...produtosNaVenda];
+    if (itemAtual.produto_selecionado_id && Number(itemAtual.quantidade) > 0) {
+        produtosParaEnviar.push({
+            produto_id: Number(itemAtual.produto_selecionado_id),
+            quantidade: Number(itemAtual.quantidade),
+            preco_manual: itemAtual.preco_manual ? Number(itemAtual.preco_manual) : undefined,
+            nome: '', // Não é necessário para a API
+            unidade_medida: '', // Não é necessário para a API
+            preco_original: 0, // Não é necessário para a API
+        });
+    }
+
+    if (produtosParaEnviar.length === 0) {
+        toast({ title: "Nenhum produto válido para salvar", status: "error", duration: 4000, isClosable: true });
+        return;
+    }
+
     const vendaParaAPI: INovaVenda = {
       cliente_id: Number(data.cliente_id),
       data_venda: data.data_venda,
       opcao_pagamento: opcaoPagamento,
       data_vencimento: data.data_vencimento,
-      produtos: produtosNaVenda.map(p => ({
+      produtos: produtosParaEnviar.map(p => ({
         produto_id: p.produto_id,
         quantidade: p.quantidade,
         preco_manual: p.preco_manual,
@@ -194,17 +244,13 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
                  <Heading size="sm" mb={3}>Adicionar Produtos</Heading>
                 <Flex direction={flexDir} gap={2} align="flex-end">
                   <FormControl flex={3}><FormLabel>Produto</FormLabel><Select placeholder="Selecione..." {...register('produto_selecionado_id')}>{produtos?.map((p: IProduto) => <option key={p.id} value={p.id}>{p.nome}</option>)}</Select></FormControl>
-                  {/* O Controller garante a integração com o NumberInput do Chakra UI */}
                   <FormControl flex={1}><FormLabel>Qtd/Peso</FormLabel><Controller name="quantidade" control={control} render={({ field }) => <NumberInput {...field} min={0.001} precision={3}><NumberInputField /></NumberInput>} /></FormControl>
                   <FormControl flex={1}><FormLabel>Preço Manual (R$)</FormLabel><Input placeholder="Opcional" {...register('preco_manual')} type="number" step="0.01" /></FormControl>
                   <Button colorScheme="green" onClick={handleAddProduto} alignSelf={{ base: 'stretch', md: 'flex-end' }}><FiPlus /></Button>
                 </Flex>
               </Box>
               <VStack spacing={2} align="stretch" mt={4}>{produtosNaVenda.map(p => (<Flex key={p.produto_id} justify="space-between" align="center" p={2} borderWidth={1} borderRadius="md"><Box><Text fontWeight="bold">{p.nome}</Text><Text fontSize="sm" color="gray.500">{p.quantidade} {p.unidade_medida} x {(p.preco_manual ?? p.preco_original).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}{p.preco_manual !== undefined && <Badge ml={2} colorScheme="orange">Manual</Badge>}</Text></Box><IconButton aria-label="Remover" icon={<FiTrash2 />} size="sm" colorScheme="red" onClick={() => handleRemoveProduto(p.produto_id)} /></Flex>))}</VStack>
-              <Flex justify="flex-end" mt={4}><Box textAlign="right"><Text fontSize="lg">Vendedor: {user?.nome}</Text>
-                {/* Exibe o valor total calculado dinamicamente */}
-                <Heading size="lg" color="teal.500">Total: {valorTotalCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Heading>
-              </Box></Flex>
+              <Flex justify="flex-end" mt={4}><Box textAlign="right"><Text fontSize="lg">Vendedor: {user?.nome}</Text><Heading size="lg" color="teal.500">Total: {valorTotalCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Heading></Box></Flex>
             </VStack>
           </DrawerBody>
           <DrawerFooter borderBottomWidth="1px"><Button variant="outline" mr={3} onClick={onClose}>Cancelar</Button><Button colorScheme="teal" type="submit" isLoading={mutation.isPending}>Salvar Venda</Button></DrawerFooter>
