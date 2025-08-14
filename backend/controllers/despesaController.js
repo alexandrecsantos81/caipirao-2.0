@@ -114,7 +114,8 @@ const quitarDespesa = async (req, res) => {
  */
 const getDespesasAPagar = async (req, res) => {
     try {
-        const resultado = await pool.query(`
+        // ✅ ALTERAÇÃO: A consulta SQL foi modificada aqui.
+        const query = `
             SELECT 
                 d.id,
                 d.valor,
@@ -122,11 +123,13 @@ const getDespesasAPagar = async (req, res) => {
                 f.nome as nome_fornecedor
             FROM despesas d
             LEFT JOIN fornecedores f ON d.fornecedor_id = f.id
-            WHERE d.data_pagamento IS NULL 
-              AND d.data_vencimento <= CURRENT_DATE + INTERVAL '5 days'
-            ORDER BY d.data_vencimento ASC
-        `);
+            WHERE d.data_pagamento IS NULL -- 1. Busca TODAS as despesas não pagas
+            ORDER BY d.data_vencimento ASC; -- 2. Ordena pela data de vencimento mais próxima
+        `;
+        
+        const resultado = await pool.query(query); // A consulta agora não precisa de parâmetros
         res.status(200).json(resultado.rows);
+
     } catch (error) {
         console.error('Erro ao buscar contas a pagar:', error);
         res.status(500).json({ error: 'Erro interno do servidor.' });
