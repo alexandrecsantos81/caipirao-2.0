@@ -1,5 +1,3 @@
-// backend/controllers/clienteController.js
-
 const pool = require('../db');
 
 const toNull = (value) => (value === '' || value === null ? null : value);
@@ -182,9 +180,43 @@ const deleteCliente = async (req, res) => {
     }
 };
 
+/**
+ * @desc    Buscar o histórico de vendas de um cliente específico
+ * @route   GET /api/clientes/:id/historico
+ * @access  Protegido
+ */
+const getHistoricoVendasCliente = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const query = `
+            SELECT 
+                m.id, 
+                m.data_venda, 
+                m.valor_total, 
+                m.opcao_pagamento, 
+                m.data_pagamento,
+                m.produtos -- A coluna de produtos já contém os detalhes que precisamos
+            FROM movimentacoes m
+            WHERE m.cliente_id = $1 AND m.tipo = 'ENTRADA'
+            ORDER BY m.data_venda DESC, m.id DESC;
+        `;
+        
+        const resultado = await pool.query(query, [id]);
+
+        res.status(200).json(resultado.rows);
+
+    } catch (err) {
+        console.error('Erro ao buscar histórico de vendas do cliente:', err.message);
+        res.status(500).json({ error: 'Erro interno do servidor ao processar a sua solicitação.' });
+    }
+};
+
+
 module.exports = {
     getClientes,
     createCliente,
     updateCliente,
-    deleteCliente
+    deleteCliente,
+    getHistoricoVendasCliente // <-- Exportando a nova função
 };

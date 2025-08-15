@@ -1,11 +1,9 @@
-// frontend/src/services/cliente.service.ts
-
 import axios from 'axios';
 import { IPaginatedResponse } from '@/types/common.types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
-const api = axios.create({ baseURL: API_URL } );
+const api = axios.create({ baseURL: API_URL }  );
 
 api.interceptors.request.use(
   (config) => {
@@ -34,6 +32,22 @@ export interface ICliente {
 }
 
 export type IClienteForm = Omit<ICliente, 'id' | 'status'>;
+
+// ✅ NOVA INTERFACE para o histórico de vendas
+export interface IHistoricoVenda {
+  id: number;
+  data_venda: string;
+  valor_total: number;
+  opcao_pagamento: 'À VISTA' | 'A PRAZO';
+  data_pagamento: string | null;
+  produtos: {
+    nome: string;
+    quantidade: number;
+    unidade_medida: string;
+    valor_unitario: number;
+  }[];
+}
+
 
 // --- FUNÇÕES DO SERVIÇO ---
 
@@ -70,4 +84,10 @@ export const updateCliente = async (id: number, clienteData: Partial<IClienteFor
 
 export const deleteCliente = async (id: number): Promise<void> => {
   await api.delete(`/clientes/${id}`);
+};
+
+// ✅ NOVA FUNÇÃO para buscar o histórico de vendas do cliente
+export const getHistoricoVendas = async (clienteId: number): Promise<IHistoricoVenda[]> => {
+  const response = await api.get(`/clientes/${clienteId}/historico`);
+  return response.data;
 };

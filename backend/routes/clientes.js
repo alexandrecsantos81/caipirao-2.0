@@ -8,7 +8,8 @@ const {
     getClientes,
     createCliente,
     updateCliente,
-    deleteCliente
+    deleteCliente,
+    getHistoricoVendasCliente // <-- NOVA FUNÇÃO A SER CRIADA
 } = require('../controllers/clienteController');
 
 // Aplica o middleware de verificação de token para todas as rotas neste arquivo.
@@ -24,5 +25,8 @@ router.route('/')
 router.route('/:id')
     .put(updateCliente)    // Rota para PUT /api/clientes/:id -> Chama a função updateCliente
     .delete(deleteCliente);// Rota para DELETE /api/clientes/:id -> Chama a função deleteCliente
+
+// ✅ NOVA ROTA para buscar o histórico de vendas de um cliente específico
+router.get('/:id/historico', getHistoricoVendasCliente);
 
 module.exports = router;

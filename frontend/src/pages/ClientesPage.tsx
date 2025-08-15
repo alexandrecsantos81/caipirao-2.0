@@ -1,5 +1,3 @@
-// frontend/src/pages/ClientesPage.tsx
-
 import {
   Box, Button, Center, Drawer, DrawerBody, DrawerContent, DrawerFooter,
   DrawerHeader, DrawerOverlay, Flex, FormControl, FormLabel, HStack, Heading,
@@ -18,15 +16,25 @@ import {
   AlertDialogOverlay,
   InputGroup,
   InputLeftElement,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalCloseButton,
+  ModalBody,
+  Badge,
+  Tooltip,
+  List,
+  ListItem,
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useEffect, useState, useRef } from 'react';
 import { SubmitHandler, useForm } from 'react-hook-form';
-import { FiEdit, FiPhone, FiPlus, FiTrash2, FiSearch } from 'react-icons/fi';
+import { FiEdit, FiPhone, FiPlus, FiTrash2, FiSearch, FiClock } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { Pagination } from '../components/Pagination';
 import {
-  ICliente, IClienteForm, createCliente, deleteCliente, getClientes, updateCliente,
+  ICliente, IClienteForm, createCliente, deleteCliente, getClientes, updateCliente, getHistoricoVendas, IHistoricoVenda,
 } from '../services/cliente.service';
 import { useAuth } from '../hooks/useAuth';
 
@@ -54,8 +62,80 @@ const formatarTelefone = (telefone: string): string => {
 
 const openWhatsApp = (phone: string) => {
   const cleanPhone = phone.replace(/\D/g, '');
-  window.open(`https://wa.me/55${cleanPhone}`, '_blank' );
+  window.open(`https://wa.me/55${cleanPhone}`, '_blank'  );
 };
+
+// --- NOVO COMPONENTE: MODAL DE HISTÓRICO DE VENDAS ---
+const ModalHistoricoVendas = ({ isOpen, onClose, cliente }: { isOpen: boolean; onClose: () => void; cliente: ICliente | null }) => {
+  const { data: historico, isLoading, isError } = useQuery({
+    queryKey: ['historicoCliente', cliente?.id],
+    queryFn: () => getHistoricoVendas(cliente!.id),
+    enabled: !!cliente && isOpen, // Só busca os dados se o modal estiver aberto e um cliente selecionado
+  });
+
+  const formatarProdutos = (produtos: IHistoricoVenda['produtos']) => {
+    return (
+      <List spacing={1} fontSize="sm">
+        {produtos.map((p, index) => (
+          <ListItem key={index}>
+            <Text as="span" fontWeight="bold">{p.quantidade} {p.unidade_medida}</Text> - {p.nome}
+          </ListItem>
+        ))}
+      </List>
+    );
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="4xl" scrollBehavior="inside">
+      <ModalOverlay />
+      <ModalContent>
+        <ModalHeader>Histórico de Vendas de {cliente?.nome}</ModalHeader>
+        <ModalCloseButton />
+        <ModalBody>
+          {isLoading && <Center p={10}><Spinner size="xl" /></Center>}
+          {isError && <Center p={10}><Text color="red.500">Erro ao carregar o histórico.</Text></Center>}
+          {!isLoading && !isError && (
+            <TableContainer>
+              <Table variant="striped">
+                <Thead>
+                  <Tr>
+                    <Th>Data</Th>
+                    <Th>Produtos Adquiridos</Th>
+                    <Th>Status</Th>
+                    <Th isNumeric>Valor Total</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {historico && historico.length > 0 ? (
+                    historico.map((venda) => (
+                      <Tr key={venda.id}>
+                        <Td>{new Date(venda.data_venda).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
+                        <Td>{formatarProdutos(venda.produtos)}</Td>
+                        <Td>
+                          <Badge colorScheme={venda.data_pagamento ? 'green' : 'red'}>
+                            {venda.data_pagamento ? 'Pago' : 'Pendente'}
+                          </Badge>
+                        </Td>
+                        <Td isNumeric fontWeight="bold">
+                          {venda.valor_total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </Td>
+                      </Tr>
+                    ))
+                  ) : (
+                    <Tr>
+                      <Td colSpan={4} textAlign="center">Nenhuma venda encontrada para este cliente.</Td>
+                    </Tr>
+                  )}
+                </Tbody>
+              </Table>
+            </TableContainer>
+          )}
+        </ModalBody>
+      </ModalContent>
+    </Modal>
+  );
+};
+
 
 const FormularioCliente = ({ isOpen, onClose, cliente, onSave }: {
   isOpen: boolean; onClose: () => void; cliente: ICliente | null; onSave: (data: IClienteForm, id?: number) => void;
@@ -152,8 +232,12 @@ const ClientesPage = () => {
 
   const { isOpen: isDrawerOpen, onOpen: onDrawerOpen, onClose: onDrawerClose } = useDisclosure();
   const { isOpen: isAlertOpen, onOpen: onAlertOpen, onClose: onAlertClose } = useDisclosure();
+  const { isOpen: isHistoryOpen, onOpen: onHistoryOpen, onClose: onHistoryClose } = useDisclosure(); // Estado para o modal de histórico
+  
   const [clienteParaDeletar, setClienteParaDeletar] = useState<ICliente | null>(null);
+  const [clienteParaHistorico, setClienteParaHistorico] = useState<ICliente | null>(null); // Estado para guardar o cliente do histórico
   const [editingCliente, setEditingCliente] = useState<ICliente | null>(null);
+  
   const toast = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -162,7 +246,6 @@ const ClientesPage = () => {
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    // Reseta para a primeira página sempre que a busca mudar
     if (buscaDebounced) {
       setPagina(1);
     }
@@ -202,6 +285,11 @@ const ClientesPage = () => {
   const handleOpenForm = (cliente: ICliente | null) => {
     setEditingCliente(cliente);
     onDrawerOpen();
+  };
+
+  const handleOpenHistory = (cliente: ICliente) => {
+    setClienteParaHistorico(cliente);
+    onHistoryOpen();
   };
 
   const handleSave = (formData: IClienteForm, id?: number) => {
@@ -257,6 +345,7 @@ const ClientesPage = () => {
                   <Flex justify="space-between" align="center">
                     <Heading size="sm" noOfLines={1}>{cliente.nome}</Heading>
                     <HStack spacing={1}>
+                      <IconButton aria-label="Histórico" icon={<FiClock />} size="sm" onClick={() => handleOpenHistory(cliente)} />
                       <IconButton aria-label="Editar" icon={<FiEdit />} size="sm" onClick={() => handleOpenForm(cliente)} />
                       {isAdmin && (
                         <IconButton
@@ -305,14 +394,19 @@ const ClientesPage = () => {
                       <Td>{cliente.endereco}</Td>
                       <Td>
                         <HStack>
-                          <Button size="sm" leftIcon={<FiEdit />} onClick={() => handleOpenForm(cliente)}>
-                            Editar
-                          </Button>
+                          <Tooltip label="Histórico de Vendas" hasArrow>
+                            <IconButton aria-label="Histórico de Vendas" icon={<FiClock />} onClick={() => handleOpenHistory(cliente)} />
+                          </Tooltip>
+                          <Tooltip label="Editar Cliente" hasArrow>
+                            <IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleOpenForm(cliente)} />
+                          </Tooltip>
                           {isAdmin && (
-                            <IconButton
-                              aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" size="sm"
-                              onClick={() => handleDeleteClick(cliente)}
-                            />
+                            <Tooltip label="Excluir Cliente" hasArrow>
+                              <IconButton
+                                aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red"
+                                onClick={() => handleDeleteClick(cliente)}
+                              />
+                            </Tooltip>
                           )}
                         </HStack>
                       </Td>
@@ -332,6 +426,8 @@ const ClientesPage = () => {
       )}
 
       <FormularioCliente isOpen={isDrawerOpen} onClose={onDrawerClose} cliente={editingCliente} onSave={handleSave} />
+      
+      <ModalHistoricoVendas isOpen={isHistoryOpen} onClose={onHistoryClose} cliente={clienteParaHistorico} />
 
       <AlertDialog
         isOpen={isAlertOpen}
