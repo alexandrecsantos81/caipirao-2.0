@@ -4,7 +4,7 @@ import axios from 'axios';
 
 // Configuração do cliente Axios
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-const apiClient = axios.create({ baseURL: `${API_URL}/dashboard` }  );
+const apiClient = axios.create({ baseURL: `${API_URL}/dashboard` } );
 
 // Interceptor para adicionar o token de autenticação em todas as chamadas
 apiClient.interceptors.request.use(
@@ -17,7 +17,6 @@ apiClient.interceptors.request.use(
   },
   (error) => Promise.reject(error),
 );
-
 
 // --- INTERFACES ---
 
@@ -50,13 +49,11 @@ export interface IRankingCliente {
   total_comprado: number;
 }
 
-// ✅ NOVA INTERFACE para o gráfico de fluxo de caixa
 export interface IFluxoCaixaDiario {
   dia: string;
   receitas: number;
   despesas: number;
 }
-
 
 // --- FUNÇÕES DO SERVIÇO ---
 
@@ -85,7 +82,7 @@ export const getRankingClientes = async (): Promise<IRankingCliente[]> => {
   return response.data;
 };
 
-// ✅ NOVA FUNÇÃO para buscar os dados do fluxo de caixa
+// ✅ CORREÇÃO: Ajustado o nome do endpoint para corresponder ao backend.
 export const getFluxoCaixaDiario = async (): Promise<IFluxoCaixaDiario[]> => {
   const response = await apiClient.get('/fluxo-caixa-diario');
   return response.data;
