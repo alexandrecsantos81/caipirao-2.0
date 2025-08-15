@@ -1,7 +1,9 @@
+// backend/controllers/movimentacaoController.js
+
 const pool = require('../db');
 
 /**
- * @desc    Registrar uma nova VENDA (ENTRADA) com lógica financeira
+ * @desc    Registrar uma nova VENDA (ENTRADA) com lógica financeira e verificação de estoque
  * @route   POST /api/movimentacoes/vendas
  * @access  Privado (qualquer usuário logado)
  */
@@ -25,24 +27,42 @@ const createVenda = async (req, res) => {
     let valor_total_venda = 0;
     const produtosParaSalvar = [];
 
+    // ✅ ETAPA 1: VERIFICAÇÃO DE ESTOQUE ANTES DE QUALQUER ALTERAÇÃO
     for (const item of produtos) {
       if (!item.produto_id || !item.quantidade || item.quantidade <= 0) {
         throw new Error('Cada produto na venda deve ter um ID e uma quantidade válida.');
       }
-      const produtoResult = await client.query('SELECT nome, price, unidade_medida FROM produtos WHERE id = $1', [item.produto_id]);
+      const produtoResult = await client.query('SELECT nome, price, unidade_medida, quantidade_em_estoque FROM produtos WHERE id = $1 FOR UPDATE', [item.produto_id]);
       if (produtoResult.rows.length === 0) {
         throw new Error(`Produto com ID ${item.produto_id} não encontrado.`);
       }
       const produtoDB = produtoResult.rows[0];
+
+      // ✅ AQUI ESTÁ A VALIDAÇÃO PRINCIPAL
+      if (produtoDB.quantidade_em_estoque < item.quantidade) {
+        // Se o estoque for insuficiente, lança um erro e interrompe a transação
+        throw new Error(`Estoque insuficiente para "${produtoDB.nome}". Disponível: ${produtoDB.quantidade_em_estoque}, Solicitado: ${item.quantidade}.`);
+      }
+    }
+
+    // ✅ ETAPA 2: SE HOUVER ESTOQUE, PROSSEGUE COM O PROCESSAMENTO DA VENDA
+    for (const item of produtos) {
+      const produtoResult = await client.query('SELECT nome, price, unidade_medida FROM produtos WHERE id = $1', [item.produto_id]);
+      const produtoDB = produtoResult.rows[0];
+      
       const valor_unitario = (item.preco_manual !== undefined && item.preco_manual !== null && !isNaN(parseFloat(item.preco_manual)))
                              ? parseFloat(item.preco_manual)
                              : parseFloat(produtoDB.price);
+      
       const valor_item = item.quantidade * valor_unitario;
       valor_total_venda += valor_item;
+      
       produtosParaSalvar.push({
         produto_id: item.produto_id, nome: produtoDB.nome, unidade_medida: produtoDB.unidade_medida,
         quantidade: item.quantidade, valor_unitario: valor_unitario, valor_total_item: valor_item,
       });
+
+      // Debita do estoque
       await client.query('UPDATE produtos SET quantidade_em_estoque = quantidade_em_estoque - $1 WHERE id = $2', [item.quantidade, item.produto_id]);
     }
 
@@ -55,16 +75,20 @@ const createVenda = async (req, res) => {
       [valor_total_venda, cliente_id, utilizador_id, JSON.stringify(produtosParaSalvar), data_venda, opcao_pagamento, data_vencimento_final, data_pagamento_inicial]
     );
     const movimentacao_id = movimentacaoResult.rows[0].id;
+    
     await client.query('COMMIT');
     res.status(201).json({ id: movimentacao_id, message: 'Venda registrada com sucesso!' });
+
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Erro ao registrar venda:', error);
+    // Retorna o erro com status 400 para que o frontend possa exibi-lo
     res.status(400).json({ error: error.message || 'Erro interno do servidor ao registrar venda.' });
   } finally {
     client.release();
   }
 };
+
 
 /**
  * @desc    Obter todas as VENDAS com paginação
@@ -172,22 +196,31 @@ const updateVenda = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        const vendaAntigaResult = await client.query('SELECT produtos FROM movimentacoes WHERE id = $1 AND tipo = \'ENTRADA\'', [id]);
+        // Devolve o estoque da venda antiga
+        const vendaAntigaResult = await client.query('SELECT produtos FROM movimentacoes WHERE id = $1 AND tipo = \'ENTRADA\' FOR UPDATE', [id]);
         if (vendaAntigaResult.rows.length === 0) {
             throw new Error('Venda não encontrada.');
         }
         const produtosAntigos = vendaAntigaResult.rows[0].produtos;
-
         for (const item of produtosAntigos) {
             await client.query('UPDATE produtos SET quantidade_em_estoque = quantidade_em_estoque + $1 WHERE id = $2', [item.quantidade, item.produto_id]);
         }
 
+        // ✅ VERIFICA O ESTOQUE PARA OS NOVOS ITENS
+        for (const item of produtos) {
+            const produtoResult = await client.query('SELECT nome, quantidade_em_estoque FROM produtos WHERE id = $1 FOR UPDATE', [item.produto_id]);
+            if (produtoResult.rows.length === 0) throw new Error(`Produto com ID ${item.produto_id} não encontrado.`);
+            const produtoDB = produtoResult.rows[0];
+            if (produtoDB.quantidade_em_estoque < item.quantidade) {
+                throw new Error(`Estoque insuficiente para "${produtoDB.nome}". Disponível: ${produtoDB.quantidade_em_estoque}, Solicitado: ${item.quantidade}.`);
+            }
+        }
+
+        // Processa a nova venda
         let valor_total_venda = 0;
         const produtosParaSalvar = [];
         for (const item of produtos) {
             const produtoResult = await client.query('SELECT nome, price, unidade_medida FROM produtos WHERE id = $1', [item.produto_id]);
-            if (produtoResult.rows.length === 0) throw new Error(`Produto com ID ${item.produto_id} não encontrado.`);
-            
             const produtoDB = produtoResult.rows[0];
             const valor_unitario = (item.preco_manual !== undefined && item.preco_manual !== null) ? parseFloat(item.preco_manual) : parseFloat(produtoDB.price);
             const valor_item = item.quantidade * valor_unitario;
@@ -197,6 +230,7 @@ const updateVenda = async (req, res) => {
                 produto_id: item.produto_id, nome: produtoDB.nome, unidade_medida: produtoDB.unidade_medida,
                 quantidade: item.quantidade, valor_unitario: valor_unitario, valor_total_item: valor_item,
             });
+            // Debita o novo estoque
             await client.query('UPDATE produtos SET quantidade_em_estoque = quantidade_em_estoque - $1 WHERE id = $2', [item.quantidade, item.produto_id]);
         }
 
@@ -239,6 +273,7 @@ const deleteVenda = async (req, res) => {
         }
         const produtos = vendaResult.rows[0].produtos;
 
+        // Devolve os itens ao estoque
         for (const item of produtos) {
             await client.query('UPDATE produtos SET quantidade_em_estoque = quantidade_em_estoque + $1 WHERE id = $2', [item.quantidade, item.produto_id]);
         }

@@ -1,3 +1,5 @@
+// frontend/src/pages/MovimentacoesPage.tsx - PARTE 1 de 3
+
 import {
   Box, Button, Center, Flex, FormControl, FormLabel, Heading, IconButton,
   Input, NumberInput, NumberInputField, Select, Spinner, Tab, TabList, TabPanel,
@@ -54,8 +56,6 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
   const { user } = useAuth();
   const [produtosNaVenda, setProdutosNaVenda] = useState<ProdutoVendaItem[]>([]);
   const [opcaoPagamento, setOpcaoPagamento] = useState<'À VISTA' | 'A PRAZO'>('À VISTA');
-  
-  // ✅ ALTERAÇÃO 1: Adicionar um estado para o estoque do produto selecionado
   const [estoqueAtual, setEstoqueAtual] = useState<number | null>(null);
 
   const drawerSize = useBreakpointValue({ base: 'full', md: 'xl' });
@@ -76,15 +76,14 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
   const { data: produtos } = useQuery<IPaginatedResponse<IProduto>, Error, IProduto[]>({ queryKey: ['todosProdutos'], queryFn: () => getProdutos(1, 1000), enabled: isOpen, select: data => data.dados });
   const dataVendaValue = watch('data_venda');
 
-  // ✅ ALTERAÇÃO 2: Usar useEffect para atualizar o estoque quando um produto é selecionado
   useEffect(() => {
     if (produtoIdAtual && produtos) {
       const produtoInfo = produtos.find(p => p.id === Number(produtoIdAtual));
       setEstoqueAtual(produtoInfo ? produtoInfo.quantidade_em_estoque : null);
     } else {
-      setEstoqueAtual(null); // Limpa o estoque se nenhum produto for selecionado
+      setEstoqueAtual(null);
     }
-  }, [produtoIdAtual, produtos]); // Roda sempre que o produto selecionado ou a lista de produtos mudar
+  }, [produtoIdAtual, produtos]);
 
   const valorTotalCalculado = useMemo(() => {
     const totalDosItensAdicionados = produtosNaVenda.reduce((total, item) => {
@@ -102,7 +101,6 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
     }
 
     return totalDosItensAdicionados + valorDoItemAtual;
-
   }, [
     produtosNaVenda, 
     produtoIdAtual, 
@@ -121,7 +119,7 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
       onClose();
     },
     onError: (error: any) => {
-      toast({ title: "Erro ao salvar venda", description: error.response?.data?.error || error.message, status: "error", duration: 5000, isClosable: true });
+      toast({ title: "Erro ao salvar venda", description: error.response?.data?.error || error.message, status: "error", duration: 6000, isClosable: true });
     },
   });
 
@@ -139,7 +137,7 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
           preco_manual: p.preco_manual,
           nome: p.nome,
           unidade_medida: p.unidade_medida,
-          preco_original: p.valor_unitario,
+          preco_original: p.valor_unitario, 
         }));
         setProdutosNaVenda(produtosEdit);
       } else {
@@ -162,6 +160,18 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
     }
     const produtoInfo = produtos?.find(p => p.id === Number(produto_selecionado_id));
     if (!produtoInfo) return;
+
+    if (produtoInfo.quantidade_em_estoque < Number(quantidade)) {
+        toast({
+            title: "Estoque Insuficiente!",
+            description: `Você tentou adicionar ${quantidade} ${produtoInfo.unidade_medida} de "${produtoInfo.nome}", mas há apenas ${produtoInfo.quantidade_em_estoque} em estoque.`,
+            status: "error",
+            duration: 6000,
+            isClosable: true
+        });
+        return;
+    }
+
     if (produtosNaVenda.some(p => p.produto_id === produtoInfo.id)) {
       toast({ title: "Produto já adicionado", status: "warning", duration: 2000, isClosable: true });
       return;
@@ -184,14 +194,15 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
   };
 
   const onSubmit: SubmitHandler<any> = (data) => {
-    if (produtosNaVenda.length === 0 && !getValues('produto_selecionado_id')) {
-      toast({ title: "Nenhum produto adicionado", status: "error", duration: 4000, isClosable: true });
-      return;
-    }
-
     const itemAtual = getValues();
     const produtosParaEnviar = [...produtosNaVenda];
+
     if (itemAtual.produto_selecionado_id && Number(itemAtual.quantidade) > 0) {
+        const produtoInfo = produtos?.find(p => p.id === Number(itemAtual.produto_selecionado_id));
+        if (produtoInfo && produtoInfo.quantidade_em_estoque < Number(itemAtual.quantidade)) {
+            toast({ title: "Estoque insuficiente para o último item!", status: "error" });
+            return;
+        }
         produtosParaEnviar.push({
             produto_id: Number(itemAtual.produto_selecionado_id),
             quantidade: Number(itemAtual.quantidade),
@@ -203,7 +214,7 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
     }
 
     if (produtosParaEnviar.length === 0) {
-        toast({ title: "Nenhum produto válido para salvar", status: "error", duration: 4000, isClosable: true });
+        toast({ title: "Nenhum produto válido para salvar", status: "error" });
         return;
     }
 
@@ -220,6 +231,7 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
     };
     mutation.mutate({ vendaData: vendaParaAPI, id: vendaParaEditar?.id });
   };
+// frontend/src/pages/MovimentacoesPage.tsx - PARTE 2 de 3
 
   return (
     <Drawer isOpen={isOpen} placement="right" onClose={onClose} size={drawerSize}>
@@ -231,19 +243,41 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
           <DrawerBody>
             <VStack spacing={4} align="stretch">
                <Flex direction={flexDir} gap={4}>
-                <FormControl isRequired isInvalid={!!errors.cliente_id} flex={1}><FormLabel>Cliente</FormLabel><Select placeholder="Selecione um cliente" {...register('cliente_id', { required: 'Cliente é obrigatório' })}>{clientes?.map((c: ICliente) => <option key={c.id} value={c.id}>{c.nome}</option>)}</Select><FormErrorMessage>{errors.cliente_id && errors.cliente_id.message}</FormErrorMessage></FormControl>
-                <FormControl isRequired flex={1}><FormLabel>Data da Venda</FormLabel><Input type="date" {...register('data_venda')} /></FormControl>
+                <FormControl isRequired isInvalid={!!errors.cliente_id} flex={1}>
+                  <FormLabel>Cliente</FormLabel>
+                  <Select placeholder="Selecione um cliente" {...register('cliente_id', { required: 'Cliente é obrigatório' })}>
+                    {clientes?.map((c: ICliente) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                  </Select>
+                  <FormErrorMessage>{errors.cliente_id && errors.cliente_id.message}</FormErrorMessage>
+                </FormControl>
+                <FormControl isRequired flex={1}>
+                  <FormLabel>Data da Venda</FormLabel>
+                  <Input type="date" {...register('data_venda')} />
+                </FormControl>
               </Flex>
               <Flex direction={flexDir} gap={4}>
-                 <FormControl isRequired flex={1}><FormLabel>Opção de Pagamento</FormLabel><Select value={opcaoPagamento} onChange={(e) => setOpcaoPagamento(e.target.value as any)}><option value="À VISTA">À VISTA</option><option value="A PRAZO">A PRAZO</option></Select></FormControl>
-                <FormControl isRequired={opcaoPagamento === 'A PRAZO'} flex={1}><FormLabel>Data de Vencimento</FormLabel><Input type="date" {...register('data_vencimento')} isDisabled={opcaoPagamento === 'À VISTA'} /></FormControl>
+                 <FormControl isRequired flex={1}>
+                  <FormLabel>Opção de Pagamento</FormLabel>
+                  <Select value={opcaoPagamento} onChange={(e) => setOpcaoPagamento(e.target.value as any)}>
+                    <option value="À VISTA">À VISTA</option>
+                    <option value="A PRAZO">A PRAZO</option>
+                  </Select>
+                 </FormControl>
+                <FormControl isRequired={opcaoPagamento === 'A PRAZO'} flex={1}>
+                  <FormLabel>Data de Vencimento</FormLabel>
+                  <Input type="date" {...register('data_vencimento')} isDisabled={opcaoPagamento === 'À VISTA'} />
+                </FormControl>
               </Flex>
               <Box p={4} borderWidth={1} borderRadius="md" mt={4}>
                  <Heading size="sm" mb={3}>Adicionar Produtos</Heading>
                 <Flex direction={flexDir} gap={2} align="flex-end">
-                  <FormControl flex={3}><FormLabel>Produto</FormLabel><Select placeholder="Selecione..." {...register('produto_selecionado_id')}>{produtos?.map((p: IProduto) => <option key={p.id} value={p.id}>{p.nome}</option>)}</Select></FormControl>
+                  <FormControl flex={3}>
+                    <FormLabel>Produto</FormLabel>
+                    <Select placeholder="Selecione..." {...register('produto_selecionado_id')}>
+                      {produtos?.map((p: IProduto) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                    </Select>
+                  </FormControl>
                   
-                  {/* ✅ ALTERAÇÃO 3: Adicionar o novo campo de Estoque Atual */}
                   <FormControl flex={1}>
                     <FormLabel>Estoque Atual</FormLabel>
                     <Input 
@@ -251,7 +285,17 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
                       value={estoqueAtual !== null ? estoqueAtual : '---'}
                       textAlign="center"
                       fontWeight="bold"
-                      bg={useColorModeValue('gray.100', 'gray.700')}
+                      bg={useColorModeValue('gray.100', 'gray.600')}
+                      borderColor={
+                        estoqueAtual !== null && estoqueAtual <= 0 
+                          ? 'red.500' 
+                          : useColorModeValue('gray.200', 'gray.600')
+                      }
+                      color={
+                        estoqueAtual !== null && estoqueAtual <= 0 
+                          ? 'red.500' 
+                          : 'inherit'
+                      }
                     />
                   </FormControl>
 
@@ -268,15 +312,41 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
                     />
                   </FormControl>
 
-                  <FormControl flex={1}><FormLabel>Preço Manual (R$)</FormLabel><Input placeholder="Opcional" {...register('preco_manual')} type="number" step="0.01" /></FormControl>
+                  <FormControl flex={1}>
+                    <FormLabel>Preço Manual (R$)</FormLabel>
+                    <Input placeholder="Opcional" {...register('preco_manual')} type="number" step="0.01" />
+                  </FormControl>
                   <Button colorScheme="green" onClick={handleAddProduto} alignSelf={{ base: 'stretch', md: 'flex-end' }}><FiPlus /></Button>
                 </Flex>
               </Box>
-              <VStack spacing={2} align="stretch" mt={4}>{produtosNaVenda.map(p => (<Flex key={p.produto_id} justify="space-between" align="center" p={2} borderWidth={1} borderRadius="md"><Box><Text fontWeight="bold">{p.nome}</Text><Text fontSize="sm" color="gray.500">{p.quantidade} {p.unidade_medida} x {(p.preco_manual ?? p.preco_original).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}{p.preco_manual !== undefined && <Badge ml={2} colorScheme="orange">Manual</Badge>}</Text></Box><IconButton aria-label="Remover" icon={<FiTrash2 />} size="sm" colorScheme="red" onClick={() => handleRemoveProduto(p.produto_id)} /></Flex>))}</VStack>
-              <Flex justify="flex-end" mt={4}><Box textAlign="right"><Text fontSize="lg">Vendedor: {user?.nome}</Text><Heading size="lg" color="teal.500">Total: {valorTotalCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Heading></Box></Flex>
+              <VStack spacing={2} align="stretch" mt={4}>
+                {produtosNaVenda.map(p => (
+                  <Flex key={p.produto_id} justify="space-between" align="center" p={2} borderWidth={1} borderRadius="md">
+                    <Box>
+                      <Text fontWeight="bold">{p.nome}</Text>
+                      <Text fontSize="sm" color="gray.500">
+                        {p.quantidade} {p.unidade_medida} x {(p.preco_manual ?? p.preco_original).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        {p.preco_manual !== undefined && <Badge ml={2} colorScheme="orange">Manual</Badge>}
+                      </Text>
+                    </Box>
+                    <IconButton aria-label="Remover" icon={<FiTrash2 />} size="sm" colorScheme="red" onClick={() => handleRemoveProduto(p.produto_id)} />
+                  </Flex>
+                ))}
+              </VStack>
+              <Flex justify="flex-end" mt={4}>
+                <Box textAlign="right">
+                  <Text fontSize="lg">Vendedor: {user?.nome}</Text>
+                  <Heading size="lg" color="teal.500">
+                    Total: {valorTotalCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </Heading>
+                </Box>
+              </Flex>
             </VStack>
           </DrawerBody>
-          <DrawerFooter borderBottomWidth="1px"><Button variant="outline" mr={3} onClick={onClose}>Cancelar</Button><Button colorScheme="teal" type="submit" isLoading={mutation.isPending}>Salvar Venda</Button></DrawerFooter>
+          <DrawerFooter borderBottomWidth="1px">
+            <Button variant="outline" mr={3} onClick={onClose}>Cancelar</Button>
+            <Button colorScheme="teal" type="submit" isLoading={mutation.isPending}>Salvar Venda</Button>
+          </DrawerFooter>
         </form>
        </DrawerContent>
     </Drawer>
@@ -381,6 +451,8 @@ const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen:
     </Drawer>
   );
 };
+// frontend/src/pages/MovimentacoesPage.tsx - PARTE 3 de 3
+
 // --- COMPONENTE TABELA VENDAS ---
 const TabelaVendas = ({ onEdit, onDelete }: { onEdit: (venda: IVenda) => void; onDelete: (id: number) => void; }) => {
   const [pagina, setPagina] = useState(1);
@@ -550,13 +622,37 @@ const MovimentacoesPage = () => {
   const [itemParaDeletar, setItemParaDeletar] = useState<{ id: number; tipo: 'venda' | 'despesa' } | null>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
 
-  const deleteVendaMutation = useMutation({ mutationFn: deleteVenda, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['vendas'] }); toast({ title: 'Venda excluída!', status: 'success' }); onConfirmClose(); } });
-  const deleteDespesaMutation = useMutation({ mutationFn: deleteDespesa, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['despesas'] }); toast({ title: 'Despesa excluída!', status: 'success' }); onConfirmClose(); } });
+  const deleteVendaMutation = useMutation({ 
+    mutationFn: deleteVenda, 
+    onSuccess: () => { 
+      queryClient.invalidateQueries({ queryKey: ['vendas'] }); 
+      queryClient.invalidateQueries({ queryKey: ['produtos'] });
+      toast({ title: 'Venda excluída!', status: 'success' }); 
+      onConfirmClose(); 
+    },
+    onError: (error: any) => {
+      toast({ title: "Erro ao excluir venda", description: error.response?.data?.error || error.message, status: "error" });
+      onConfirmClose();
+    }
+  });
+
+  const deleteDespesaMutation = useMutation({ 
+    mutationFn: deleteDespesa, 
+    onSuccess: () => { 
+      queryClient.invalidateQueries({ queryKey: ['despesas'] }); 
+      toast({ title: 'Despesa excluída!', status: 'success' }); 
+      onConfirmClose(); 
+    },
+    onError: (error: any) => {
+      toast({ title: "Erro ao excluir despesa", description: error.response?.data?.error || error.message, status: "error" });
+      onConfirmClose();
+    }
+  });
   
   const handleEditVenda = (venda: IVenda) => { setVendaParaEditar(venda); onVendaDrawerOpen(); };
   const handleEditDespesa = (despesa: IDespesa) => { setDespesaParaEditar(despesa); onDespesaDrawerOpen(); };
   const handleAddNewVenda = () => { setVendaParaEditar(null); onVendaDrawerOpen(); };
-  const handleAddNewDespesa = () => { setDespesaParaEditar(null); onDespesaDrawerOpen(); };
+  const handleAddNewDespesa = () => { setDespesaParaEditar(null); onDespesaDrawerClose(); };
   const handleDeleteClick = (id: number, tipo: 'venda' | 'despesa') => { setItemParaDeletar({ id, tipo }); onConfirmOpen(); };
   
   const handleConfirmDelete = () => {
