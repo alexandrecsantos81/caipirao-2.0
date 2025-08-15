@@ -1,3 +1,5 @@
+// backend/controllers/dashboardController.js
+
 const pool = require('../db');
 
 /**
@@ -82,7 +84,6 @@ const getKPIs = async (req, res) => {
  */
 const getVendasPorDia = async (req, res) => {
     try {
-        // Busca o total de vendas agrupado por dia nos últimos 30 dias
         const query = `
             SELECT 
                 TO_CHAR(data_venda, 'YYYY-MM-DD') AS dia,
@@ -96,7 +97,6 @@ const getVendasPorDia = async (req, res) => {
         `;
         const resultado = await pool.query(query);
 
-        // Formata os dados para o gráfico
         const dadosFormatados = resultado.rows.map(row => ({
             dia: new Date(row.dia).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
             total: parseFloat(row.total)
@@ -142,7 +142,7 @@ const getDespesasPorCategoria = async (req, res) => {
 };
 
 /**
- * @desc    Busca o ranking dos 5 produtos mais vendidos no mês atual.
+ * @desc    Busca o ranking dos 2 produtos mais vendidos no mês atual.
  * @route   GET /api/dashboard/ranking-produtos
  * @access  Protegido (Admin)
  */
@@ -168,10 +168,10 @@ const getRankingProdutos = async (req, res) => {
                 p.nome
             ORDER BY 
                 total_vendido DESC
-            LIMIT 5;
+            LIMIT 2;
         `;
         const resultado = await pool.query(query);
-        res.status(200).json(resultado.rows.reverse());
+        res.status(200).json(resultado.rows);
     } catch (error) {
         console.error('Erro ao buscar ranking de produtos:', error);
         res.status(500).json({ error: 'Erro interno do servidor.' });
@@ -204,10 +204,57 @@ const getRankingClientes = async (req, res) => {
             LIMIT 5;
         `;
         const resultado = await pool.query(query);
-        // Invertemos a ordem para o gráfico de barras horizontais exibir o maior em cima
-        res.status(200).json(resultado.rows.reverse());
+        res.status(200).json(resultado.rows);
     } catch (error) {
         console.error('Erro ao buscar ranking de clientes:', error);
+        res.status(500).json({ error: 'Erro interno do servidor.' });
+    }
+};
+
+/**
+ * @desc    Busca dados diários de Receitas e Despesas para o gráfico de fluxo de caixa.
+ * @route   GET /api/dashboard/fluxo-caixa-diario
+ * @access  Protegido
+ */
+const getFluxoCaixaDiario = async (req, res) => {
+    try {
+        const query = `
+            WITH days AS (
+                SELECT generate_series(
+                    CURRENT_DATE - INTERVAL '29 days',
+                    CURRENT_DATE,
+                    '1 day'::interval
+                )::date AS dia
+            ),
+            daily_revenues AS (
+                SELECT 
+                    data_venda::date AS dia,
+                    SUM(valor_total) as receitas
+                FROM movimentacoes
+                WHERE tipo = 'ENTRADA' AND data_venda >= CURRENT_DATE - INTERVAL '29 days'
+                GROUP BY data_venda::date
+            ),
+            daily_expenses AS (
+                SELECT 
+                    data_compra::date AS dia,
+                    SUM(valor) as despesas
+                FROM despesas
+                WHERE data_compra >= CURRENT_DATE - INTERVAL '29 days'
+                GROUP BY data_compra::date
+            )
+            SELECT 
+                TO_CHAR(days.dia, 'DD/MM') as dia,
+                COALESCE(dr.receitas, 0) as receitas,
+                COALESCE(de.despesas, 0) as despesas
+            FROM days
+            LEFT JOIN daily_revenues dr ON days.dia = dr.dia
+            LEFT JOIN daily_expenses de ON days.dia = de.dia
+            ORDER BY days.dia ASC;
+        `;
+        const resultado = await pool.query(query);
+        res.status(200).json(resultado.rows);
+    } catch (error) {
+        console.error('Erro ao buscar dados de fluxo de caixa diário:', error);
         res.status(500).json({ error: 'Erro interno do servidor.' });
     }
 };
@@ -218,5 +265,6 @@ module.exports = {
     getVendasPorDia,
     getDespesasPorCategoria,
     getRankingProdutos,
-    getRankingClientes, // <-- EXPORTAR NOVA FUNÇÃO
+    getRankingClientes,
+    getFluxoCaixaDiario, // <-- Exportando a nova função
 };

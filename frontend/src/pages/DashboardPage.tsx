@@ -1,10 +1,23 @@
+// frontend/src/pages/DashboardPage.tsx
+
 import {
-  Box, Heading, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText,
-  Spinner, Text, Center, StatArrow, VStack, HStack, useBreakpointValue,
+  Box,
+  Heading,
+  SimpleGrid,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  Spinner,
+  Text,
+  Center,
+  StatArrow,
+  VStack,
+  HStack,
 } from '@chakra-ui/react';
 import { FaCalendarAlt } from 'react-icons/fa';
 import { useDashboardData } from '../hooks/useDashboard';
-import { GraficoVendas } from '../components/GraficoVendas';
+import { GraficoFluxoCaixa } from '../components/GraficoFluxoCaixa';
 import { GraficoRankingProdutos } from '../components/GraficoRankingProdutos';
 import { GraficoRankingClientes } from '../components/GraficoRankingClientes';
 import { IContasAPagar } from '../services/despesa.service';
@@ -21,17 +34,17 @@ const formatDate = (dateString: string) => {
 const DashboardPage = () => {
   const { 
     kpisQuery, 
-    vendasPorDiaQuery, 
     rankingProdutosQuery,
     rankingClientesQuery,
     contasAPagarQuery,
+    fluxoCaixaQuery,
   } = useDashboardData();
 
   const { data: kpis, isLoading: isLoadingKPIs, isError: isErrorKPIs } = kpisQuery;
-  const { data: vendasData, isLoading: isLoadingVendas, isError: isErrorVendas } = vendasPorDiaQuery;
   const { data: rankingProdutosData, isLoading: isLoadingRankingProdutos, isError: isErrorRankingProdutos } = rankingProdutosQuery;
   const { data: rankingClientesData, isLoading: isLoadingRankingClientes, isError: isErrorRankingClientes } = rankingClientesQuery;
   const { data: contasAPagar, isLoading: isLoadingContas, isError: isErrorContas } = contasAPagarQuery;
+  const { data: fluxoCaixaData, isLoading: isLoadingFluxoCaixa, isError: isErrorFluxoCaixa } = fluxoCaixaQuery;
 
   if (isLoadingKPIs) {
     return <Center p={8} minH="50vh"><Spinner size="xl" /></Center>;
@@ -41,7 +54,6 @@ const DashboardPage = () => {
     return <Center p={8}><Text color="red.500" fontSize="lg">Erro ao carregar os dados do Dashboard.</Text></Center>;
   }
 
-  // Componente interno para renderizar as contas a pagar
   const ContasAPagarComponent = () => {
     const renderContent = () => {
       if (isLoadingContas) return <Center h="250px"><Spinner /></Center>;
@@ -68,8 +80,6 @@ const DashboardPage = () => {
       );
     };
 
-    // **CORREÇÃO APLICADA AQUI**
-    // Envolvemos o conteúdo em um Box com o mesmo estilo dos outros cards.
     return (
       <Box borderWidth={1} borderRadius="md" p={4} boxShadow="sm" h="100%">
         <Heading as="h2" size="md" mb={2}>Contas a Pagar Pendentes</Heading>
@@ -79,10 +89,9 @@ const DashboardPage = () => {
   };
 
   return (
-    <Box p={{ base: 4, md: 8 }}>
+    <Box>
       <Heading as="h1" size="lg" mb={6}>Dashboard</Heading>
       
-      {/* KPIs Cards */}
       <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
         <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm"><StatLabel>Receita (Mês)</StatLabel><StatNumber color="green.500">{formatCurrency(kpis?.totalVendasMes)}</StatNumber><StatHelpText>Total de vendas no mês atual.</StatHelpText></Stat>
         <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm"><StatLabel>Despesas (Mês)</StatLabel><StatNumber color="red.500">{formatCurrency(kpis?.totalDespesasMes)}</StatNumber><StatHelpText>Total de despesas no mês atual.</StatHelpText></Stat>
@@ -92,22 +101,20 @@ const DashboardPage = () => {
         <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm"><StatLabel>Novos Clientes (Mês)</StatLabel><StatNumber>{kpis?.novosClientesMes ?? 'N/D'}</StatNumber><StatHelpText>Clientes cadastrados no mês atual.</StatHelpText></Stat>
       </SimpleGrid>
 
-      {/* Seção de Gráficos e Cards */}
-      <SimpleGrid columns={{ base: 1, lg: 2, '2xl': 3 }} spacing={6} mt={8}>
-        {/* Coluna 1: Gráfico de Vendas */}
-        <Box borderWidth={1} borderRadius="md" p={4} boxShadow="sm">
-          <Heading as="h2" size="md" mb={4}>Vendas nos Últimos 30 Dias</Heading>
-          <GraficoVendas 
-            data={vendasData} 
-            isLoading={isLoadingVendas} 
-            isError={isErrorVendas} 
+      <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6} mt={8}>
+        {/* ✅ CORREÇÃO: Adicionada altura mínima (minH) ao Box do gráfico */}
+        <Box borderWidth={1} borderRadius="md" p={4} boxShadow="sm" minH="400px">
+          <Heading as="h2" size="md" mb={4}>Fluxo de Caixa (Últimos 30 Dias)</Heading>
+          <GraficoFluxoCaixa 
+            data={fluxoCaixaData} 
+            isLoading={isLoadingFluxoCaixa} 
+            isError={isErrorFluxoCaixa} 
           />
         </Box>
 
-        {/* Coluna 2: Rankings */}
         <VStack spacing={6}>
           <Box w="full" borderWidth={1} borderRadius="md" p={4} boxShadow="sm">
-            <Heading as="h2" size="md" mb={4}>Top 5 Produtos (Mês)</Heading>
+            <Heading as="h2" size="md" mb={4}>Top 2 Produtos (Mês)</Heading>
             <GraficoRankingProdutos
               data={rankingProdutosData}
               isLoading={isLoadingRankingProdutos}
@@ -123,15 +130,9 @@ const DashboardPage = () => {
             />
           </Box>
         </VStack>
-
-        {/* Coluna 3: Contas a Pagar (só aparece em telas grandes) */}
-        <Box display={{ base: 'none', '2xl': 'block' }}>
-          <ContasAPagarComponent />
-        </Box>
       </SimpleGrid>
-
-      {/* Card de Contas a Pagar para telas menores (aparece abaixo dos outros) */}
-      <Box mt={6} display={{ base: 'block', '2xl': 'none' }}>
+      
+      <Box mt={6}>
         <ContasAPagarComponent />
       </Box>
     </Box>
