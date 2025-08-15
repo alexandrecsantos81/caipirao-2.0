@@ -12,13 +12,44 @@ import {
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
-import { useForm, SubmitHandler } from 'react-hook-form';
+import { useForm, SubmitHandler, Controller } from 'react-hook-form';
 import { useState, useEffect, useRef } from 'react';
 import {
   IFornecedor, IFornecedorForm, getFornecedores, createFornecedor, updateFornecedor, deleteFornecedor
 } from '../services/fornecedor.service';
 import { useAuth } from '../hooks/useAuth';
 import { Pagination } from '../components/Pagination';
+
+const aplicarMascaraCnpjCpf = (value: string): string => {
+  if (!value) return '';
+  const apenasNumeros = value.replace(/\D/g, '');
+
+  if (apenasNumeros.length <= 11) {
+    return apenasNumeros
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+  }
+  
+  return apenasNumeros
+    .slice(0, 14)
+    .replace(/(\d{2})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1/$2')
+    .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+};
+
+// ✅ CORREÇÃO: A função agora aceita `string | null | undefined` como entrada.
+const validarCnpjCpf = (value: string | null | undefined): boolean | string => {
+  // Trata o caso de o valor ser nulo ou indefinido.
+  if (!value) return 'Campo obrigatório'; 
+  
+  const apenasNumeros = value.replace(/\D/g, '');
+  if (apenasNumeros.length !== 11 && apenasNumeros.length !== 14) {
+    return 'O CNPJ/CPF deve ter 11 ou 14 dígitos.';
+  }
+  return true;
+};
 
 export const FormularioFornecedor = ({ isOpen, onClose, fornecedor, onSave, isLoading }: { 
   isOpen: boolean; 
@@ -27,13 +58,17 @@ export const FormularioFornecedor = ({ isOpen, onClose, fornecedor, onSave, isLo
   onSave: (data: IFornecedorForm, id?: number) => void;
   isLoading: boolean;
 }) => {
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<IFornecedorForm>();
+  const { register, handleSubmit, reset, formState: { errors }, control } = useForm<IFornecedorForm>();
   const drawerSize = useBreakpointValue({ base: 'full', md: 'md' });
   
   useEffect(() => {
     if (isOpen) {
       if (fornecedor) {
-        reset(fornecedor);
+        const fornecedorFormatado = {
+          ...fornecedor,
+          cnpj_cpf: aplicarMascaraCnpjCpf(fornecedor.cnpj_cpf || '')
+        };
+        reset(fornecedorFormatado);
       } else {
         reset({ nome: '', cnpj_cpf: '', telefone: '', email: '', endereco: '' });
       }
@@ -60,18 +95,42 @@ export const FormularioFornecedor = ({ isOpen, onClose, fornecedor, onSave, isLo
                     required: 'Nome é obrigatório',
                     validate: (value) => (value && value.trim() !== '') || 'O campo nome não pode conter apenas espaços'
                   })}
-                  textTransform="uppercase" // ✅ Caixa alta
+                  textTransform="uppercase"
                 />
                 <FormErrorMessage>{errors.nome?.message}</FormErrorMessage>
               </FormControl>
-              <FormControl isInvalid={!!errors.cnpj_cpf}><FormLabel>CNPJ/CPF</FormLabel><Input {...register('cnpj_cpf')} /><FormErrorMessage>{errors.cnpj_cpf?.message}</FormErrorMessage></FormControl>
-              <FormControl isInvalid={!!errors.telefone}><FormLabel>Telefone</FormLabel><Input {...register('telefone')} /><FormErrorMessage>{errors.telefone?.message}</FormErrorMessage></FormControl>
-              <FormControl isInvalid={!!errors.email}><FormLabel>Email</FormLabel><Input type="email" {...register('email')} /><FormErrorMessage>{errors.email?.message}</FormErrorMessage></FormControl>
-              <FormControl isInvalid={!!errors.endereco}>
+
+              <FormControl isRequired isInvalid={!!errors.cnpj_cpf}>
+                <FormLabel>CNPJ/CPF</FormLabel>
+                <Controller
+                  name="cnpj_cpf"
+                  control={control}
+                  rules={{ validate: validarCnpjCpf }} // Agora a função é compatível
+                  render={({ field: { onChange, value, name } }) => (
+                    <Input
+                      name={name}
+                      value={value || ''}
+                      onChange={(e) => onChange(aplicarMascaraCnpjCpf(e.target.value))}
+                      placeholder="Digite o CNPJ ou CPF"
+                    />
+                  )}
+                />
+                <FormErrorMessage>{errors.cnpj_cpf?.message}</FormErrorMessage>
+              </FormControl>
+
+              <FormControl isRequired isInvalid={!!errors.telefone}>
+                <FormLabel>Telefone</FormLabel>
+                <Input {...register('telefone', { required: 'Telefone é obrigatório' })} />
+                <FormErrorMessage>{errors.telefone?.message}</FormErrorMessage>
+              </FormControl>
+
+              <FormControl isInvalid={!!errors.email}><FormLabel>Email</FormLabel><Input type="email" {...register('email')} /></FormControl>
+              
+              <FormControl isRequired isInvalid={!!errors.endereco}>
                 <FormLabel>Endereço</FormLabel>
                 <Input 
-                  {...register('endereco')} 
-                  textTransform="uppercase" // ✅ Caixa alta
+                  {...register('endereco', { required: 'Endereço é obrigatório' })} 
+                  textTransform="uppercase"
                 />
                 <FormErrorMessage>{errors.endereco?.message}</FormErrorMessage>
               </FormControl>
@@ -181,7 +240,7 @@ const FornecedoresPage = () => {
               <Divider my={2} />
               <HStack justify="space-between">
                 <Text fontSize="sm" color="gray.500">CNPJ/CPF:</Text>
-                <Text>{fornecedor.cnpj_cpf || 'Não informado'}</Text>
+                <Text>{aplicarMascaraCnpjCpf(fornecedor.cnpj_cpf || '') || 'Não informado'}</Text>
               </HStack>
               <HStack justify="space-between">
                 <Text fontSize="sm" color="gray.500">Telefone:</Text>
@@ -205,7 +264,7 @@ const FornecedoresPage = () => {
               {data?.dados.map((fornecedor) => (
                 <Tr key={fornecedor.id}>
                   <Td fontWeight="medium">{fornecedor.nome}</Td>
-                  <Td>{fornecedor.cnpj_cpf || 'N/A'}</Td>
+                  <Td>{aplicarMascaraCnpjCpf(fornecedor.cnpj_cpf || '') || 'N/A'}</Td>
                   <Td>
                     <VStack align="start" spacing={0}>
                       <Text>{fornecedor.email || '---'}</Text>
@@ -243,7 +302,7 @@ const FornecedoresPage = () => {
             <Text fontSize="sm" color="red.500" mt={2}>Atenção: Esta ação não pode ser desfeita.</Text>
           </ModalBody>
           <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onConfirmModalClose}>Cancelar</Button>
+            <Button variant="ghost" mr={3} onClick={onConfirmModalClose} ref={cancelRef}>Cancelar</Button>
             <Button colorScheme="red" onClick={handleConfirmDelete} isLoading={deleteMutation.isPending}>
                Sim, Excluir
             </Button>
