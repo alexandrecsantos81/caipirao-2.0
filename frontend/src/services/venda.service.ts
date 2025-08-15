@@ -2,7 +2,7 @@ import axios from 'axios';
 import { IPaginatedResponse } from '@/types/common.types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-const apiClient = axios.create({ baseURL: API_URL } );
+const apiClient = axios.create({ baseURL: API_URL }  );
 
 apiClient.interceptors.request.use(
   (config) => {
@@ -70,7 +70,7 @@ export interface IContaAReceber {
  */
 export const getVendas = async (
   pagina = 1,
-  limite = 50, // ✅ Atualiza o limite padrão para 50
+  limite = 50,
   termoBusca?: string
 ): Promise<IPaginatedResponse<IVenda>> => {
   const response = await apiClient.get('/movimentacoes/vendas', {
@@ -105,4 +105,16 @@ export const getContasAReceber = async (): Promise<IContaAReceber[]> => {
 export const registrarPagamento = async (vendaId: number): Promise<IVenda> => {
     const response = await apiClient.put(`/movimentacoes/vendas/${vendaId}/pagamento`);
     return response.data;
+};
+
+/**
+ * @description Busca o PDF de uma venda específica.
+ * @param vendaId - O ID da venda.
+ * @returns Um Blob contendo o PDF.
+ */
+export const getVendaPdf = async (vendaId: number): Promise<Blob> => {
+  const response = await apiClient.get(`/movimentacoes/vendas/${vendaId}/pdf`, {
+    responseType: 'blob', // Importante para receber o arquivo
+  });
+  return new Blob([response.data], { type: 'application/pdf' });
 };

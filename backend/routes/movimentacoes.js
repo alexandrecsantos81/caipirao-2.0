@@ -5,8 +5,9 @@ const {
     getVendas, 
     getContasAReceber,
     registrarPagamento,
-    updateVenda,    // <-- IMPORTAR NOVA FUNÇÃO
-    deleteVenda,    // <-- IMPORTAR NOVA FUNÇÃO
+    updateVenda,
+    deleteVenda,
+    getVendaPDF, // <-- IMPORTAR NOVA FUNÇÃO
 } = require('../controllers/movimentacaoController');
 const { verifyToken, checkAdmin } = require('../middleware/authMiddleware');
 
@@ -16,8 +17,11 @@ router.get('/vendas', verifyToken, getVendas);
 
 // Novas rotas para editar e deletar vendas
 router.route('/vendas/:id')
-    .put(verifyToken, updateVenda)       // <-- NOVA ROTA PUT
-    .delete(verifyToken, deleteVenda);   // <-- NOVA ROTA DELETE
+    .put(verifyToken, updateVenda)
+    .delete(verifyToken, deleteVenda);
+
+// Nova rota para gerar o PDF da venda
+router.get('/vendas/:id/pdf', verifyToken, getVendaPDF); // <-- NOVA ROTA
 
 // --- ROTAS FINANCEIRAS (Contas a Receber) ---
 router.get('/contas-a-receber', verifyToken, checkAdmin, getContasAReceber);

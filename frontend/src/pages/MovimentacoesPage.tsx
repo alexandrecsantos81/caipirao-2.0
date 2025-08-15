@@ -11,16 +11,17 @@ import {
   useColorModeValue,
   InputGroup,
   InputLeftElement,
+  Tooltip,
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { Controller, useForm, SubmitHandler } from 'react-hook-form';
-import { FiPlus, FiTrash2, FiEdit, FiSearch } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiEdit, FiSearch, FiFileText } from 'react-icons/fi';
 import { Pagination } from '../components/Pagination';
 import { ICliente, getClientes } from '../services/cliente.service';
 import { IDespesa, IDespesaForm, registrarDespesa, updateDespesa, deleteDespesa, getDespesas } from '../services/despesa.service';
 import { IProduto, getProdutos } from '../services/produto.service';
-import { IVenda, INovaVenda, createVenda, getVendas, updateVenda, deleteVenda } from '../services/venda.service';
+import { IVenda, INovaVenda, createVenda, getVendas, updateVenda, deleteVenda, getVendaPdf } from '../services/venda.service';
 import { IFornecedor, getFornecedores } from '../services/fornecedor.service';
 import { useAuth } from '../hooks/useAuth';
 import { IPaginatedResponse } from '@/types/common.types';
@@ -63,7 +64,7 @@ const tiposDeSaida = [
     "Outros"
 ] as const;
 
-// --- COMPONENTES DE FORMULÁRIO (SEM ALTERAÇÕES NESTA ETAPA) ---
+// --- COMPONENTES DE FORMULÁRIO ---
 const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boolean; onClose: () => void; vendaParaEditar: IVenda | null }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -99,12 +100,27 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
     }
   }, [produtoIdAtual, produtos]);
 
-  const valorTotalCalculado = useMemo(() => {
+  // CORREÇÃO DEFINITIVA:
+  // 1. `valorTotalBase` calcula o total dos itens já adicionados.
+  const valorTotalBase = useMemo(() => {
     return produtosNaVenda.reduce((total, item) => {
       const preco = item.preco_manual ?? item.preco_original;
       return total + (item.quantidade * preco);
     }, 0);
   }, [produtosNaVenda]);
+
+  // 2. `valorTotalComItemAtual` adiciona o valor do item que está sendo digitado.
+  const valorTotalComItemAtual = useMemo(() => {
+    const produtoInfo = produtos?.find(p => p.id === Number(produtoIdAtual));
+    if (!produtoInfo || !quantidadeAtual) {
+      return valorTotalBase; // Se não houver produto ou quantidade, retorna apenas o total da lista
+    }
+
+    const precoUnitario = Number(precoManualAtual) || produtoInfo.price;
+    const valorItemAtual = Number(quantidadeAtual) * precoUnitario;
+
+    return valorTotalBase + valorItemAtual;
+  }, [valorTotalBase, produtos, produtoIdAtual, quantidadeAtual, precoManualAtual]);
   
   const mutation = useMutation({
     mutationFn: (data: { vendaData: INovaVenda, id?: number }) => 
@@ -313,7 +329,8 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
                 <Box textAlign="right">
                   <Text fontSize="lg">Vendedor: {user?.nome}</Text>
                   <Heading size="lg" color="teal.500">
-                    Total: {valorTotalCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    {/* 3. Usar a nova variável para exibir o total dinâmico */}
+                    Total: {valorTotalComItemAtual.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </Heading>
                 </Box>
               </Flex>
@@ -329,12 +346,13 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
   );
 };
 
+
 const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen: boolean; onClose: () => void; despesaParaEditar: IDespesa | null }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
   
   const drawerSize = useBreakpointValue({ base: 'full', md: 'md' });
-  const { register, handleSubmit, control, reset, formState: { errors } } = useForm<IDespesaForm>();
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<IDespesaForm>();
   const { data: fornecedores } = useQuery<IPaginatedResponse<IFornecedor>, Error, IFornecedor[]>({ queryKey: ['todosFornecedores'], queryFn: () => getFornecedores(1, 1000), enabled: isOpen, select: data => data.dados });
   
   const mutation = useMutation({
@@ -429,7 +447,12 @@ const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen:
 };
 
 // --- COMPONENTE TABELA VENDAS ---
-const TabelaVendas = ({ onEdit, onDelete, buscaDebounced }: { onEdit: (venda: IVenda) => void; onDelete: (id: number) => void; buscaDebounced: string; }) => {
+const TabelaVendas = ({ onEdit, onDelete, onGeneratePdf, buscaDebounced }: { 
+  onEdit: (venda: IVenda) => void; 
+  onDelete: (id: number) => void; 
+  onGeneratePdf: (id: number) => void;
+  buscaDebounced: string; 
+}) => {
   const [pagina, setPagina] = useState(1);
   const isMobile = useBreakpointValue({ base: true, md: false });
 
@@ -441,10 +464,10 @@ const TabelaVendas = ({ onEdit, onDelete, buscaDebounced }: { onEdit: (venda: IV
 
   const { data, isLoading, isError } = useQuery({ 
     queryKey: ['vendas', pagina, buscaDebounced], 
-    // ✅ Atualiza a chamada para usar o novo limite padrão de 50
     queryFn: () => getVendas(pagina, 50, buscaDebounced), 
     placeholderData: keepPreviousData 
   });
+
   if (isLoading) return <Center p={10}><Spinner size="xl" /></Center>;
   if (isError) return <Center p={10}><Text color="red.500">Não foi possível carregar as vendas.</Text></Center>;
   
@@ -457,6 +480,9 @@ const TabelaVendas = ({ onEdit, onDelete, buscaDebounced }: { onEdit: (venda: IV
               <Flex justify="space-between" align="center">
                 <Heading size="sm" noOfLines={1}>{venda.cliente_nome}</Heading>
                 <HStack spacing={1}>
+                  <Tooltip label="Gerar PDF" hasArrow>
+                    <IconButton aria-label="Gerar PDF" icon={<FiFileText />} size="sm" colorScheme="blue" onClick={() => onGeneratePdf(venda.id)} />
+                  </Tooltip>
                   <IconButton aria-label="Editar" icon={<FiEdit />} size="sm" onClick={() => onEdit(venda)} />
                   <IconButton aria-label="Excluir" icon={<FiTrash2 />} size="sm" colorScheme="red" onClick={() => onDelete(venda.id)} />
                 </HStack>
@@ -498,6 +524,9 @@ const TabelaVendas = ({ onEdit, onDelete, buscaDebounced }: { onEdit: (venda: IV
             <Td><Badge colorScheme={venda.data_pagamento ? 'green' : 'red'}>{venda.data_pagamento ? 'Pago' : 'Pendente'}</Badge></Td>
             <Td isNumeric>{venda.valor_total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
             <Td><HStack spacing={2}>
+              <Tooltip label="Gerar PDF" hasArrow>
+                <IconButton aria-label="Gerar PDF" icon={<FiFileText />} size="sm" colorScheme="blue" onClick={() => onGeneratePdf(venda.id)} />
+              </Tooltip>
               <IconButton aria-label="Editar" icon={<FiEdit />} size="sm" onClick={() => onEdit(venda)} />
               <IconButton aria-label="Excluir" icon={<FiTrash2 />} size="sm" colorScheme="red" onClick={() => onDelete(venda.id)} />
             </HStack></Td>
@@ -524,7 +553,6 @@ const TabelaDespesas = ({ onEdit, onDelete, buscaDebounced }: { onEdit: (despesa
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['despesas', pagina, buscaDebounced],
-    // ✅ Atualiza a chamada para usar o novo limite padrão de 50
     queryFn: () => getDespesas(pagina, 50, buscaDebounced),
     placeholderData: keepPreviousData,
   });
@@ -624,6 +652,28 @@ const MovimentacoesPage = () => {
   const [termoBuscaDespesas, setTermoBuscaDespesas] = useState('');
   const buscaDespesasDebounced = useDebounce(termoBuscaDespesas, 500);
 
+  const pdfMutation = useMutation({
+    mutationFn: getVendaPdf,
+    onSuccess: (blob, vendaId) => {
+      const pdfUrl = URL.createObjectURL(blob);
+      window.open(pdfUrl, '_blank');
+      toast({
+        title: 'PDF Gerado',
+        description: `O comprovante da venda #${vendaId} foi aberto em uma nova aba.`,
+        status: 'success',
+        duration: 4000,
+        isClosable: true,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Erro ao gerar PDF',
+        description: error.response?.data?.error || 'Não foi possível gerar o comprovante.',
+        status: 'error',
+      });
+    },
+  });
+
   const deleteVendaMutation = useMutation({ 
     mutationFn: deleteVenda, 
     onSuccess: () => { 
@@ -657,6 +707,16 @@ const MovimentacoesPage = () => {
   const handleAddNewDespesa = () => { setDespesaParaEditar(null); onDespesaDrawerOpen(); };
   const handleDeleteClick = (id: number, tipo: 'venda' | 'despesa') => { setItemParaDeletar({ id, tipo }); onConfirmOpen(); };
   
+  const handleGeneratePdf = (vendaId: number) => {
+    toast({
+      title: 'Gerando PDF...',
+      description: 'Por favor, aguarde.',
+      status: 'info',
+      duration: 2000,
+    });
+    pdfMutation.mutate(vendaId);
+  };
+
   const handleConfirmDelete = () => {
     if (!itemParaDeletar) return;
     if (itemParaDeletar.tipo === 'venda') {
@@ -685,7 +745,12 @@ const MovimentacoesPage = () => {
                 <Input placeholder="Buscar por cliente ou vendedor..." value={termoBuscaVendas} onChange={(e) => setTermoBuscaVendas(e.target.value)} />
               </InputGroup>
             </Box>
-            <TabelaVendas onEdit={handleEditVenda} onDelete={(id) => handleDeleteClick(id, 'venda')} buscaDebounced={buscaVendasDebounced} />
+            <TabelaVendas 
+              onEdit={handleEditVenda} 
+              onDelete={(id) => handleDeleteClick(id, 'venda')} 
+              onGeneratePdf={handleGeneratePdf}
+              buscaDebounced={buscaVendasDebounced} 
+            />
           </TabPanel>
           
           {isAdmin && (

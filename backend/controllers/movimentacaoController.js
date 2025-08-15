@@ -1,4 +1,5 @@
 const pool = require('../db');
+const PDFDocument = require('pdfkit'); // <-- ADICIONADO
 
 /**
  * @desc    Registrar uma nova VENDA (ENTRADA) com lógica financeira e verificação de estoque
@@ -306,6 +307,123 @@ const deleteVenda = async (req, res) => {
     }
 };
 
+/**
+ * @desc    Gerar um comprovante em PDF para uma venda específica
+ * @route   GET /api/movimentacoes/vendas/:id/pdf
+ * @access  Privado (qualquer usuário logado)
+ */
+const getVendaPDF = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        // 1. Buscar os dados da venda, cliente e vendedor
+        const query = `
+            SELECT 
+                m.id, m.data_venda, m.valor_total, m.opcao_pagamento, m.data_vencimento, m.data_pagamento, m.produtos,
+                c.nome AS cliente_nome, c.telefone AS cliente_telefone, c.endereco AS cliente_endereco,
+                u.nome AS usuario_nome
+            FROM movimentacoes m
+            LEFT JOIN clientes c ON m.cliente_id = c.id
+            LEFT JOIN utilizadores u ON m.utilizador_id = u.id
+            WHERE m.id = $1 AND m.tipo = 'ENTRADA'
+        `;
+        const vendaResult = await pool.query(query, [id]);
+
+        if (vendaResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Venda não encontrada.' });
+        }
+        const venda = vendaResult.rows[0];
+
+        // 2. Configurar o documento PDF
+        const doc = new PDFDocument({ size: 'A4', margin: 50 });
+
+        // Define o cabeçalho da resposta para indicar que é um PDF
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename=comprovante_venda_${id}.pdf`);
+
+        // Conecta o documento PDF à resposta da requisição
+        doc.pipe(res);
+
+        // 3. Construir o conteúdo do PDF
+        // Cabeçalho
+        doc.fontSize(20).text('Comprovante de Venda', { align: 'center' });
+        doc.fontSize(12).text('Caipirão 3.0', { align: 'center' });
+        doc.moveDown(2);
+
+        // Informações da Venda
+        doc.fontSize(14).text(`Venda #${venda.id}`, { continued: true });
+        doc.fontSize(12).text(`Data: ${new Date(venda.data_venda).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}`, { align: 'right' });
+        doc.moveDown();
+
+        // Dados do Cliente
+        doc.fontSize(12).font('Helvetica-Bold').text('Cliente:');
+        doc.font('Helvetica').text(venda.cliente_nome || 'Não informado');
+        doc.text(`Telefone: ${venda.cliente_telefone || 'Não informado'}`);
+        doc.text(`Endereço: ${venda.cliente_endereco || 'Não informado'}`);
+        doc.moveDown();
+
+        // Tabela de Produtos
+        doc.font('Helvetica-Bold').text('Produtos');
+        doc.moveDown(0.5);
+
+        const tableTop = doc.y;
+        const itemX = 50;
+        const qtyX = 300;
+        const priceX = 380;
+        const totalX = 460;
+
+        // Cabeçalhos da tabela
+        doc.fontSize(10).text('Item', itemX, tableTop);
+        doc.text('Qtd/Peso', qtyX, tableTop, { width: 80, align: 'right' });
+        doc.text('Preço Unit.', priceX, tableTop, { width: 80, align: 'right' });
+        doc.text('Total Item', totalX, tableTop, { width: 80, align: 'right' });
+        doc.moveDown();
+
+        const drawLine = (y) => doc.moveTo(50, y).lineTo(550, y).stroke();
+        drawLine(doc.y);
+        doc.moveDown(0.5);
+
+        // Linhas da tabela
+        venda.produtos.forEach(item => {
+            const y = doc.y;
+            doc.fontSize(10).font('Helvetica').text(item.nome, itemX, y, { width: 240 });
+            doc.text(`${item.quantidade.toFixed(2)} ${item.unidade_medida}`, qtyX, y, { width: 80, align: 'right' });
+            doc.text(item.valor_unitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), priceX, y, { width: 80, align: 'right' });
+            doc.text(item.valor_total_item.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), totalX, y, { width: 80, align: 'right' });
+            doc.moveDown();
+        });
+
+        drawLine(doc.y);
+        doc.moveDown();
+
+        // Total Geral
+        doc.fontSize(14).font('Helvetica-Bold').text('Total Geral:', 380, doc.y, { align: 'right', width: 80 });
+        doc.text(venda.valor_total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), 460, doc.y - 16, { align: 'right', width: 80 });
+        doc.moveDown(2);
+
+        // Informações de Pagamento
+        doc.fontSize(12).font('Helvetica-Bold').text('Pagamento:');
+        doc.font('Helvetica').text(`Forma: ${venda.opcao_pagamento}`);
+        if (venda.opcao_pagamento === 'A PRAZO') {
+            doc.text(`Vencimento: ${new Date(venda.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}`);
+        }
+        doc.text(`Status: ${venda.data_pagamento ? `Pago em ${new Date(venda.data_pagamento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}` : 'Pendente'}`);
+        doc.moveDown();
+
+        // Rodapé
+        doc.fontSize(10).font('Helvetica-Oblique').text(`Vendedor: ${venda.usuario_nome}`, 50, 750, { align: 'left' });
+        doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 50, 750, { align: 'right' });
+
+        // 4. Finalizar o documento
+        doc.end();
+
+    } catch (error) {
+        console.error('Erro ao gerar PDF da venda:', error);
+        res.status(500).json({ error: 'Erro interno do servidor ao gerar o PDF.' });
+    }
+};
+
+
 module.exports = {
   createVenda,
   getVendas,
@@ -313,4 +431,5 @@ module.exports = {
   registrarPagamento,
   updateVenda,
   deleteVenda,
+  getVendaPDF, // <-- EXPORTADO
 };

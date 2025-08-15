@@ -13,6 +13,7 @@
     "dotenv": "latest",
     "express": "latest",
     "jsonwebtoken": "latest",
+    "pdfkit": "^0.17.1",
     "pg": "latest"
   },
   "devDependencies": {
