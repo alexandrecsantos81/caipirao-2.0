@@ -1,16 +1,13 @@
-// frontend/src/components/CardContasAPagar.tsx
-
 import {
   Box, Button, Flex, Heading, Spinner, Text, VStack, HStack, useDisclosure,
-  // ✅ REVERSÃO: Voltando a usar o useToast da v2
   useToast,
-  // ✅ REVERSÃO: Importando os componentes de Modal e Formulário individualmente
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, ModalBody, ModalFooter,
-  FormControl, FormLabel, Input, Select
+  FormControl, FormLabel, Input, Select, useColorModeValue
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
+import { addDays, isBefore, startOfDay } from 'date-fns';
 
 import { IContasAPagar, quitarDespesa, IQuitacaoData, getContasAPagar } from '../services/despesa.service';
 import { getUtilizadores, IUtilizador } from '../services/utilizador.service';
@@ -20,12 +17,18 @@ import { IPaginatedResponse } from '@/types/common.types';
 export const CardContasAPagar = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  // ✅ REVERSÃO: Reintroduzindo o useToast
   const toast = useToast();
-  // ✅ REVERSÃO: useDisclosure agora retorna 'isOpen'
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [selectedDespesa, setSelectedDespesa] = useState<IContasAPagar | null>(null);
   const { register, handleSubmit, setValue } = useForm<IQuitacaoData>();
+
+  // Cores para o destaque visual do card principal
+  const cardBgColor = useColorModeValue('yellow.50', 'yellow.900');
+  const cardBorderColor = useColorModeValue('yellow.400', 'yellow.500');
+
+  // Cores para os itens da lista dentro do card
+  const urgentItemBgColor = useColorModeValue('red.100', 'red.800');
+  const normalItemBgColor = useColorModeValue('whiteAlpha.800', 'whiteAlpha.100');
 
   const { data: contas, isLoading, isError } = useQuery<IContasAPagar[]>({
     queryKey: ['contasAPagar'],
@@ -36,7 +39,6 @@ export const CardContasAPagar = () => {
     queryKey: ['utilizadores', 1, 1000],
     queryFn: () => getUtilizadores(1, 1000),
     select: (data) => data.dados.filter(u => u.perfil === 'ADMIN'),
-    // ✅ REVERSÃO: Habilitar a query com base em 'isOpen'
     enabled: isOpen,
   });
 
@@ -75,17 +77,44 @@ export const CardContasAPagar = () => {
     return new Date(data).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
   };
 
+  const isUrgent = (dataVencimento: string) => {
+    const hoje = startOfDay(new Date());
+    const dataLimite = addDays(hoje, 5);
+    const dataVenc = startOfDay(new Date(dataVencimento));
+    return isBefore(dataVenc, dataLimite);
+  };
+
   return (
-    <Box p={5} borderWidth={1} borderRadius={8} boxShadow="sm" h="100%">
-      <Heading size="md" mb={4}>Contas a Pagar (Próximos 5 dias)</Heading>
+    <Box 
+      p={5} 
+      borderWidth={2}
+      borderRadius={8} 
+      boxShadow="md"
+      h="100%"
+      bg={cardBgColor}
+      borderColor={cardBorderColor}
+      transition="all 0.2s ease-in-out" // Adiciona uma transição suave
+      _hover={{
+        transform: 'translateY(-4px)', // Efeito de "levantar"
+        boxShadow: 'xl', // Sombra mais pronunciada ao passar o mouse
+      }}
+    >
+      <Heading size="md" mb={4}>Contas a Pagar Pendentes</Heading>
       {isLoading && <Spinner />}
       {isError && <Text color="red.500">Erro ao carregar contas a pagar.</Text>}
       {!isLoading && !isError && (
-        // ✅ REVERSÃO: Usando as props 'spacing' e 'align' diretamente
-        <VStack spacing={4} align="stretch">
+        <VStack spacing={3} align="stretch" overflowY="auto" maxHeight="300px">
           {contas && contas.length > 0 ? (
             contas.map((conta) => (
-              <Flex key={conta.id} justify="space-between" align="center" p={3} bg="gray.50" borderRadius="md">
+              <Flex 
+                key={conta.id} 
+                justify="space-between" 
+                align="center" 
+                p={3} 
+                bg={isUrgent(conta.data_vencimento) ? urgentItemBgColor : normalItemBgColor} 
+                borderRadius="md"
+                boxShadow="sm"
+              >
                 <VStack align="start" spacing={0}>
                   <Text fontWeight="bold">{conta.nome_fornecedor || 'Despesa sem fornecedor'}</Text>
                   <Text fontSize="sm">Vence em: {formatarData(conta.data_vencimento)}</Text>
@@ -101,12 +130,12 @@ export const CardContasAPagar = () => {
               </Flex>
             ))
           ) : (
-            <Text color="gray.500">Nenhuma conta com vencimento próximo.</Text>
+            <Text color="gray.500" textAlign="center" pt={8}>Nenhuma conta a pagar pendente.</Text>
           )}
         </VStack>
       )}
 
-      {/* ✅ REVERSÃO: Estrutura do Modal da v2 */}
+      {/* O Modal de quitação permanece o mesmo */}
       <Modal isOpen={isOpen} onClose={onClose} isCentered>
         <ModalOverlay />
         <ModalContent as="form" onSubmit={handleSubmit(onConfirmarQuitacao)}>
@@ -123,7 +152,7 @@ export const CardContasAPagar = () => {
                 <FormLabel>Responsável pelo Pagamento</FormLabel>
                 <Select
                   placeholder={isLoadingAdmins ? "Carregando..." : "Selecione um responsável"}
-                  {...register('responsavel_pagamento_id', { required: true })}
+                  {...register('responsavel_pagamento_id', { required: true, valueAsNumber: true })}
                   disabled={isLoadingAdmins}
                 >
                   {admins?.map(admin => (
@@ -135,7 +164,6 @@ export const CardContasAPagar = () => {
           </ModalBody>
           <ModalFooter>
             <Button variant="ghost" mr={3} onClick={onClose}>Cancelar</Button>
-            {/* ✅ REVERSÃO: 'loading' para 'isLoading' */}
             <Button colorScheme="green" type="submit" isLoading={quitacaoMutation.isPending}>Confirmar Pagamento</Button>
           </ModalFooter>
         </ModalContent>

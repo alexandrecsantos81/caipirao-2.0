@@ -1,9 +1,9 @@
 import axios from 'axios';
-import { IPaginatedResponse } from '@/types/common.types';
+import { IPaginatedResponse } from '@/types/common.types'; // Importação centralizada
 
 // Configuração do cliente Axios
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-const apiClient = axios.create({ baseURL: `${API_URL}/despesas` } );
+const apiClient = axios.create({ baseURL: `${API_URL}/despesas` }  );
 
 // Interceptor para adicionar o token de autenticação
 apiClient.interceptors.request.use(
@@ -38,7 +38,6 @@ export interface IDespesa {
   fornecedor_id?: number | null;
   responsavel_pagamento_id?: number | null;
   nome_fornecedor?: string;
-  data_criacao?: string; // ✅ Adicionado para consistência
 }
 
 export interface IDespesaForm {
@@ -72,14 +71,14 @@ export interface IQuitacaoData {
  */
 export const getDespesas = async (
   pagina = 1,
-  limite = 50, // ✅ Atualiza o limite padrão para 50
-  termoBusca?: string
+  limite = 10,
+  termoBusca?: string // <-- NOVO PARÂMETRO ADICIONADO
 ): Promise<IPaginatedResponse<IDespesa>> => {
     const response = await apiClient.get('/', {
         params: {
           pagina,
           limite,
-          termoBusca,
+          termoBusca, // <-- PARÂMETRO ENVIADO PARA A API
         },
     });
     return response.data;
