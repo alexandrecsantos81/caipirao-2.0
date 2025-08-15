@@ -68,24 +68,30 @@ const FormularioCliente = ({ isOpen, onClose, cliente, onSave }: {
             <Stack spacing={4}>
               <Flex direction={flexDir} gap={4}>
                 <FormControl isRequired isInvalid={!!errors.nome} flex={1}>
-                  <FormLabel>Nome</FormLabel>
+                  <FormLabel>Nome Empresarial</FormLabel>
                   <Input 
                     {...register('nome', { 
-                      required: 'Nome é obrigatório',
-                      validate: (value) => value.trim() !== '' || 'O campo nome não pode conter apenas espaços'
+                      required: 'Nome Empresarial é obrigatório',
+                      // ✅ CORREÇÃO APLICADA AQUI
+                      validate: (value) => (value && value.trim() !== '') || 'O campo não pode conter apenas espaços'
                     })} 
-                    placeholder="Nome completo do cliente"
-                    textTransform="uppercase" // ✅ Caixa alta
+                    placeholder="Nome da empresa ou do cliente"
+                    textTransform="uppercase"
                   />
                   <FormErrorMessage>{errors.nome?.message}</FormErrorMessage>
                 </FormControl>
-                <FormControl flex={1}>
-                  <FormLabel>Responsável (Opcional)</FormLabel>
+                <FormControl isRequired isInvalid={!!errors.responsavel} flex={1}>
+                  <FormLabel>Responsável</FormLabel>
                   <Input 
-                    {...register('responsavel')} 
+                    {...register('responsavel', {
+                      required: 'Nome do responsável é obrigatório',
+                      // ✅ CORREÇÃO APLICADA AQUI
+                      validate: (value) => (value && value.trim() !== '') || 'O campo não pode conter apenas espaços'
+                    })} 
                     placeholder="Nome do responsável"
-                    textTransform="uppercase" // ✅ Caixa alta
+                    textTransform="uppercase"
                   />
+                  <FormErrorMessage>{errors.responsavel?.message}</FormErrorMessage>
                 </FormControl>
               </Flex>
               <FormControl isRequired isInvalid={!!errors.telefone}>
@@ -93,20 +99,26 @@ const FormularioCliente = ({ isOpen, onClose, cliente, onSave }: {
                 <Input 
                   {...register('telefone', { 
                     required: 'Telefone é obrigatório',
-                    validate: (value) => value.trim() !== '' || 'O campo telefone não pode conter apenas espaços'
+                    // ✅ CORREÇÃO APLICADA AQUI
+                    validate: (value) => (value && value.trim() !== '') || 'O campo não pode conter apenas espaços'
                   })} 
                   placeholder="(xx) xxxxx-xxxx" 
                 />
                 <FormErrorMessage>{errors.telefone?.message}</FormErrorMessage>
               </FormControl>
               <Checkbox {...register('tem_whatsapp')}>É WhatsApp?</Checkbox>
-              <FormControl>
+              <FormControl isRequired isInvalid={!!errors.endereco}>
                 <FormLabel>Endereço Completo</FormLabel>
                 <Input 
-                  {...register('endereco')} 
+                  {...register('endereco', {
+                    required: 'Endereço é obrigatório',
+                    // ✅ CORREÇÃO APLICADA AQUI
+                    validate: (value) => (value && value.trim() !== '') || 'O campo não pode conter apenas espaços'
+                  })} 
                   placeholder="Avenida, Rua, Quadra, Lote, Bairro..."
-                  textTransform="uppercase" // ✅ Caixa alta
+                  textTransform="uppercase"
                 />
+                <FormErrorMessage>{errors.endereco?.message}</FormErrorMessage>
               </FormControl>
               <FormControl><FormLabel>Email (Opcional)</FormLabel><Input type="email" {...register('email')} placeholder="email@exemplo.com" /></FormControl>
             </Stack>
@@ -239,7 +251,7 @@ const ClientesPage = () => {
               <Table variant="simple">
                 <Thead>
                   <Tr>
-                    <Th>Nome</Th>
+                    <Th>Nome Empresarial</Th>
                     <Th>Contato</Th>
                     <Th>Endereço Principal</Th>
                     <Th>Ações</Th>

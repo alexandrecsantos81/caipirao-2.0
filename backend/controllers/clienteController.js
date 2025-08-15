@@ -2,7 +2,6 @@
 
 const pool = require('../db');
 
-// Função auxiliar para converter strings vazias em NULL
 const toNull = (value) => (value === '' || value === null ? null : value);
 
 /**
@@ -50,8 +49,12 @@ const createCliente = async (req, res) => {
     const { nome, telefone, responsavel, tem_whatsapp, endereco } = req.body;
     const email = toNull(req.body.email);
 
-    if (!nome || nome.trim() === '' || !telefone || telefone.trim() === '') {
-        return res.status(400).json({ error: 'Os campos "nome" e "telefone" são obrigatórios.' });
+    // ✅ Validação atualizada com os novos campos obrigatórios
+    if (!nome || nome.trim() === '' || 
+        !telefone || telefone.trim() === '' ||
+        !responsavel || responsavel.trim() === '' ||
+        !endereco || endereco.trim() === '') {
+        return res.status(400).json({ error: 'Os campos Nome Empresarial, Telefone, Responsável e Endereço são obrigatórios.' });
     }
 
     try {
@@ -59,13 +62,12 @@ const createCliente = async (req, res) => {
             `INSERT INTO clientes (nome, email, telefone, endereco, responsavel, tem_whatsapp) 
              VALUES ($1, $2, $3, $4, $5, $6) 
              RETURNING *`,
-            // ✅ Converte para caixa alta antes de salvar
             [
                 nome.trim().toUpperCase(), 
                 email, 
                 telefone.trim(), 
-                endereco ? endereco.toUpperCase() : null, 
-                responsavel ? responsavel.toUpperCase() : null, 
+                endereco.trim().toUpperCase(), 
+                responsavel.trim().toUpperCase(), 
                 tem_whatsapp || false
             ]
         );
@@ -89,8 +91,12 @@ const updateCliente = async (req, res) => {
     const { nome, telefone, responsavel, tem_whatsapp, endereco } = req.body;
     const email = toNull(req.body.email);
 
-    if (!nome || nome.trim() === '' || !telefone || telefone.trim() === '') {
-        return res.status(400).json({ error: 'Os campos "nome" e "telefone" são obrigatórios.' });
+    // ✅ Validação atualizada com os novos campos obrigatórios
+    if (!nome || nome.trim() === '' || 
+        !telefone || telefone.trim() === '' ||
+        !responsavel || responsavel.trim() === '' ||
+        !endereco || endereco.trim() === '') {
+        return res.status(400).json({ error: 'Os campos Nome Empresarial, Telefone, Responsável e Endereço são obrigatórios.' });
     }
 
     try {
@@ -99,13 +105,12 @@ const updateCliente = async (req, res) => {
              SET nome = $1, email = $2, telefone = $3, endereco = $4, responsavel = $5, tem_whatsapp = $6
              WHERE id = $7 
              RETURNING *`,
-            // ✅ Converte para caixa alta antes de salvar
             [
                 nome.trim().toUpperCase(), 
                 email, 
                 telefone.trim(), 
-                endereco ? endereco.toUpperCase() : null, 
-                responsavel ? responsavel.toUpperCase() : null, 
+                endereco.trim().toUpperCase(), 
+                responsavel.trim().toUpperCase(), 
                 tem_whatsapp || false, 
                 id
             ]
