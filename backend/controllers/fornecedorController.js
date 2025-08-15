@@ -1,5 +1,3 @@
-// backend/controllers/fornecedorController.js
-
 const pool = require('../db');
 
 // Função auxiliar para remover caracteres não numéricos
@@ -14,7 +12,8 @@ const limparNumeros = (valor) => {
  * @access  Protegido
  */
 const getFornecedores = async (req, res) => {
-    const { pagina = 1, limite = 10, termoBusca } = req.query;
+    // ✅ Define o limite padrão como 50
+    const { pagina = 1, limite = 50, termoBusca } = req.query;
     const offset = (pagina - 1) * limite;
 
     let queryBase = 'FROM fornecedores';
@@ -41,11 +40,12 @@ const getFornecedores = async (req, res) => {
 
         params.push(limite, offset);
 
+        // ✅ Altera a ordenação para 'data_criacao DESC'
         const fornecedoresQuery = `
-            SELECT id, nome, cnpj_cpf, telefone, email, endereco
+            SELECT id, nome, cnpj_cpf, telefone, email, endereco, data_criacao
             ${queryBase}
             ${whereClause}
-            ORDER BY nome ASC
+            ORDER BY data_criacao DESC
             LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
         `;
         

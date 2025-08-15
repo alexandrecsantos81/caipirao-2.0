@@ -1,5 +1,3 @@
-// frontend/src/services/fornecedor.service.ts
-
 import axios from 'axios';
 import { IPaginatedResponse } from '@/types/common.types';
 
@@ -28,10 +26,11 @@ export interface IFornecedor {
   telefone?: string | null;
   email?: string | null;
   endereco?: string | null;
+  data_criacao?: string; // ✅ Adicionado para consistência com o backend
 }
 
 // Para formulários, os campos opcionais podem ser string vazia
-export type IFornecedorForm = Omit<IFornecedor, 'id'>;
+export type IFornecedorForm = Omit<IFornecedor, 'id' | 'data_criacao'>;
 
 // --- FUNÇÕES DO SERVIÇO ---
 
@@ -43,14 +42,14 @@ export type IFornecedorForm = Omit<IFornecedor, 'id'>;
  */
 export const getFornecedores = async (
   pagina = 1,
-  limite = 10,
-  termoBusca?: string // <-- NOVO PARÂMETRO ADICIONADO
+  limite = 50, // ✅ Atualiza o limite padrão para 50
+  termoBusca?: string
 ): Promise<IPaginatedResponse<IFornecedor>> => {
   const response = await apiClient.get('/', {
     params: {
       pagina,
       limite,
-      termoBusca, // <-- PARÂMETRO ENVIADO PARA A API
+      termoBusca,
     },
   });
   return response.data;

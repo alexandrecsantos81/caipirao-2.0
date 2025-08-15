@@ -1,5 +1,3 @@
-// backend/controllers/utilizadorController.js
-
 const pool = require('../db');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
@@ -93,7 +91,8 @@ const ativarUtilizador = async (req, res) => {
 };
 
 const getUtilizadores = async (req, res) => {
-    const { pagina = 1, limite = 10, termoBusca } = req.query;
+    // ✅ Define o limite padrão como 50
+    const { pagina = 1, limite = 50, termoBusca } = req.query;
     const offset = (pagina - 1) * limite;
 
     let queryBase = 'FROM utilizadores';
@@ -120,11 +119,12 @@ const getUtilizadores = async (req, res) => {
 
         params.push(limite, offset);
 
+        // ✅ Altera a ordenação para 'data_criacao DESC'
         const utilizadoresQuery = `
-            SELECT id, nome, email, telefone, nickname, perfil, status 
+            SELECT id, nome, email, telefone, nickname, perfil, status, data_criacao
             ${queryBase}
             ${whereClause}
-            ORDER BY nome ASC
+            ORDER BY data_criacao DESC
             LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
         `;
         

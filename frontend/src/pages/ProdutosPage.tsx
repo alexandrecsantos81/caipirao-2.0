@@ -1,5 +1,3 @@
-// frontend/src/pages/ProdutosPage.tsx
-
 import {
   Box, Button, Center, Drawer, DrawerBody, DrawerCloseButton, DrawerContent,
   DrawerFooter, DrawerHeader, DrawerOverlay, Flex, FormControl, FormErrorMessage, FormLabel,
@@ -45,7 +43,7 @@ const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
       if (produto) {
         setValue('nome', produto.nome);
         setValue('price', produto.price);
-        const unidadesPadrao = ['UN', 'KG']; // Comparar com caixa alta
+        const unidadesPadrao = ['UN', 'KG'];
         if (unidadesPadrao.includes(produto.unidade_medida.toUpperCase())) {
           setValue('unidade_medida', produto.unidade_medida.toUpperCase());
           setValue('outra_unidade_medida', '');
@@ -80,7 +78,7 @@ const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
                 <Input
                   id="nome"
                   placeholder="Informe o nome do produto"
-                  textTransform="uppercase" // ✅ Caixa alta
+                  textTransform="uppercase"
                   {...register('nome', { 
                     required: 'Nome é obrigatório',
                     validate: (value) => (value && value.trim() !== '') || 'O nome não pode ser apenas espaços'
@@ -101,7 +99,7 @@ const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
                   <FormLabel htmlFor="outra_unidade_medida">Especifique a Unidade (ex: DZ, CX)</FormLabel>
                   <Input 
                     id="outra_unidade_medida" 
-                    textTransform="uppercase" // ✅ Caixa alta
+                    textTransform="uppercase"
                     {...register('outra_unidade_medida', { required: unidadeMedida === 'OUTROS' ? 'Especifique a unidade' : false })} 
                   />
                 </FormControl>
@@ -142,7 +140,7 @@ const ProdutosPage = () => {
   const { isOpen: isAlertOpen, onOpen: onAlertOpen, onClose: onAlertClose } = useDisclosure();
   const toast = useToast();
   const { user } = useAuth();
-  const queryClient = useQueryClient(); // ✅ CORREÇÃO: useQueryClient() é um hook e deve ser chamado aqui.
+  const queryClient = useQueryClient();
   
   const [pagina, setPagina] = useState(1);
   const [editingProduto, setEditingProduto] = useState<IProduto | null>(null);
@@ -156,7 +154,8 @@ const ProdutosPage = () => {
 
   const { data, isLoading, isError } = useQuery<IPaginatedResponse<IProduto>>({
     queryKey: ['produtos', pagina],
-    queryFn: () => getProdutos(pagina, 10),
+    // ✅ Atualiza a chamada para usar o novo limite padrão de 50
+    queryFn: () => getProdutos(pagina, 50),
     placeholderData: keepPreviousData,
   });
 
@@ -200,9 +199,7 @@ const ProdutosPage = () => {
   const handleSave = (formData: IProdutoForm) => {
     saveMutation.mutate(formData);
   };
-// frontend/src/pages/ProdutosPage.tsx (continuação)
 
-  // ✅ CORREÇÃO: Adicionando o tipo IProduto ao parâmetro
   const handleDeleteClick = (produto: IProduto) => {
     setProdutoParaDeletar(produto);
     onAlertOpen();
@@ -215,11 +212,7 @@ const ProdutosPage = () => {
   };
 
   const handleOpenForCreate = () => { setEditingProduto(null); onFormOpen(); };
-  
-  // ✅ CORREÇÃO: Adicionando o tipo IProduto ao parâmetro
   const handleOpenForEdit = (produto: IProduto) => { setEditingProduto(produto); onFormOpen(); };
-  
-  // ✅ CORREÇÃO: Adicionando o tipo IProduto ao parâmetro
   const handleOpenForEstoque = (produto: IProduto) => { setProdutoParaEstoque(produto); onEstoqueOpen(); };
 
   const renderContent = () => {

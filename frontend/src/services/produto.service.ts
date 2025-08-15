@@ -1,8 +1,7 @@
 import axios from 'axios';
-import { IPaginatedResponse } from '@/types/common.types'; // Importação centralizada
+import { IPaginatedResponse } from '@/types/common.types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-// CORREÇÃO: Removida a URL base específica. Agora ele aponta para a raiz da API.
 const apiClient = axios.create({ baseURL: API_URL } );
 
 apiClient.interceptors.request.use(
@@ -22,15 +21,15 @@ export interface IProduto {
   price: number;
   quantidade_em_estoque: number;
   custo_medio?: number;
-  criado_em?: string;
+  data_criacao?: string; // ✅ Renomeado de 'criado_em' para 'data_criacao' para consistência
 }
 
 // Interface para o formulário de criação/edição de produto
-export type IProdutoForm = Omit<IProduto, 'id' | 'quantidade_em_estoque' | 'custo_medio' | 'criado_em'>;
+export type IProdutoForm = Omit<IProduto, 'id' | 'quantidade_em_estoque' | 'custo_medio' | 'data_criacao'>;
 
 // Interface para o formulário de entrada de estoque
 export interface IEntradaEstoqueForm {
-  data_entrada: string; // Adicionado para consistência
+  data_entrada: string;
   quantidade_adicionada: number;
   custo_total: number;
   observacao?: string;
@@ -38,8 +37,7 @@ export interface IEntradaEstoqueForm {
 
 // --- FUNÇÕES DO SERVIÇO ---
 
-export const getProdutos = async (pagina = 1, limite = 10): Promise<IPaginatedResponse<IProduto>> => {
-  // CORREÇÃO: A chamada agora inclui o caminho completo da rota.
+export const getProdutos = async (pagina = 1, limite = 50): Promise<IPaginatedResponse<IProduto>> => { // ✅ Limite padrão atualizado para 50
   const response = await apiClient.get('/produtos', { params: { pagina, limite } });
   return response.data;
 };

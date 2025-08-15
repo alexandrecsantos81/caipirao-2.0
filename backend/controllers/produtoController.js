@@ -1,5 +1,3 @@
-// backend/controllers/produtoController.js
-
 const pool = require('../db');
 
 /**
@@ -8,8 +6,9 @@ const pool = require('../db');
  * @access  Privado
  */
 const getProdutos = async (req, res) => {
+    // ✅ Define o limite padrão como 50
     const pagina = parseInt(req.query.pagina, 10) || 1;
-    const limite = parseInt(req.query.limite, 10) || 10;
+    const limite = parseInt(req.query.limite, 10) || 50;
     const offset = (pagina - 1) * limite;
 
     try {
@@ -17,8 +16,9 @@ const getProdutos = async (req, res) => {
         const totalItens = parseInt(totalResult.rows[0].count, 10);
         const totalPaginas = Math.ceil(totalItens / limite);
 
+        // ✅ Altera a ordenação para 'data_criacao DESC'
         const produtosResult = await pool.query(
-            'SELECT * FROM produtos ORDER BY nome ASC LIMIT $1 OFFSET $2',
+            'SELECT * FROM produtos ORDER BY data_criacao DESC LIMIT $1 OFFSET $2',
             [limite, offset]
         );
 
@@ -56,7 +56,6 @@ const createProduto = async (req, res) => {
 
     const novoProduto = await pool.query(
       'INSERT INTO produtos (nome, unidade_medida, price) VALUES ($1, $2, $3) RETURNING *',
-      // ✅ Converte para caixa alta
       [nome.trim().toUpperCase(), unidade_medida.trim().toUpperCase(), precoNumerico]
     );
 
@@ -89,7 +88,6 @@ const updateProduto = async (req, res) => {
 
     const produtoAtualizado = await pool.query(
       'UPDATE produtos SET nome = $1, unidade_medida = $2, price = $3 WHERE id = $4 RETURNING *',
-      // ✅ Converte para caixa alta
       [nome.trim().toUpperCase(), unidade_medida.trim().toUpperCase(), precoNumerico, id]
     );
 
@@ -158,7 +156,6 @@ const registrarEntradaEstoque = async (req, res) => {
     await client.query(
       `INSERT INTO entradas_estoque (produto_id, utilizador_id, quantidade_adicionada, custo_total, observacao)
        VALUES ($1, $2, $3, $4, $5)`,
-      // ✅ Converte observacao para caixa alta
       [produto_id, utilizador_id, quantidade_adicionada, custo_total, observacao ? observacao.toUpperCase() : null]
     );
 

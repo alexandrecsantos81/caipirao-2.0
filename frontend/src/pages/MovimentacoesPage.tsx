@@ -1,5 +1,3 @@
-// frontend/src/pages/MovimentacoesPage.tsx - PARTE 1 de 3
-
 import {
   Box, Button, Center, Flex, FormControl, FormLabel, Heading, IconButton,
   Input, NumberInput, NumberInputField, Select, Spinner, Tab, TabList, TabPanel,
@@ -11,16 +9,16 @@ import {
   Divider,
   Textarea,
   useColorModeValue,
-  InputGroup,      // <-- Adicionado
-  InputLeftElement, // <-- Adicionado
+  InputGroup,
+  InputLeftElement,
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { Controller, useForm, SubmitHandler } from 'react-hook-form';
-import { FiPlus, FiTrash2, FiEdit, FiSearch } from 'react-icons/fi'; // <-- Adicionado FiSearch
+import { FiPlus, FiTrash2, FiEdit, FiSearch } from 'react-icons/fi';
 import { Pagination } from '../components/Pagination';
 import { ICliente, getClientes } from '../services/cliente.service';
-import { IDespesa, IDespesaForm, registrarDespesa, updateDespesa, deleteDespesa, getDespesas } from '../services/despesa.service'; // <-- Adicionado getDespesas
+import { IDespesa, IDespesaForm, registrarDespesa, updateDespesa, deleteDespesa, getDespesas } from '../services/despesa.service';
 import { IProduto, getProdutos } from '../services/produto.service';
 import { IVenda, INovaVenda, createVenda, getVendas, updateVenda, deleteVenda } from '../services/venda.service';
 import { IFornecedor, getFornecedores } from '../services/fornecedor.service';
@@ -211,8 +209,6 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
     };
     mutation.mutate({ vendaData: vendaParaAPI, id: vendaParaEditar?.id });
   };
-// frontend/src/pages/MovimentacoesPage.tsx - PARTE 2 de 3
-
   return (
     <Drawer isOpen={isOpen} placement="right" onClose={onClose} size={drawerSize}>
       <DrawerOverlay />
@@ -445,11 +441,10 @@ const TabelaVendas = ({ onEdit, onDelete, buscaDebounced }: { onEdit: (venda: IV
 
   const { data, isLoading, isError } = useQuery({ 
     queryKey: ['vendas', pagina, buscaDebounced], 
-    queryFn: () => getVendas(pagina, 10, buscaDebounced), 
+    // ✅ Atualiza a chamada para usar o novo limite padrão de 50
+    queryFn: () => getVendas(pagina, 50, buscaDebounced), 
     placeholderData: keepPreviousData 
   });
-// frontend/src/pages/MovimentacoesPage.tsx - PARTE 3 de 3
-
   if (isLoading) return <Center p={10}><Spinner size="xl" /></Center>;
   if (isError) return <Center p={10}><Text color="red.500">Não foi possível carregar as vendas.</Text></Center>;
   
@@ -529,7 +524,8 @@ const TabelaDespesas = ({ onEdit, onDelete, buscaDebounced }: { onEdit: (despesa
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['despesas', pagina, buscaDebounced],
-    queryFn: () => getDespesas(pagina, 10, buscaDebounced),
+    // ✅ Atualiza a chamada para usar o novo limite padrão de 50
+    queryFn: () => getDespesas(pagina, 50, buscaDebounced),
     placeholderData: keepPreviousData,
   });
   

@@ -1,5 +1,3 @@
-// backend/controllers/movimentacaoController.js
-
 const pool = require('../db');
 
 /**
@@ -90,7 +88,8 @@ const createVenda = async (req, res) => {
  * @access  Privado (qualquer usuário logado)
  */
 const getVendas = async (req, res) => {
-    const { pagina = 1, limite = 10, termoBusca } = req.query;
+    // ✅ Define o limite padrão como 50
+    const { pagina = 1, limite = 50, termoBusca } = req.query;
     const offset = (pagina - 1) * limite;
 
     let whereClauses = ["m.tipo = 'ENTRADA'"];

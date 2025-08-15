@@ -1,5 +1,3 @@
-// frontend/src/services/utilizador.service.ts
-
 import axios from 'axios';
 import { IPaginatedResponse } from '@/types/common.types';
 
@@ -30,6 +28,7 @@ export interface IUtilizador {
   nickname: string;
   perfil: UserProfile | 'PENDENTE';
   status: UserStatus;
+  data_criacao?: string; // ✅ Adicionado para consistência
 }
 
 export interface IUpdateUtilizadorForm {
@@ -72,14 +71,14 @@ export interface IAtivacaoResponse {
  */
 export const getUtilizadores = async (
   pagina = 1,
-  limite = 10,
-  termoBusca?: string // <-- NOVO PARÂMETRO ADICIONADO
+  limite = 50, // ✅ Atualiza o limite padrão para 50
+  termoBusca?: string
 ): Promise<IPaginatedResponse<IUtilizador>> => {
   const response = await apiClient.get('/utilizadores', {
     params: {
       pagina,
       limite,
-      termoBusca, // <-- PARÂMETRO ENVIADO PARA A API
+      termoBusca,
     },
   });
   return response.data;

@@ -1,5 +1,3 @@
-// frontend/src/services/venda.service.ts
-
 import axios from 'axios';
 import { IPaginatedResponse } from '@/types/common.types';
 
@@ -72,14 +70,14 @@ export interface IContaAReceber {
  */
 export const getVendas = async (
   pagina = 1,
-  limite = 10,
-  termoBusca?: string // <-- NOVO PARÂMETRO ADICIONADO
+  limite = 50, // ✅ Atualiza o limite padrão para 50
+  termoBusca?: string
 ): Promise<IPaginatedResponse<IVenda>> => {
   const response = await apiClient.get('/movimentacoes/vendas', {
     params: {
       pagina,
       limite,
-      termoBusca, // <-- PARÂMETRO ENVIADO PARA A API
+      termoBusca,
     },
   });
   return response.data;

@@ -1,5 +1,3 @@
-// backend/controllers/despesaController.js
-
 const pool = require('../db');
 
 const registrarDespesa = async (req, res) => {
@@ -27,7 +25,8 @@ const registrarDespesa = async (req, res) => {
 };
 
 const getDespesas = async (req, res) => {
-    const { pagina = 1, limite = 10, termoBusca } = req.query;
+    // ✅ Define o limite padrão como 50
+    const { pagina = 1, limite = 50, termoBusca } = req.query;
     const offset = (pagina - 1) * limite;
 
     let whereClauses = [];
@@ -51,6 +50,7 @@ const getDespesas = async (req, res) => {
         const totalItens = parseInt(totalResult.rows[0].count, 10);
         const totalPaginas = Math.ceil(totalItens / limite);
 
+        // ✅ Altera a ordenação para 'data_criacao DESC'
         const despesasQuery = `
             SELECT 
                 d.*, 
@@ -58,7 +58,7 @@ const getDespesas = async (req, res) => {
             FROM despesas d
             LEFT JOIN fornecedores f ON d.fornecedor_id = f.id
             ${whereString}
-            ORDER BY d.data_vencimento DESC
+            ORDER BY d.data_criacao DESC
             LIMIT $${params.length + 1} OFFSET $${params.length + 2}
         `;
         

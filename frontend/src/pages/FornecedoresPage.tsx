@@ -1,5 +1,3 @@
-// frontend/src/pages/FornecedoresPage.tsx
-
 import {
   Box, Button, Flex, Heading, IconButton, Spinner, Table, TableContainer, Tbody, Td, Text,
   Th, Thead, Tr, useDisclosure, useToast, VStack, HStack,
@@ -183,7 +181,8 @@ const FornecedoresPage = () => {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['fornecedores', pagina, buscaDebounced],
-    queryFn: () => getFornecedores(pagina, 10, buscaDebounced),
+    // ✅ Atualiza a chamada para usar o novo limite padrão de 50
+    queryFn: () => getFornecedores(pagina, 50, buscaDebounced),
     placeholderData: keepPreviousData,
   });
 

@@ -1,7 +1,5 @@
-// frontend/src/services/despesa.service.ts
-
 import axios from 'axios';
-import { IPaginatedResponse } from '@/types/common.types'; // Importação centralizada
+import { IPaginatedResponse } from '@/types/common.types';
 
 // Configuração do cliente Axios
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -40,6 +38,7 @@ export interface IDespesa {
   fornecedor_id?: number | null;
   responsavel_pagamento_id?: number | null;
   nome_fornecedor?: string;
+  data_criacao?: string; // ✅ Adicionado para consistência
 }
 
 export interface IDespesaForm {
@@ -73,14 +72,14 @@ export interface IQuitacaoData {
  */
 export const getDespesas = async (
   pagina = 1,
-  limite = 10,
-  termoBusca?: string // <-- NOVO PARÂMETRO ADICIONADO
+  limite = 50, // ✅ Atualiza o limite padrão para 50
+  termoBusca?: string
 ): Promise<IPaginatedResponse<IDespesa>> => {
     const response = await apiClient.get('/', {
         params: {
           pagina,
           limite,
-          termoBusca, // <-- PARÂMETRO ENVIADO PARA A API
+          termoBusca,
         },
     });
     return response.data;
