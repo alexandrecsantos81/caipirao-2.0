@@ -27,7 +27,6 @@ const createVenda = async (req, res) => {
     let valor_total_venda = 0;
     const produtosParaSalvar = [];
 
-    // ✅ ETAPA 1: VERIFICAÇÃO DE ESTOQUE ANTES DE QUALQUER ALTERAÇÃO
     for (const item of produtos) {
       if (!item.produto_id || !item.quantidade || item.quantidade <= 0) {
         throw new Error('Cada produto na venda deve ter um ID e uma quantidade válida.');
@@ -38,14 +37,11 @@ const createVenda = async (req, res) => {
       }
       const produtoDB = produtoResult.rows[0];
 
-      // ✅ AQUI ESTÁ A VALIDAÇÃO PRINCIPAL
       if (produtoDB.quantidade_em_estoque < item.quantidade) {
-        // Se o estoque for insuficiente, lança um erro e interrompe a transação
         throw new Error(`Estoque insuficiente para "${produtoDB.nome}". Disponível: ${produtoDB.quantidade_em_estoque}, Solicitado: ${item.quantidade}.`);
       }
     }
 
-    // ✅ ETAPA 2: SE HOUVER ESTOQUE, PROSSEGUE COM O PROCESSAMENTO DA VENDA
     for (const item of produtos) {
       const produtoResult = await client.query('SELECT nome, price, unidade_medida FROM produtos WHERE id = $1', [item.produto_id]);
       const produtoDB = produtoResult.rows[0];
@@ -62,7 +58,6 @@ const createVenda = async (req, res) => {
         quantidade: item.quantidade, valor_unitario: valor_unitario, valor_total_item: valor_item,
       });
 
-      // Debita do estoque
       await client.query('UPDATE produtos SET quantidade_em_estoque = quantidade_em_estoque - $1 WHERE id = $2', [item.quantidade, item.produto_id]);
     }
 
@@ -82,7 +77,6 @@ const createVenda = async (req, res) => {
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Erro ao registrar venda:', error);
-    // Retorna o erro com status 400 para que o frontend possa exibi-lo
     res.status(400).json({ error: error.message || 'Erro interno do servidor ao registrar venda.' });
   } finally {
     client.release();
@@ -91,27 +85,53 @@ const createVenda = async (req, res) => {
 
 
 /**
- * @desc    Obter todas as VENDAS com paginação
+ * @desc    Obter todas as VENDAS com paginação e filtro
  * @route   GET /api/movimentacoes/vendas
  * @access  Privado (qualquer usuário logado)
  */
 const getVendas = async (req, res) => {
-    const pagina = parseInt(req.query.pagina, 10) || 1;
-    const limite = parseInt(req.query.limite, 10) || 10;
+    const { pagina = 1, limite = 10, termoBusca } = req.query;
     const offset = (pagina - 1) * limite;
+
+    let whereClauses = ["m.tipo = 'ENTRADA'"];
+    const params = [];
+
+    if (termoBusca) {
+        params.push(`%${termoBusca}%`);
+        whereClauses.push(`(c.nome ILIKE $${params.length} OR u.nome ILIKE $${params.length})`);
+    }
+
+    const whereString = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
     try {
+        const countQuery = `
+            SELECT COUNT(m.id)
+            FROM movimentacoes m
+            LEFT JOIN clientes c ON m.cliente_id = c.id
+            LEFT JOIN utilizadores u ON m.utilizador_id = u.id
+            ${whereString}
+        `;
+        const totalResult = await pool.query(countQuery, params);
+        const totalVendas = parseInt(totalResult.rows[0].count, 10);
+
         const query = `
             SELECT m.id, m.data_venda, m.valor_total, m.opcao_pagamento, m.data_vencimento, m.data_pagamento, c.nome AS cliente_nome, u.nome AS usuario_nome, m.produtos, m.cliente_id
             FROM movimentacoes m
             LEFT JOIN clientes c ON m.cliente_id = c.id
             LEFT JOIN utilizadores u ON m.utilizador_id = u.id
-            WHERE m.tipo = 'ENTRADA' ORDER BY m.data_venda DESC, m.id DESC LIMIT $1 OFFSET $2;
+            ${whereString}
+            ORDER BY m.data_venda DESC, m.id DESC
+            LIMIT $${params.length + 1} OFFSET $${params.length + 2};
         `;
-        const vendasResult = await pool.query(query, [limite, offset]);
-        const totalResult = await pool.query("SELECT COUNT(*) FROM movimentacoes WHERE tipo = 'ENTRADA'");
-        const totalVendas = parseInt(totalResult.rows[0].count, 10);
+        
+        const vendasResult = await pool.query(query, [...params, limite, offset]);
+        
         res.status(200).json({
-            dados: vendasResult.rows, total: totalVendas, pagina: pagina, limite: limite, totalPaginas: Math.ceil(totalVendas / limite),
+            dados: vendasResult.rows,
+            total: totalVendas,
+            pagina: parseInt(pagina, 10),
+            limite: parseInt(limite, 10),
+            totalPaginas: Math.ceil(totalVendas / limite),
         });
     } catch (error) {
         console.error('Erro ao buscar vendas:', error);
@@ -196,7 +216,6 @@ const updateVenda = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // Devolve o estoque da venda antiga
         const vendaAntigaResult = await client.query('SELECT produtos FROM movimentacoes WHERE id = $1 AND tipo = \'ENTRADA\' FOR UPDATE', [id]);
         if (vendaAntigaResult.rows.length === 0) {
             throw new Error('Venda não encontrada.');
@@ -206,7 +225,6 @@ const updateVenda = async (req, res) => {
             await client.query('UPDATE produtos SET quantidade_em_estoque = quantidade_em_estoque + $1 WHERE id = $2', [item.quantidade, item.produto_id]);
         }
 
-        // ✅ VERIFICA O ESTOQUE PARA OS NOVOS ITENS
         for (const item of produtos) {
             const produtoResult = await client.query('SELECT nome, quantidade_em_estoque FROM produtos WHERE id = $1 FOR UPDATE', [item.produto_id]);
             if (produtoResult.rows.length === 0) throw new Error(`Produto com ID ${item.produto_id} não encontrado.`);
@@ -216,7 +234,6 @@ const updateVenda = async (req, res) => {
             }
         }
 
-        // Processa a nova venda
         let valor_total_venda = 0;
         const produtosParaSalvar = [];
         for (const item of produtos) {
@@ -230,7 +247,6 @@ const updateVenda = async (req, res) => {
                 produto_id: item.produto_id, nome: produtoDB.nome, unidade_medida: produtoDB.unidade_medida,
                 quantidade: item.quantidade, valor_unitario: valor_unitario, valor_total_item: valor_item,
             });
-            // Debita o novo estoque
             await client.query('UPDATE produtos SET quantidade_em_estoque = quantidade_em_estoque - $1 WHERE id = $2', [item.quantidade, item.produto_id]);
         }
 
@@ -273,7 +289,6 @@ const deleteVenda = async (req, res) => {
         }
         const produtos = vendaResult.rows[0].produtos;
 
-        // Devolve os itens ao estoque
         for (const item of produtos) {
             await client.query('UPDATE produtos SET quantidade_em_estoque = quantidade_em_estoque + $1 WHERE id = $2', [item.quantidade, item.produto_id]);
         }

@@ -5,27 +5,55 @@ const pool = require('../db');
 const toNull = (value) => (value === '' || value === null ? null : value);
 
 /**
- * @desc    Listar todos os clientes com paginação
+ * @desc    Listar todos os clientes com paginação e filtro de busca
  * @route   GET /api/clientes
  * @access  Protegido
  */
 const getClientes = async (req, res) => {
-    const { pagina = 1, limite = 10 } = req.query;
+    // Extrai os parâmetros da query, com valores padrão
+    const { pagina = 1, limite = 10, termoBusca } = req.query;
+    const offset = (pagina - 1) * limite;
+
+    // Constrói a base da consulta e os parâmetros
+    let queryBase = 'FROM clientes';
+    let whereClause = '';
+    const params = [];
+    let paramIndex = 1;
+
+    // Adiciona a cláusula WHERE se um termo de busca for fornecido
+    if (termoBusca) {
+        whereClause = `
+            WHERE nome ILIKE $${paramIndex}
+            OR email ILIKE $${paramIndex}
+            OR telefone ILIKE $${paramIndex}
+            OR responsavel ILIKE $${paramIndex}
+        `;
+        params.push(`%${termoBusca}%`);
+        paramIndex++;
+    }
 
     try {
-        const totalPromise = pool.query('SELECT COUNT(*) FROM clientes');
-        
-        const offset = (pagina - 1) * limite;
-        const clientesPromise = pool.query(
-            'SELECT id, nome, email, telefone, endereco, responsavel, tem_whatsapp, coordenada_x, coordenada_y, data_criacao FROM clientes ORDER BY nome ASC LIMIT $1 OFFSET $2',
-            [limite, offset]
-        );
-
-        const [totalResult, clientesResult] = await Promise.all([totalPromise, clientesPromise]);
-
+        // Consulta para obter o número total de itens (considerando o filtro)
+        const totalQuery = `SELECT COUNT(*) ${queryBase} ${whereClause}`;
+        const totalResult = await pool.query(totalQuery, termoBusca ? [params[0]] : []);
         const totalItens = parseInt(totalResult.rows[0].count, 10);
         const totalPaginas = Math.ceil(totalItens / limite);
 
+        // Adiciona os parâmetros de paginação
+        params.push(limite, offset);
+
+        // Consulta para obter os dados paginados e filtrados
+        const clientesQuery = `
+            SELECT id, nome, email, telefone, endereco, responsavel, tem_whatsapp, coordenada_x, coordenada_y, data_criacao
+            ${queryBase}
+            ${whereClause}
+            ORDER BY nome ASC
+            LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+        `;
+        
+        const clientesResult = await pool.query(clientesQuery, params);
+
+        // Retorna a resposta formatada
         res.status(200).json({
             dados: clientesResult.rows,
             total: totalItens,
@@ -40,6 +68,7 @@ const getClientes = async (req, res) => {
     }
 };
 
+
 /**
  * @desc    Criar um novo cliente
  * @route   POST /api/clientes
@@ -49,7 +78,7 @@ const createCliente = async (req, res) => {
     const { nome, telefone, responsavel, tem_whatsapp, endereco } = req.body;
     const email = toNull(req.body.email);
 
-    // ✅ Validação atualizada com os novos campos obrigatórios
+    // Validação atualizada com os novos campos obrigatórios
     if (!nome || nome.trim() === '' || 
         !telefone || telefone.trim() === '' ||
         !responsavel || responsavel.trim() === '' ||
@@ -91,7 +120,7 @@ const updateCliente = async (req, res) => {
     const { nome, telefone, responsavel, tem_whatsapp, endereco } = req.body;
     const email = toNull(req.body.email);
 
-    // ✅ Validação atualizada com os novos campos obrigatórios
+    // Validação atualizada com os novos campos obrigatórios
     if (!nome || nome.trim() === '' || 
         !telefone || telefone.trim() === '' ||
         !responsavel || responsavel.trim() === '' ||

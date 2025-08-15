@@ -1,3 +1,5 @@
+// frontend/src/services/venda.service.ts
+
 import axios from 'axios';
 import { IPaginatedResponse } from '@/types/common.types';
 
@@ -62,8 +64,24 @@ export interface IContaAReceber {
 
 // --- FUNÇÕES DE SERVIÇO ---
 
-export const getVendas = async (pagina = 1, limite = 10): Promise<IPaginatedResponse<IVenda>> => {
-  const response = await apiClient.get('/movimentacoes/vendas', { params: { pagina, limite } });
+/**
+ * @description Busca a lista paginada de vendas, com suporte a filtro de busca.
+ * @param pagina - O número da página a ser buscada.
+ * @param limite - O número de itens por página.
+ * @param termoBusca - (Opcional) O termo para filtrar os resultados.
+ */
+export const getVendas = async (
+  pagina = 1,
+  limite = 10,
+  termoBusca?: string // <-- NOVO PARÂMETRO ADICIONADO
+): Promise<IPaginatedResponse<IVenda>> => {
+  const response = await apiClient.get('/movimentacoes/vendas', {
+    params: {
+      pagina,
+      limite,
+      termoBusca, // <-- PARÂMETRO ENVIADO PARA A API
+    },
+  });
   return response.data;
 };
 
@@ -72,32 +90,20 @@ export const createVenda = async (novaVenda: INovaVenda): Promise<IVenda> => {
   return response.data;
 };
 
-/**
- * @description Atualiza uma venda existente.
- */
 export const updateVenda = async ({ id, data }: { id: number, data: INovaVenda }): Promise<IVenda> => {
   const response = await apiClient.put(`/movimentacoes/vendas/${id}`, data);
   return response.data;
 };
 
-/**
- * @description Deleta uma venda.
- */
 export const deleteVenda = async (id: number): Promise<void> => {
   await apiClient.delete(`/movimentacoes/vendas/${id}`);
 };
 
-/**
- * @description Busca a lista de contas a receber com vencimento nos próximos 5 dias.
- */
 export const getContasAReceber = async (): Promise<IContaAReceber[]> => {
     const response = await apiClient.get('/movimentacoes/contas-a-receber');
     return response.data;
 };
 
-/**
- * @description Registra o pagamento de uma venda específica.
- */
 export const registrarPagamento = async (vendaId: number): Promise<IVenda> => {
     const response = await apiClient.put(`/movimentacoes/vendas/${vendaId}/pagamento`);
     return response.data;

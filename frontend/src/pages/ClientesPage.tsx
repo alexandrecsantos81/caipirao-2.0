@@ -16,17 +16,33 @@ import {
   AlertDialogHeader,
   AlertDialogContent,
   AlertDialogOverlay,
+  InputGroup,
+  InputLeftElement,
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useEffect, useState, useRef } from 'react';
 import { SubmitHandler, useForm } from 'react-hook-form';
-import { FiEdit, FiPhone, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiEdit, FiPhone, FiPlus, FiTrash2, FiSearch } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { Pagination } from '../components/Pagination';
 import {
   ICliente, IClienteForm, createCliente, deleteCliente, getClientes, updateCliente,
 } from '../services/cliente.service';
 import { useAuth } from '../hooks/useAuth';
+
+// Hook customizado para debounce
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+  return debouncedValue;
+};
 
 const formatarTelefone = (telefone: string): string => {
   if (!telefone) return '';
@@ -38,7 +54,7 @@ const formatarTelefone = (telefone: string): string => {
 
 const openWhatsApp = (phone: string) => {
   const cleanPhone = phone.replace(/\D/g, '');
-  window.open(`https://wa.me/55${cleanPhone}`, '_blank'    );
+  window.open(`https://wa.me/55${cleanPhone}`, '_blank' );
 };
 
 const FormularioCliente = ({ isOpen, onClose, cliente, onSave }: {
@@ -72,7 +88,6 @@ const FormularioCliente = ({ isOpen, onClose, cliente, onSave }: {
                   <Input 
                     {...register('nome', { 
                       required: 'Nome Empresarial é obrigatório',
-                      // ✅ CORREÇÃO APLICADA AQUI
                       validate: (value) => (value && value.trim() !== '') || 'O campo não pode conter apenas espaços'
                     })} 
                     placeholder="Nome da empresa ou do cliente"
@@ -85,7 +100,6 @@ const FormularioCliente = ({ isOpen, onClose, cliente, onSave }: {
                   <Input 
                     {...register('responsavel', {
                       required: 'Nome do responsável é obrigatório',
-                      // ✅ CORREÇÃO APLICADA AQUI
                       validate: (value) => (value && value.trim() !== '') || 'O campo não pode conter apenas espaços'
                     })} 
                     placeholder="Nome do responsável"
@@ -99,7 +113,6 @@ const FormularioCliente = ({ isOpen, onClose, cliente, onSave }: {
                 <Input 
                   {...register('telefone', { 
                     required: 'Telefone é obrigatório',
-                    // ✅ CORREÇÃO APLICADA AQUI
                     validate: (value) => (value && value.trim() !== '') || 'O campo não pode conter apenas espaços'
                   })} 
                   placeholder="(xx) xxxxx-xxxx" 
@@ -112,7 +125,6 @@ const FormularioCliente = ({ isOpen, onClose, cliente, onSave }: {
                 <Input 
                   {...register('endereco', {
                     required: 'Endereço é obrigatório',
-                    // ✅ CORREÇÃO APLICADA AQUI
                     validate: (value) => (value && value.trim() !== '') || 'O campo não pode conter apenas espaços'
                   })} 
                   placeholder="Avenida, Rua, Quadra, Lote, Bairro..."
@@ -135,6 +147,9 @@ const FormularioCliente = ({ isOpen, onClose, cliente, onSave }: {
 
 const ClientesPage = () => {
   const [pagina, setPagina] = useState(1);
+  const [termoBusca, setTermoBusca] = useState('');
+  const buscaDebounced = useDebounce(termoBusca, 500);
+
   const { isOpen: isDrawerOpen, onOpen: onDrawerOpen, onClose: onDrawerClose } = useDisclosure();
   const { isOpen: isAlertOpen, onOpen: onAlertOpen, onClose: onAlertClose } = useDisclosure();
   const [clienteParaDeletar, setClienteParaDeletar] = useState<ICliente | null>(null);
@@ -146,9 +161,16 @@ const ClientesPage = () => {
   const isMobile = useBreakpointValue({ base: true, md: false });
   const cancelRef = useRef<HTMLButtonElement>(null);
 
+  useEffect(() => {
+    // Reseta para a primeira página sempre que a busca mudar
+    if (buscaDebounced) {
+      setPagina(1);
+    }
+  }, [buscaDebounced]);
+
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['clientes', pagina],
-    queryFn: () => getClientes(pagina, 10),
+    queryKey: ['clientes', pagina, buscaDebounced],
+    queryFn: () => getClientes(pagina, 10, buscaDebounced),
     placeholderData: keepPreviousData,
   });
 
@@ -208,6 +230,19 @@ const ClientesPage = () => {
           Novo Cliente
         </Button>
       </Flex>
+
+      <Box mb={6}>
+        <InputGroup>
+          <InputLeftElement pointerEvents="none">
+            <FiSearch color="gray.300" />
+          </InputLeftElement>
+          <Input
+            placeholder="Buscar por nome, email, telefone ou responsável..."
+            value={termoBusca}
+            onChange={(e) => setTermoBusca(e.target.value)}
+          />
+        </InputGroup>
+      </Box>
 
       {isLoading ? (
         <Center p={10}><Spinner size="xl" /></Center>

@@ -1,3 +1,5 @@
+// frontend/src/services/utilizador.service.ts
+
 import axios from 'axios';
 import { IPaginatedResponse } from '@/types/common.types';
 
@@ -62,9 +64,23 @@ export interface IAtivacaoResponse {
 
 // --- FUNÇÕES DO SERVIÇO ---
 
-export const getUtilizadores = async (pagina = 1, limite = 10): Promise<IPaginatedResponse<IUtilizador>> => {
+/**
+ * @description Busca a lista paginada de utilizadores, com suporte a filtro de busca.
+ * @param pagina - O número da página a ser buscada.
+ * @param limite - O número de itens por página.
+ * @param termoBusca - (Opcional) O termo para filtrar os resultados.
+ */
+export const getUtilizadores = async (
+  pagina = 1,
+  limite = 10,
+  termoBusca?: string // <-- NOVO PARÂMETRO ADICIONADO
+): Promise<IPaginatedResponse<IUtilizador>> => {
   const response = await apiClient.get('/utilizadores', {
-    params: { pagina, limite }
+    params: {
+      pagina,
+      limite,
+      termoBusca, // <-- PARÂMETRO ENVIADO PARA A API
+    },
   });
   return response.data;
 };
@@ -92,5 +108,3 @@ export const updateUtilizador = async ({ id, data }: { id: number, data: IUpdate
 export const deleteUtilizador = async (id: number): Promise<void> => {
   await apiClient.delete(`/utilizadores/${id}`);
 };
-
-//marcação para commit gemini

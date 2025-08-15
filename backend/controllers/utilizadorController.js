@@ -18,7 +18,6 @@ const createUtilizadorByAdmin = async (req, res) => {
             `INSERT INTO utilizadores (nome, email, telefone, nickname, senha, perfil, status)
              VALUES ($1, $2, $3, $4, $5, $6, 'ATIVO')
              RETURNING id, nome, email, telefone, nickname, perfil, status`,
-            // ✅ Converte para caixa alta
             [nome.trim().toUpperCase(), email.toLowerCase(), telefone, nickname.trim().toUpperCase(), senhaCriptografada, perfil]
         );
         res.status(201).json(novoUtilizador.rows[0]);
@@ -42,7 +41,6 @@ const solicitarAcesso = async (req, res) => {
             `INSERT INTO utilizadores (nome, email, telefone, perfil, status)
              VALUES ($1, $2, $3, 'PENDENTE', 'INATIVO')
              RETURNING id, nome, email, status`,
-            // ✅ Converte para caixa alta
             [nome.trim().toUpperCase(), email.toLowerCase(), telefone]
         );
         res.status(201).json({ 
@@ -95,24 +93,42 @@ const ativarUtilizador = async (req, res) => {
 };
 
 const getUtilizadores = async (req, res) => {
-    const { pagina = 1, limite = 10 } = req.query;
-    
-    try {
-        const totalPromise = pool.query('SELECT COUNT(*) FROM utilizadores');
-        
-        const offset = (pagina - 1) * limite;
-        const utilizadoresPromise = pool.query(
-            `SELECT id, nome, email, telefone, nickname, perfil, status 
-             FROM utilizadores 
-             ORDER BY nome ASC
-             LIMIT $1 OFFSET $2`,
-             [limite, offset]
-        );
+    const { pagina = 1, limite = 10, termoBusca } = req.query;
+    const offset = (pagina - 1) * limite;
 
-        const [totalResult, utilizadoresResult] = await Promise.all([totalPromise, utilizadoresPromise]);
-        
+    let queryBase = 'FROM utilizadores';
+    let whereClause = '';
+    const params = [];
+    let paramIndex = 1;
+
+    if (termoBusca) {
+        whereClause = `
+            WHERE nome ILIKE $${paramIndex}
+            OR email ILIKE $${paramIndex}
+            OR telefone ILIKE $${paramIndex}
+            OR nickname ILIKE $${paramIndex}
+        `;
+        params.push(`%${termoBusca}%`);
+        paramIndex++;
+    }
+
+    try {
+        const totalQuery = `SELECT COUNT(*) ${queryBase} ${whereClause}`;
+        const totalResult = await pool.query(totalQuery, termoBusca ? [params[0]] : []);
         const totalItens = parseInt(totalResult.rows[0].count, 10);
         const totalPaginas = Math.ceil(totalItens / limite);
+
+        params.push(limite, offset);
+
+        const utilizadoresQuery = `
+            SELECT id, nome, email, telefone, nickname, perfil, status 
+            ${queryBase}
+            ${whereClause}
+            ORDER BY nome ASC
+            LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+        `;
+        
+        const utilizadoresResult = await pool.query(utilizadoresQuery, params);
 
         res.status(200).json({
             dados: utilizadoresResult.rows,
@@ -140,7 +156,6 @@ const updateUtilizador = async (req, res) => {
             `UPDATE utilizadores 
              SET nome = $1, email = $2, telefone = $3, nickname = $4, perfil = $5, status = $6
              WHERE id = $7 RETURNING *`,
-            // ✅ Converte para caixa alta
             [nome.trim().toUpperCase(), email.toLowerCase(), telefone, nickname.trim().toUpperCase(), perfil, status, id]
         );
 

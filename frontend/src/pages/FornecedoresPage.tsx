@@ -9,9 +9,11 @@ import {
   useBreakpointValue,
   Divider,
   Center,
+  InputGroup,
+  InputLeftElement,
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
+import { FiPlus, FiEdit, FiTrash2, FiSearch } from 'react-icons/fi';
 import { useForm, SubmitHandler, Controller } from 'react-hook-form';
 import { useState, useEffect, useRef } from 'react';
 import {
@@ -19,6 +21,20 @@ import {
 } from '../services/fornecedor.service';
 import { useAuth } from '../hooks/useAuth';
 import { Pagination } from '../components/Pagination';
+
+// Hook customizado para debounce
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+  return debouncedValue;
+};
 
 const aplicarMascaraCnpjCpf = (value: string): string => {
   if (!value) return '';
@@ -39,9 +55,7 @@ const aplicarMascaraCnpjCpf = (value: string): string => {
     .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
 };
 
-// ✅ CORREÇÃO: A função agora aceita `string | null | undefined` como entrada.
 const validarCnpjCpf = (value: string | null | undefined): boolean | string => {
-  // Trata o caso de o valor ser nulo ou indefinido.
   if (!value) return 'Campo obrigatório'; 
   
   const apenasNumeros = value.replace(/\D/g, '');
@@ -105,7 +119,7 @@ export const FormularioFornecedor = ({ isOpen, onClose, fornecedor, onSave, isLo
                 <Controller
                   name="cnpj_cpf"
                   control={control}
-                  rules={{ validate: validarCnpjCpf }} // Agora a função é compatível
+                  rules={{ validate: validarCnpjCpf }}
                   render={({ field: { onChange, value, name } }) => (
                     <Input
                       name={name}
@@ -155,12 +169,21 @@ const FornecedoresPage = () => {
   
   const [selectedFornecedor, setSelectedFornecedor] = useState<IFornecedor | null>(null);
   const [pagina, setPagina] = useState(1);
+  const [termoBusca, setTermoBusca] = useState('');
+  const buscaDebounced = useDebounce(termoBusca, 500);
+
   const isMobile = useBreakpointValue({ base: true, md: false });
   const cancelRef = useRef<HTMLButtonElement>(null);
 
+  useEffect(() => {
+    if (buscaDebounced) {
+      setPagina(1);
+    }
+  }, [buscaDebounced]);
+
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['fornecedores', pagina],
-    queryFn: () => getFornecedores(pagina, 10),
+    queryKey: ['fornecedores', pagina, buscaDebounced],
+    queryFn: () => getFornecedores(pagina, 10, buscaDebounced),
     placeholderData: keepPreviousData,
   });
 
@@ -214,9 +237,6 @@ const FornecedoresPage = () => {
     saveMutation.mutate({ data: formData, id });
   };
 
-  if (isLoading) return <Center p={8}><Spinner size="xl" /></Center>;
-  if (isError) return <Center p={8}><Text color="red.500">Erro ao carregar fornecedores.</Text></Center>;
-
   return (
     <Box p={{ base: 4, md: 8 }}>
       <Flex justify="space-between" align="center" mb={6} direction={{ base: 'column', md: 'row' }} gap={4}>
@@ -224,87 +244,108 @@ const FornecedoresPage = () => {
         <Button leftIcon={<FiPlus />} colorScheme="teal" onClick={handleAddClick} w={{ base: 'full', md: 'auto' }}>Adicionar Fornecedor</Button>
       </Flex>
 
-      {isMobile ? (
-        <VStack spacing={4} align="stretch">
-          {data?.dados.map((fornecedor) => (
-            <Box key={fornecedor.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
-              <Flex justify="space-between" align="center">
-                <Heading size="sm" noOfLines={1}>{fornecedor.nome}</Heading>
-                <HStack spacing={1}>
-                  <IconButton aria-label="Editar" icon={<FiEdit />} size="sm" onClick={() => handleEditClick(fornecedor)} />
-                  {user?.perfil === 'ADMIN' && (
-                    <IconButton aria-label="Excluir" icon={<FiTrash2 />} colorScheme="red" size="sm" onClick={() => handleDeleteClick(fornecedor)} />
-                  )}
-                </HStack>
-              </Flex>
-              <Divider my={2} />
-              <HStack justify="space-between">
-                <Text fontSize="sm" color="gray.500">CNPJ/CPF:</Text>
-                <Text>{aplicarMascaraCnpjCpf(fornecedor.cnpj_cpf || '') || 'Não informado'}</Text>
-              </HStack>
-              <HStack justify="space-between">
-                <Text fontSize="sm" color="gray.500">Telefone:</Text>
-                <Text>{fornecedor.telefone || 'Não informado'}</Text>
-              </HStack>
-            </Box>
-          ))}
-        </VStack>
+      <Box mb={6}>
+        <InputGroup>
+          <InputLeftElement pointerEvents="none">
+            <FiSearch color="gray.300" />
+          </InputLeftElement>
+          <Input
+            placeholder="Buscar por nome, CNPJ/CPF, telefone ou email..."
+            value={termoBusca}
+            onChange={(e) => setTermoBusca(e.target.value)}
+          />
+        </InputGroup>
+      </Box>
+
+      {isLoading ? (
+        <Center p={8}><Spinner size="xl" /></Center>
+      ) : isError ? (
+        <Center p={8}><Text color="red.500">Erro ao carregar fornecedores.</Text></Center>
       ) : (
-        <TableContainer>
-          <Table variant="striped">
-            <Thead>
-              <Tr>
-                <Th>Nome</Th>
-                <Th>CNPJ/CPF</Th>
-                <Th>Contato</Th>
-                <Th>Ações</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
+        <>
+          {isMobile ? (
+            <VStack spacing={4} align="stretch">
               {data?.dados.map((fornecedor) => (
-                <Tr key={fornecedor.id}>
-                  <Td fontWeight="medium">{fornecedor.nome}</Td>
-                  <Td>{aplicarMascaraCnpjCpf(fornecedor.cnpj_cpf || '') || 'N/A'}</Td>
-                  <Td>
-                    <VStack align="start" spacing={0}>
-                      <Text>{fornecedor.email || '---'}</Text>
-                      <Text fontSize="sm" color="gray.500">{fornecedor.telefone || '---'}</Text>
-                    </VStack>
-                  </Td>
-                  <Td>
-                    <HStack>
-                      <IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleEditClick(fornecedor)} />
+                <Box key={fornecedor.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
+                  <Flex justify="space-between" align="center">
+                    <Heading size="sm" noOfLines={1}>{fornecedor.nome}</Heading>
+                    <HStack spacing={1}>
+                      <IconButton aria-label="Editar" icon={<FiEdit />} size="sm" onClick={() => handleEditClick(fornecedor)} />
                       {user?.perfil === 'ADMIN' && (
-                         <IconButton aria-label="Excluir" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDeleteClick(fornecedor)} />
+                        <IconButton aria-label="Excluir" icon={<FiTrash2 />} colorScheme="red" size="sm" onClick={() => handleDeleteClick(fornecedor)} />
                       )}
                     </HStack>
-                  </Td>
-                 </Tr>
+                  </Flex>
+                  <Divider my={2} />
+                  <HStack justify="space-between">
+                    <Text fontSize="sm" color="gray.500">CNPJ/CPF:</Text>
+                    <Text>{aplicarMascaraCnpjCpf(fornecedor.cnpj_cpf || '') || 'Não informado'}</Text>
+                  </HStack>
+                  <HStack justify="space-between">
+                    <Text fontSize="sm" color="gray.500">Telefone:</Text>
+                    <Text>{fornecedor.telefone || 'Não informado'}</Text>
+                  </HStack>
+                </Box>
               ))}
-            </Tbody>
-          </Table>
-        </TableContainer>
-      )}
+            </VStack>
+          ) : (
+            <TableContainer>
+              <Table variant="striped">
+                <Thead>
+                  <Tr>
+                    <Th>Nome</Th>
+                    <Th>CNPJ/CPF</Th>
+                    <Th>Contato</Th>
+                    <Th>Ações</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {data?.dados.map((fornecedor) => (
+                    <Tr key={fornecedor.id}>
+                      <Td fontWeight="medium">{fornecedor.nome}</Td>
+                      <Td>{aplicarMascaraCnpjCpf(fornecedor.cnpj_cpf || '') || 'N/A'}</Td>
+                      <Td>
+                        <VStack align="start" spacing={0}>
+                          <Text>{fornecedor.email || '---'}</Text>
+                          <Text fontSize="sm" color="gray.500">{fornecedor.telefone || '---'}</Text>
+                        </VStack>
+                      </Td>
+                      <Td>
+                        <HStack>
+                          <IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleEditClick(fornecedor)} />
+                          {user?.perfil === 'ADMIN' && (
+                            <IconButton aria-label="Excluir" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDeleteClick(fornecedor)} />
+                          )}
+                        </HStack>
+                      </Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </TableContainer>
+          )}
 
-      <Pagination
-        paginaAtual={data?.pagina || 1}
-        totalPaginas={data?.totalPaginas || 1}
-        onPageChange={(page) => setPagina(page)}
-      />
+          <Pagination
+            paginaAtual={data?.pagina || 1}
+            totalPaginas={data?.totalPaginas || 1}
+            onPageChange={(page) => setPagina(page)}
+          />
+        </>
+      )}
 
       <Modal isOpen={isConfirmModalOpen} onClose={onConfirmModalClose} isCentered>
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Confirmar Exclusão</ModalHeader>
           <ModalCloseButton />
-           <ModalBody>
+          <ModalBody>
             <Text>Tem certeza que deseja excluir o fornecedor <strong>{selectedFornecedor?.nome}</strong>?</Text>
             <Text fontSize="sm" color="red.500" mt={2}>Atenção: Esta ação não pode ser desfeita.</Text>
           </ModalBody>
           <ModalFooter>
             <Button variant="ghost" mr={3} onClick={onConfirmModalClose} ref={cancelRef}>Cancelar</Button>
             <Button colorScheme="red" onClick={handleConfirmDelete} isLoading={deleteMutation.isPending}>
-               Sim, Excluir
+              Sim, Excluir
             </Button>
           </ModalFooter>
         </ModalContent>

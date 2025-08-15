@@ -1,3 +1,5 @@
+// frontend/src/services/fornecedor.service.ts
+
 import axios from 'axios';
 import { IPaginatedResponse } from '@/types/common.types';
 
@@ -34,11 +36,22 @@ export type IFornecedorForm = Omit<IFornecedor, 'id'>;
 // --- FUNÇÕES DO SERVIÇO ---
 
 /**
- * @description Busca a lista paginada de fornecedores.
+ * @description Busca a lista paginada de fornecedores, com suporte a filtro de busca.
+ * @param pagina - O número da página a ser buscada.
+ * @param limite - O número de itens por página.
+ * @param termoBusca - (Opcional) O termo para filtrar os resultados.
  */
-export const getFornecedores = async (pagina = 1, limite = 10): Promise<IPaginatedResponse<IFornecedor>> => {
+export const getFornecedores = async (
+  pagina = 1,
+  limite = 10,
+  termoBusca?: string // <-- NOVO PARÂMETRO ADICIONADO
+): Promise<IPaginatedResponse<IFornecedor>> => {
   const response = await apiClient.get('/', {
-    params: { pagina, limite },
+    params: {
+      pagina,
+      limite,
+      termoBusca, // <-- PARÂMETRO ENVIADO PARA A API
+    },
   });
   return response.data;
 };
@@ -47,23 +60,21 @@ export const getFornecedores = async (pagina = 1, limite = 10): Promise<IPaginat
  * @description Cria um novo fornecedor.
  */
 export const createFornecedor = async (data: IFornecedorForm): Promise<IFornecedor> => {
-    const response = await apiClient.post('/', data);
-    return response.data;
+  const response = await apiClient.post('/', data);
+  return response.data;
 }
 
 /**
  * @description Atualiza os dados de um fornecedor existente.
  */
 export const updateFornecedor = async ({ id, ...data }: IFornecedor): Promise<IFornecedor> => {
-    const response = await apiClient.put(`/${id}`, data);
-    return response.data;
+  const response = await apiClient.put(`/${id}`, data);
+  return response.data;
 }
 
 /**
  * @description Deleta um fornecedor. (Requer Admin)
  */
 export const deleteFornecedor = async (id: number): Promise<void> => {
-    await apiClient.delete(`/${id}`);
+  await apiClient.delete(`/${id}`);
 }
-
-//marcação para commit gemini

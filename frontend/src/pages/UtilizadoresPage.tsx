@@ -10,9 +10,11 @@ import {
   useBreakpointValue,
   Divider,
   Heading,
+  InputGroup,
+  InputLeftElement,
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { FiEdit, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiEdit, FiPlus, FiTrash2, FiSearch } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { useState, useRef, useEffect } from 'react';
@@ -22,6 +24,20 @@ import {
 } from '../services/utilizador.service';
 import { useAuth } from '../hooks/useAuth';
 import { Pagination } from '../components/Pagination';
+
+// Hook customizado para debounce
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+  return debouncedValue;
+};
 
 const FormularioAdicionarUtilizador = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) => {
   const queryClient = useQueryClient();
@@ -141,12 +157,21 @@ const UtilizadoresPage = () => {
   
   const [selectedUser, setSelectedUser] = useState<IUtilizador | null>(null);
   const [pagina, setPagina] = useState(1);
+  const [termoBusca, setTermoBusca] = useState('');
+  const buscaDebounced = useDebounce(termoBusca, 500);
+
   const cancelRef = useRef<HTMLButtonElement>(null);
   const isMobile = useBreakpointValue({ base: true, md: false });
 
+  useEffect(() => {
+    if (buscaDebounced) {
+      setPagina(1);
+    }
+  }, [buscaDebounced]);
+
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['utilizadores', pagina],
-    queryFn: () => getUtilizadores(pagina, 10),
+    queryKey: ['utilizadores', pagina, buscaDebounced],
+    queryFn: () => getUtilizadores(pagina, 10, buscaDebounced),
     placeholderData: keepPreviousData
   });
 
@@ -199,9 +224,6 @@ const UtilizadoresPage = () => {
     return status === 'ATIVO' ? <Tag colorScheme="green">Ativo</Tag> : <Tag colorScheme="red">Inativo</Tag>;
   };
 
-  if (isLoading) return <Center p={10}><Spinner size="xl" /></Center>;
-  if (isError) return <Center p={10}><Text color="red.500">Erro ao carregar utilizadores.</Text></Center>;
-
   return (
     <Box p={{ base: 4, md: 8 }}>
       <Flex justify="space-between" align="center" mb={6} direction={{ base: 'column', md: 'row' }} gap={4}>
@@ -211,64 +233,85 @@ const UtilizadoresPage = () => {
         </Button>
       </Flex>
 
-      {isMobile ? (
-        <VStack spacing={4} align="stretch">
-          {data?.dados.map((user) => (
-            <Box key={user.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
-              <Flex justify="space-between" align="center">
-                <Heading size="sm" noOfLines={1}>{user.nome}</Heading>
-                {getStatusTag(user.status, user.perfil)}
-              </Flex>
-              <Text fontSize="sm" color="gray.400">{user.perfil}</Text>
-              <Divider my={2} />
-              <HStack justify="space-between">
-                <Text fontSize="sm" color="gray.500">Email:</Text>
-                <Text noOfLines={1}>{user.email}</Text>
-              </HStack>
-              <HStack justify="space-between">
-                <Text fontSize="sm" color="gray.500">Telefone:</Text>
-                <Text>{user.telefone}</Text>
-              </HStack>
-              <HStack mt={4} justify="space-around" bg="gray.700" p={2} borderRadius="md">
-                 <Tooltip label={user.status === 'ATIVO' ? 'Desativar' : 'Ativar'}><Box><Switch isChecked={user.status === 'ATIVO'} onChange={() => updateStatusMutation.mutate(user)} isDisabled={user.id === currentUser?.id} /></Box></Tooltip>
-                <Tooltip label="WhatsApp"><IconButton as={Link} href={`https://wa.me/55${user.telefone.replace(/\D/g, ''   )}`} target="_blank" aria-label="WhatsApp" icon={<FaWhatsapp />} variant="ghost" /></Tooltip>
-                <Tooltip label="Editar"><IconButton aria-label="Editar" icon={<FiEdit />} variant="ghost" onClick={() => handleEditClick(user)} /></Tooltip>
-                <Tooltip label="Excluir"><IconButton aria-label="Excluir" icon={<FiTrash2 />} variant="ghost" colorScheme="red" onClick={() => handleDeleteClick(user)} isDisabled={user.id === currentUser?.id} /></Tooltip>
-              </HStack>
-            </Box>
-          ))}
-        </VStack>
-      ) : (
-        <TableContainer>
-          <Table variant="striped">
-            <Thead><Tr><Th>Nome</Th><Th>Contato</Th><Th>Perfil</Th><Th>Status</Th><Th>Ações</Th></Tr></Thead>
-            <Tbody>
-               {data?.dados.map((user) => (
-                <Tr key={user.id}>
-                  <Td fontWeight="medium">{user.nome}</Td>
-                  <Td><VStack align="start" spacing={0}><Text>{user.email}</Text><Text fontSize="sm" color="gray.500">{user.telefone}</Text></VStack></Td>
-                  <Td>{user.perfil}</Td>
-                  <Td>{getStatusTag(user.status, user.perfil)}</Td>
-                  <Td>
-                    <HStack spacing={2}>
-                      <Tooltip label={user.status === 'ATIVO' ? 'Desativar usuário' : 'Ativar usuário'} hasArrow><Box><Switch isChecked={user.status === 'ATIVO'} onChange={() => updateStatusMutation.mutate(user)} isDisabled={user.id === currentUser?.id} /></Box></Tooltip>
-                      <Tooltip label="WhatsApp" hasArrow><IconButton as={Link} href={`https://wa.me/55${user.telefone.replace(/\D/g, ''   )}`} target="_blank" aria-label="WhatsApp" icon={<FaWhatsapp />} variant="ghost" /></Tooltip>
-                      <Tooltip label="Editar" hasArrow><IconButton aria-label="Editar" icon={<FiEdit />} variant="ghost" onClick={() => handleEditClick(user)} /></Tooltip>
-                      <Tooltip label="Excluir" hasArrow><IconButton aria-label="Excluir" icon={<FiTrash2 />} variant="ghost" colorScheme="red" onClick={() => handleDeleteClick(user)} isDisabled={user.id === currentUser?.id} /></Tooltip>
-                    </HStack>
-                  </Td>
-                </Tr>
-              ))}
-            </Tbody>
-           </Table>
-        </TableContainer>
-      )}
+      <Box mb={6}>
+        <InputGroup>
+          <InputLeftElement pointerEvents="none">
+            <FiSearch color="gray.300" />
+          </InputLeftElement>
+          <Input
+            placeholder="Buscar por nome, email, telefone ou nickname..."
+            value={termoBusca}
+            onChange={(e) => setTermoBusca(e.target.value)}
+          />
+        </InputGroup>
+      </Box>
 
-      <Pagination
-        paginaAtual={data?.pagina || 1}
-        totalPaginas={data?.totalPaginas || 1}
-        onPageChange={setPagina}
-      />
+      {isLoading ? (
+        <Center p={10}><Spinner size="xl" /></Center>
+      ) : isError ? (
+        <Center p={10}><Text color="red.500">Erro ao carregar utilizadores.</Text></Center>
+      ) : (
+        <>
+          {isMobile ? (
+            <VStack spacing={4} align="stretch">
+              {data?.dados.map((user) => (
+                <Box key={user.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
+                  <Flex justify="space-between" align="center">
+                    <Heading size="sm" noOfLines={1}>{user.nome}</Heading>
+                    {getStatusTag(user.status, user.perfil)}
+                  </Flex>
+                  <Text fontSize="sm" color="gray.400">{user.perfil}</Text>
+                  <Divider my={2} />
+                  <HStack justify="space-between">
+                    <Text fontSize="sm" color="gray.500">Email:</Text>
+                    <Text noOfLines={1}>{user.email}</Text>
+                  </HStack>
+                  <HStack justify="space-between">
+                    <Text fontSize="sm" color="gray.500">Telefone:</Text>
+                    <Text>{user.telefone}</Text>
+                  </HStack>
+                  <HStack mt={4} justify="space-around" bg="gray.700" p={2} borderRadius="md">
+                    <Tooltip label={user.status === 'ATIVO' ? 'Desativar' : 'Ativar'}><Box><Switch isChecked={user.status === 'ATIVO'} onChange={() => updateStatusMutation.mutate(user)} isDisabled={user.id === currentUser?.id} /></Box></Tooltip>
+                    <Tooltip label="WhatsApp"><IconButton as={Link} href={`https://wa.me/55${user.telefone.replace(/\D/g, '' )}`} target="_blank" aria-label="WhatsApp" icon={<FaWhatsapp />} variant="ghost" /></Tooltip>
+                    <Tooltip label="Editar"><IconButton aria-label="Editar" icon={<FiEdit />} variant="ghost" onClick={() => handleEditClick(user)} /></Tooltip>
+                    <Tooltip label="Excluir"><IconButton aria-label="Excluir" icon={<FiTrash2 />} variant="ghost" colorScheme="red" onClick={() => handleDeleteClick(user)} isDisabled={user.id === currentUser?.id} /></Tooltip>
+                  </HStack>
+                </Box>
+              ))}
+            </VStack>
+          ) : (
+            <TableContainer>
+              <Table variant="striped">
+                <Thead><Tr><Th>Nome</Th><Th>Contato</Th><Th>Perfil</Th><Th>Status</Th><Th>Ações</Th></Tr></Thead>
+                <Tbody>
+                  {data?.dados.map((user) => (
+                    <Tr key={user.id}>
+                      <Td fontWeight="medium">{user.nome}</Td>
+                      <Td><VStack align="start" spacing={0}><Text>{user.email}</Text><Text fontSize="sm" color="gray.500">{user.telefone}</Text></VStack></Td>
+                      <Td>{user.perfil}</Td>
+                      <Td>{getStatusTag(user.status, user.perfil)}</Td>
+                      <Td>
+                        <HStack spacing={2}>
+                          <Tooltip label={user.status === 'ATIVO' ? 'Desativar usuário' : 'Ativar usuário'} hasArrow><Box><Switch isChecked={user.status === 'ATIVO'} onChange={() => updateStatusMutation.mutate(user)} isDisabled={user.id === currentUser?.id} /></Box></Tooltip>
+                          <Tooltip label="WhatsApp" hasArrow><IconButton as={Link} href={`https://wa.me/55${user.telefone.replace(/\D/g, '' )}`} target="_blank" aria-label="WhatsApp" icon={<FaWhatsapp />} variant="ghost" /></Tooltip>
+                          <Tooltip label="Editar" hasArrow><IconButton aria-label="Editar" icon={<FiEdit />} variant="ghost" onClick={() => handleEditClick(user)} /></Tooltip>
+                          <Tooltip label="Excluir" hasArrow><IconButton aria-label="Excluir" icon={<FiTrash2 />} variant="ghost" colorScheme="red" onClick={() => handleDeleteClick(user)} isDisabled={user.id === currentUser?.id} /></Tooltip>
+                        </HStack>
+                      </Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </TableContainer>
+          )}
+
+          <Pagination
+            paginaAtual={data?.pagina || 1}
+            totalPaginas={data?.totalPaginas || 1}
+            onPageChange={setPagina}
+          />
+        </>
+      )}
 
       <FormularioAdicionarUtilizador isOpen={isAddDrawerOpen} onClose={onAddDrawerClose} />
       <FormularioEditarUtilizador isOpen={isEditDrawerOpen} onClose={onEditDrawerClose} utilizador={selectedUser} />

@@ -9,23 +9,48 @@ const limparNumeros = (valor) => {
 };
 
 /**
- * @desc    Listar todos os fornecedores com paginação
+ * @desc    Listar todos os fornecedores com paginação e filtro de busca
  * @route   GET /api/fornecedores
  * @access  Protegido
  */
 const getFornecedores = async (req, res) => {
-    // (Nenhuma alteração necessária aqui)
-    const { pagina = 1, limite = 10 } = req.query;
+    const { pagina = 1, limite = 10, termoBusca } = req.query;
+    const offset = (pagina - 1) * limite;
+
+    let queryBase = 'FROM fornecedores';
+    let whereClause = '';
+    const params = [];
+    let paramIndex = 1;
+
+    if (termoBusca) {
+        whereClause = `
+            WHERE nome ILIKE $${paramIndex}
+            OR cnpj_cpf ILIKE $${paramIndex}
+            OR telefone ILIKE $${paramIndex}
+            OR email ILIKE $${paramIndex}
+        `;
+        params.push(`%${termoBusca}%`);
+        paramIndex++;
+    }
+
     try {
-        const totalPromise = pool.query('SELECT COUNT(*) FROM fornecedores');
-        const offset = (pagina - 1) * limite;
-        const fornecedoresPromise = pool.query(
-            'SELECT * FROM fornecedores ORDER BY nome ASC LIMIT $1 OFFSET $2',
-            [limite, offset]
-        );
-        const [totalResult, fornecedoresResult] = await Promise.all([totalPromise, fornecedoresPromise]);
+        const totalQuery = `SELECT COUNT(*) ${queryBase} ${whereClause}`;
+        const totalResult = await pool.query(totalQuery, termoBusca ? [params[0]] : []);
         const totalItens = parseInt(totalResult.rows[0].count, 10);
         const totalPaginas = Math.ceil(totalItens / limite);
+
+        params.push(limite, offset);
+
+        const fornecedoresQuery = `
+            SELECT id, nome, cnpj_cpf, telefone, email, endereco
+            ${queryBase}
+            ${whereClause}
+            ORDER BY nome ASC
+            LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+        `;
+        
+        const fornecedoresResult = await pool.query(fornecedoresQuery, params);
+
         res.status(200).json({
             dados: fornecedoresResult.rows,
             total: totalItens,
@@ -47,14 +72,12 @@ const getFornecedores = async (req, res) => {
 const createFornecedor = async (req, res) => {
     const { nome, cnpj_cpf, telefone, email, endereco } = req.body;
 
-    // ✅ Validação dos campos obrigatórios
     if (!nome || nome.trim() === '' || !cnpj_cpf || !telefone || !endereco || endereco.trim() === '') {
         return res.status(400).json({ error: 'Os campos Nome, CNPJ/CPF, Telefone e Endereço são obrigatórios.' });
     }
 
     const cnpjCpfLimpo = limparNumeros(cnpj_cpf);
 
-    // ✅ Validação do comprimento do CNPJ/CPF
     if (cnpjCpfLimpo.length !== 11 && cnpjCpfLimpo.length !== 14) {
         return res.status(400).json({ error: 'O CNPJ/CPF deve conter 11 ou 14 dígitos.' });
     }
@@ -64,7 +87,7 @@ const createFornecedor = async (req, res) => {
             'INSERT INTO fornecedores (nome, cnpj_cpf, telefone, email, endereco) VALUES ($1, $2, $3, $4, $5) RETURNING *',
             [
                 nome.trim().toUpperCase(), 
-                cnpjCpfLimpo, // Salva apenas os números
+                cnpjCpfLimpo,
                 telefone, 
                 email, 
                 endereco.trim().toUpperCase()
@@ -89,14 +112,12 @@ const updateFornecedor = async (req, res) => {
     const { id } = req.params;
     const { nome, cnpj_cpf, telefone, email, endereco } = req.body;
     
-    // ✅ Validação dos campos obrigatórios
     if (!nome || nome.trim() === '' || !cnpj_cpf || !telefone || !endereco || endereco.trim() === '') {
         return res.status(400).json({ error: 'Os campos Nome, CNPJ/CPF, Telefone e Endereço são obrigatórios.' });
     }
 
     const cnpjCpfLimpo = limparNumeros(cnpj_cpf);
 
-    // ✅ Validação do comprimento do CNPJ/CPF
     if (cnpjCpfLimpo.length !== 11 && cnpjCpfLimpo.length !== 14) {
         return res.status(400).json({ error: 'O CNPJ/CPF deve conter 11 ou 14 dígitos.' });
     }
@@ -106,7 +127,7 @@ const updateFornecedor = async (req, res) => {
             'UPDATE fornecedores SET nome = $1, cnpj_cpf = $2, telefone = $3, email = $4, endereco = $5 WHERE id = $6 RETURNING *',
             [
                 nome.trim().toUpperCase(), 
-                cnpjCpfLimpo, // Salva apenas os números
+                cnpjCpfLimpo,
                 telefone, 
                 email, 
                 endereco.trim().toUpperCase(), 
@@ -132,7 +153,6 @@ const updateFornecedor = async (req, res) => {
  * @access  Protegido (Admin)
  */
 const deleteFornecedor = async (req, res) => {
-    // (Nenhuma alteração necessária aqui)
     const { id } = req.params;
     try {
         const resultado = await pool.query('DELETE FROM fornecedores WHERE id = $1', [id]);

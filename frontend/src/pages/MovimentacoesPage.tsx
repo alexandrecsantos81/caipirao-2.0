@@ -11,20 +11,36 @@ import {
   Divider,
   Textarea,
   useColorModeValue,
+  InputGroup,      // <-- Adicionado
+  InputLeftElement, // <-- Adicionado
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { Controller, useForm, SubmitHandler } from 'react-hook-form';
-import { FiPlus, FiTrash2, FiEdit } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiEdit, FiSearch } from 'react-icons/fi'; // <-- Adicionado FiSearch
 import { Pagination } from '../components/Pagination';
 import { ICliente, getClientes } from '../services/cliente.service';
-import { IDespesa, IDespesaForm, registrarDespesa, updateDespesa, deleteDespesa } from '../services/despesa.service';
+import { IDespesa, IDespesaForm, registrarDespesa, updateDespesa, deleteDespesa, getDespesas } from '../services/despesa.service'; // <-- Adicionado getDespesas
 import { IProduto, getProdutos } from '../services/produto.service';
 import { IVenda, INovaVenda, createVenda, getVendas, updateVenda, deleteVenda } from '../services/venda.service';
 import { IFornecedor, getFornecedores } from '../services/fornecedor.service';
 import { useAuth } from '../hooks/useAuth';
 import { IPaginatedResponse } from '@/types/common.types';
-import { useDespesas } from '../hooks/useDespesas';
+
+// --- HOOK DEBOUNCE ---
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+  return debouncedValue;
+};
+
 
 // --- INTERFACES LOCAIS ---
 interface ProdutoVendaItem {
@@ -49,7 +65,7 @@ const tiposDeSaida = [
     "Outros"
 ] as const;
 
-// --- COMPONENTES DE FORMULÁRIO (VERSÃO COM CAMPO DE ESTOQUE) ---
+// --- COMPONENTES DE FORMULÁRIO (SEM ALTERAÇÕES NESTA ETAPA) ---
 const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boolean; onClose: () => void; vendaParaEditar: IVenda | null }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -86,28 +102,11 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
   }, [produtoIdAtual, produtos]);
 
   const valorTotalCalculado = useMemo(() => {
-    const totalDosItensAdicionados = produtosNaVenda.reduce((total, item) => {
+    return produtosNaVenda.reduce((total, item) => {
       const preco = item.preco_manual ?? item.preco_original;
       return total + (item.quantidade * preco);
     }, 0);
-
-    let valorDoItemAtual = 0;
-    const produtoInfo = produtos?.find(p => p.id === Number(produtoIdAtual));
-    if (produtoInfo) {
-      const quantidade = Number(quantidadeAtual) || 0;
-      const precoManual = Number(precoManualAtual) || 0;
-      const preco = precoManual > 0 ? precoManual : produtoInfo.price;
-      valorDoItemAtual = quantidade * preco;
-    }
-
-    return totalDosItensAdicionados + valorDoItemAtual;
-  }, [
-    produtosNaVenda, 
-    produtoIdAtual, 
-    quantidadeAtual, 
-    precoManualAtual, 
-    produtos
-  ]);
+  }, [produtosNaVenda]);
   
   const mutation = useMutation({
     mutationFn: (data: { vendaData: INovaVenda, id?: number }) => 
@@ -194,27 +193,8 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
   };
 
   const onSubmit: SubmitHandler<any> = (data) => {
-    const itemAtual = getValues();
-    const produtosParaEnviar = [...produtosNaVenda];
-
-    if (itemAtual.produto_selecionado_id && Number(itemAtual.quantidade) > 0) {
-        const produtoInfo = produtos?.find(p => p.id === Number(itemAtual.produto_selecionado_id));
-        if (produtoInfo && produtoInfo.quantidade_em_estoque < Number(itemAtual.quantidade)) {
-            toast({ title: "Estoque insuficiente para o último item!", status: "error" });
-            return;
-        }
-        produtosParaEnviar.push({
-            produto_id: Number(itemAtual.produto_selecionado_id),
-            quantidade: Number(itemAtual.quantidade),
-            preco_manual: itemAtual.preco_manual ? Number(itemAtual.preco_manual) : undefined,
-            nome: '',
-            unidade_medida: '',
-            preco_original: 0,
-        });
-    }
-
-    if (produtosParaEnviar.length === 0) {
-        toast({ title: "Nenhum produto válido para salvar", status: "error" });
+    if (produtosNaVenda.length === 0) {
+        toast({ title: "Nenhum produto na venda", description: "Adicione pelo menos um produto antes de salvar.", status: "error" });
         return;
     }
 
@@ -223,7 +203,7 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
       data_venda: data.data_venda,
       opcao_pagamento: opcaoPagamento,
       data_vencimento: data.data_vencimento,
-      produtos: produtosParaEnviar.map(p => ({
+      produtos: produtosNaVenda.map(p => ({
         produto_id: p.produto_id,
         quantidade: p.quantidade,
         preco_manual: p.preco_manual,
@@ -451,13 +431,24 @@ const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen:
     </Drawer>
   );
 };
-// frontend/src/pages/MovimentacoesPage.tsx - PARTE 3 de 3
 
 // --- COMPONENTE TABELA VENDAS ---
-const TabelaVendas = ({ onEdit, onDelete }: { onEdit: (venda: IVenda) => void; onDelete: (id: number) => void; }) => {
+const TabelaVendas = ({ onEdit, onDelete, buscaDebounced }: { onEdit: (venda: IVenda) => void; onDelete: (id: number) => void; buscaDebounced: string; }) => {
   const [pagina, setPagina] = useState(1);
-  const { data, isLoading, isError } = useQuery({ queryKey: ['vendas', pagina], queryFn: () => getVendas(pagina, 10), placeholderData: keepPreviousData });
   const isMobile = useBreakpointValue({ base: true, md: false });
+
+  useEffect(() => {
+    if (buscaDebounced) {
+      setPagina(1);
+    }
+  }, [buscaDebounced]);
+
+  const { data, isLoading, isError } = useQuery({ 
+    queryKey: ['vendas', pagina, buscaDebounced], 
+    queryFn: () => getVendas(pagina, 10, buscaDebounced), 
+    placeholderData: keepPreviousData 
+  });
+// frontend/src/pages/MovimentacoesPage.tsx - PARTE 3 de 3
 
   if (isLoading) return <Center p={10}><Spinner size="xl" /></Center>;
   if (isError) return <Center p={10}><Text color="red.500">Não foi possível carregar as vendas.</Text></Center>;
@@ -524,14 +515,24 @@ const TabelaVendas = ({ onEdit, onDelete }: { onEdit: (venda: IVenda) => void; o
 };
 
 // --- COMPONENTE TABELA DESPESAS ---
-const TabelaDespesas = ({ onEdit, onDelete }: { onEdit: (despesa: IDespesa) => void; onDelete: (id: number) => void; }) => {
+const TabelaDespesas = ({ onEdit, onDelete, buscaDebounced }: { onEdit: (despesa: IDespesa) => void; onDelete: (id: number) => void; buscaDebounced: string; }) => {
   const [pagina, setPagina] = useState(1);
-  const { data, isLoading, isError } = useDespesas(pagina);
-  
   const { user } = useAuth();
   const isAdmin = user?.perfil === 'ADMIN';
   const isMobile = useBreakpointValue({ base: true, md: false });
 
+  useEffect(() => {
+    if (buscaDebounced) {
+      setPagina(1);
+    }
+  }, [buscaDebounced]);
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['despesas', pagina, buscaDebounced],
+    queryFn: () => getDespesas(pagina, 10, buscaDebounced),
+    placeholderData: keepPreviousData,
+  });
+  
   if (isLoading && !data) return <Center p={10}><Spinner size="xl" /></Center>;
   if (isError) return <Center p={10}><Text color="red.500">Não foi possível carregar as despesas.</Text></Center>;
   
@@ -622,6 +623,11 @@ const MovimentacoesPage = () => {
   const [itemParaDeletar, setItemParaDeletar] = useState<{ id: number; tipo: 'venda' | 'despesa' } | null>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
 
+  const [termoBuscaVendas, setTermoBuscaVendas] = useState('');
+  const buscaVendasDebounced = useDebounce(termoBuscaVendas, 500);
+  const [termoBuscaDespesas, setTermoBuscaDespesas] = useState('');
+  const buscaDespesasDebounced = useDebounce(termoBuscaDespesas, 500);
+
   const deleteVendaMutation = useMutation({ 
     mutationFn: deleteVenda, 
     onSuccess: () => { 
@@ -652,7 +658,7 @@ const MovimentacoesPage = () => {
   const handleEditVenda = (venda: IVenda) => { setVendaParaEditar(venda); onVendaDrawerOpen(); };
   const handleEditDespesa = (despesa: IDespesa) => { setDespesaParaEditar(despesa); onDespesaDrawerOpen(); };
   const handleAddNewVenda = () => { setVendaParaEditar(null); onVendaDrawerOpen(); };
-  const handleAddNewDespesa = () => { setDespesaParaEditar(null); onDespesaDrawerClose(); };
+  const handleAddNewDespesa = () => { setDespesaParaEditar(null); onDespesaDrawerOpen(); };
   const handleDeleteClick = (id: number, tipo: 'venda' | 'despesa') => { setItemParaDeletar({ id, tipo }); onConfirmOpen(); };
   
   const handleConfirmDelete = () => {
@@ -677,7 +683,13 @@ const MovimentacoesPage = () => {
                <Heading size="md">Histórico de Vendas</Heading>
               <Button leftIcon={<FiPlus />} colorScheme="teal" onClick={handleAddNewVenda}>Registrar Venda</Button>
             </Flex>
-            <TabelaVendas onEdit={handleEditVenda} onDelete={(id) => handleDeleteClick(id, 'venda')} />
+            <Box mb={6}>
+              <InputGroup>
+                <InputLeftElement pointerEvents="none"><FiSearch color="gray.300" /></InputLeftElement>
+                <Input placeholder="Buscar por cliente ou vendedor..." value={termoBuscaVendas} onChange={(e) => setTermoBuscaVendas(e.target.value)} />
+              </InputGroup>
+            </Box>
+            <TabelaVendas onEdit={handleEditVenda} onDelete={(id) => handleDeleteClick(id, 'venda')} buscaDebounced={buscaVendasDebounced} />
           </TabPanel>
           
           {isAdmin && (
@@ -686,7 +698,13 @@ const MovimentacoesPage = () => {
                 <Heading size="md">Histórico de Despesas</Heading>
                 <Button leftIcon={<FiPlus />} colorScheme="red" onClick={handleAddNewDespesa}>Registrar Despesa</Button>
               </Flex>
-              <TabelaDespesas onEdit={handleEditDespesa} onDelete={(id) => handleDeleteClick(id, 'despesa')} />
+              <Box mb={6}>
+                <InputGroup>
+                  <InputLeftElement pointerEvents="none"><FiSearch color="gray.300" /></InputLeftElement>
+                  <Input placeholder="Buscar por discriminação ou fornecedor..." value={termoBuscaDespesas} onChange={(e) => setTermoBuscaDespesas(e.target.value)} />
+                </InputGroup>
+              </Box>
+              <TabelaDespesas onEdit={handleEditDespesa} onDelete={(id) => handleDeleteClick(id, 'despesa')} buscaDebounced={buscaDespesasDebounced} />
             </TabPanel>
           )}
         </TabPanels>

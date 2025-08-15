@@ -1,4 +1,7 @@
+// frontend/src/services/cliente.service.ts
+
 import axios from 'axios';
+import { IPaginatedResponse } from '@/types/common.types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -27,20 +30,33 @@ export interface ICliente {
   responsavel?: string;
   endereco?: string;
   tem_whatsapp?: boolean;
-  status?: 'Ativo' | 'Inativo'; // Campo de status adicionado
+  status?: 'Ativo' | 'Inativo';
 }
 
-import { IPaginatedResponse } from '@/types/common.types';
+export type IClienteForm = Omit<ICliente, 'id' | 'status'>;
+
 // --- FUNÇÕES DO SERVIÇO ---
 
-export const getClientes = async (pagina = 1, limite = 10): Promise<IPaginatedResponse<ICliente>> => {
+/**
+ * @description Busca a lista paginada de clientes, com suporte a filtro de busca.
+ * @param pagina - O número da página a ser buscada.
+ * @param limite - O número de itens por página.
+ * @param termoBusca - (Opcional) O termo para filtrar os resultados.
+ */
+export const getClientes = async (
+  pagina = 1,
+  limite = 10,
+  termoBusca?: string // <-- NOVO PARÂMETRO ADICIONADO
+): Promise<IPaginatedResponse<ICliente>> => {
   const response = await api.get('/clientes', {
-    params: { pagina, limite },
+    params: {
+      pagina,
+      limite,
+      termoBusca, // <-- PARÂMETRO ENVIADO PARA A API
+    },
   });
   return response.data;
 };
-
-export type IClienteForm = Omit<ICliente, 'id' | 'status'>; // Status não é enviado no formulário
 
 export const createCliente = async (clienteData: IClienteForm): Promise<ICliente> => {
   const response = await api.post('/clientes', clienteData);

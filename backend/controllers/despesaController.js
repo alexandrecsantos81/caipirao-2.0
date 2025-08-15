@@ -17,7 +17,6 @@ const registrarDespesa = async (req, res) => {
             `INSERT INTO despesas (tipo_saida, valor, discriminacao, data_vencimento, data_compra, fornecedor_id, data_pagamento, responsavel_pagamento_id)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING *`,
-            // ✅ Converte discriminação para caixa alta
             [tipo_saida, valor, discriminacao.trim().toUpperCase(), data_vencimento, data_compra, fornecedor_id, data_pagamento, responsavel_pagamento_id]
         );
         res.status(201).json(novaDespesa.rows[0]);
@@ -28,26 +27,42 @@ const registrarDespesa = async (req, res) => {
 };
 
 const getDespesas = async (req, res) => {
-    const { pagina = 1, limite = 10 } = req.query;
+    const { pagina = 1, limite = 10, termoBusca } = req.query;
+    const offset = (pagina - 1) * limite;
+
+    let whereClauses = [];
+    const params = [];
+
+    if (termoBusca) {
+        params.push(`%${termoBusca}%`);
+        whereClauses.push(`(d.discriminacao ILIKE $${params.length} OR f.nome ILIKE $${params.length})`);
+    }
+
+    const whereString = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
     try {
-        const totalPromise = pool.query('SELECT COUNT(*) FROM despesas');
+        const countQuery = `
+            SELECT COUNT(d.id)
+            FROM despesas d
+            LEFT JOIN fornecedores f ON d.fornecedor_id = f.id
+            ${whereString}
+        `;
+        const totalResult = await pool.query(countQuery, params);
+        const totalItens = parseInt(totalResult.rows[0].count, 10);
+        const totalPaginas = Math.ceil(totalItens / limite);
 
-        const offset = (pagina - 1) * limite;
-        const despesasPromise = pool.query(`
+        const despesasQuery = `
             SELECT 
                 d.*, 
                 f.nome as nome_fornecedor 
             FROM despesas d
             LEFT JOIN fornecedores f ON d.fornecedor_id = f.id
+            ${whereString}
             ORDER BY d.data_vencimento DESC
-            LIMIT $1 OFFSET $2
-        `, [limite, offset]);
+            LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+        `;
         
-        const [totalResult, despesasResult] = await Promise.all([totalPromise, despesasPromise]);
-
-        const totalItens = parseInt(totalResult.rows[0].count, 10);
-        const totalPaginas = Math.ceil(totalItens / limite);
+        const despesasResult = await pool.query(despesasQuery, [...params, limite, offset]);
 
         res.status(200).json({
             dados: despesasResult.rows,
@@ -131,7 +146,6 @@ const updateDespesa = async (req, res) => {
             `UPDATE despesas 
              SET tipo_saida = $1, valor = $2, discriminacao = $3, data_vencimento = $4, data_compra = $5, fornecedor_id = $6, data_pagamento = $7
              WHERE id = $8 RETURNING *`,
-            // ✅ Converte discriminação para caixa alta
             [tipo_saida, valor, discriminacao.trim().toUpperCase(), data_vencimento, data_compra, fornecedor_id, data_pagamento, id]
         );
 
