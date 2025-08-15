@@ -1,7 +1,9 @@
+// frontend/src/services/report.service.ts
+
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-const apiClient = axios.create({ baseURL: API_URL }  );
+const apiClient = axios.create({ baseURL: API_URL } );
 
 apiClient.interceptors.request.use(
   (config) => {
@@ -19,6 +21,10 @@ apiClient.interceptors.request.use(
 export interface IReportDateFilter {
   startDate: string;
   endDate: string;
+}
+
+export interface IProductRankingFilter extends IReportDateFilter {
+  orderBy: 'valor' | 'quantidade';
 }
 
 export interface ISalesSummaryKPIs {
@@ -72,7 +78,6 @@ export interface ISellerProductivityItem {
   valorTotalVendido: number;
 }
 
-// NOVA INTERFACE PARA O RELATÓRIO DE ENTRADA DE ESTOQUE
 export interface IStockEntryReportItem {
   id: number;
   data_entrada: string;
@@ -84,26 +89,20 @@ export interface IStockEntryReportItem {
 }
 
 
-// --- FUNÇÕES DO SERVIÇO ---
+// --- FUNÇÕES DE SERVIÇO (DADOS JSON) ---
 
 export const getSalesSummary = async (filter: IReportDateFilter): Promise<ISalesSummaryResponse> => {
-  const response = await apiClient.get('/reports/sales-summary', {
-    params: filter,
-  });
+  const response = await apiClient.get('/reports/sales-summary', { params: filter });
   return response.data;
 };
 
-export const getProductRanking = async (filter: IReportDateFilter & { orderBy: 'valor' | 'quantidade' }): Promise<IProductRankingItem[]> => {
-  const response = await apiClient.get('/reports/product-ranking', {
-    params: filter,
-  });
+export const getProductRanking = async (filter: IProductRankingFilter): Promise<IProductRankingItem[]> => {
+  const response = await apiClient.get('/reports/product-ranking', { params: filter });
   return response.data;
 };
 
 export const getClientRanking = async (filter: IReportDateFilter): Promise<IClientRankingItem[]> => {
-  const response = await apiClient.get('/reports/client-ranking', {
-    params: filter,
-  });
+  const response = await apiClient.get('/reports/client-ranking', { params: filter });
   return response.data;
 };
 
@@ -113,16 +112,37 @@ export const getClientAnalysis = async (): Promise<IClientAnalysisResponse> => {
 };
 
 export const getSellerProductivity = async (filter: IReportDateFilter): Promise<ISellerProductivityItem[]> => {
-  const response = await apiClient.get('/reports/seller-productivity', {
-    params: filter,
-  });
+  const response = await apiClient.get('/reports/seller-productivity', { params: filter });
   return response.data;
 };
 
-// NOVA FUNÇÃO PARA BUSCAR O RELATÓRIO DE ENTRADAS DE ESTOQUE
 export const getStockEntriesReport = async (filter: IReportDateFilter): Promise<IStockEntryReportItem[]> => {
-  const response = await apiClient.get('/reports/stock-entries', {
-    params: filter,
-  });
+  const response = await apiClient.get('/reports/stock-entries', { params: filter });
   return response.data;
+};
+
+// --- FUNÇÕES DE SERVIÇO (PDF) ---
+
+const getPdf = async (url: string, params: any): Promise<Blob> => {
+  const response = await apiClient.get(url, {
+    params,
+    responseType: 'blob',
+  });
+  return new Blob([response.data], { type: 'application/pdf' });
+};
+
+export const getProductRankingPdf = async (filter: IProductRankingFilter): Promise<Blob> => {
+  return getPdf('/reports/product-ranking/pdf', filter);
+};
+
+export const getClientRankingPdf = async (filter: IReportDateFilter): Promise<Blob> => {
+  return getPdf('/reports/client-ranking/pdf', filter);
+};
+
+export const getSellerProductivityPdf = async (filter: IReportDateFilter): Promise<Blob> => {
+  return getPdf('/reports/seller-productivity/pdf', filter);
+};
+
+export const getStockEntriesPdf = async (filter: IReportDateFilter): Promise<Blob> => {
+  return getPdf('/reports/stock-entries/pdf', filter);
 };

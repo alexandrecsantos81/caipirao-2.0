@@ -1,20 +1,35 @@
+// frontend/src/pages/RelatoriosPage.tsx
+
 import {
   Box, Button, Flex, Heading, Input, Text, Tabs, TabList, TabPanels, Tab, TabPanel, Select,
   SimpleGrid,
   useColorModeValue,
-  Center,
+  useToast,
+  Icon,
 } from '@chakra-ui/react';
 import { 
-  startOfMonth, endOfMonth, subDays, startOfQuarter, startOfYear, endOfYear, format, endOfQuarter,
+  startOfMonth, endOfMonth, subDays, startOfQuarter, startOfYear, format, endOfQuarter, endOfYear,
 } from 'date-fns';
 import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { FiDownload } from 'react-icons/fi';
+
+import { 
+  getProductRankingPdf,
+  getClientRankingPdf,
+  getSellerProductivityPdf,
+  getStockEntriesPdf,
+  IProductRankingFilter,
+  IReportDateFilter,
+} from '@/services/report.service'; 
+
 import { 
   useSalesSummary, 
   useProductRanking, 
   useClientRanking, 
   useClientAnalysis,
   useSellerProductivity,
-  useStockEntriesReport, // <-- Importar o último hook
+  useStockEntriesReport,
 } from '@/hooks/useReports';
 import { ReportKPIs } from '@/components/ReportKPIs';
 import { SalesEvolutionChart } from '@/components/SalesEvolutionChart';
@@ -22,12 +37,13 @@ import { ProductRankingTable } from '@/components/ProductRankingTable';
 import { ClientRankingTable } from '@/components/ClientRankingTable';
 import { ClientAnalysis } from '@/components/ClientAnalysis';
 import { SellerProductivityTable } from '@/components/SellerProductivityTable';
-import { StockEntriesTable } from '@/components/StockEntriesTable'; // <-- Importar o último componente
+import { StockEntriesTable } from '@/components/StockEntriesTable';
 
 const formatDateForAPI = (date: Date): string => format(date, 'yyyy-MM-dd');
 
 const RelatoriosPage = () => {
   const today = new Date();
+  const toast = useToast();
   const [startDate, setStartDate] = useState(formatDateForAPI(startOfMonth(today)));
   const [endDate, setEndDate] = useState(formatDateForAPI(endOfMonth(today)));
   const [productOrderBy, setProductOrderBy] = useState<'valor' | 'quantidade'>('valor');
@@ -49,13 +65,66 @@ const RelatoriosPage = () => {
   const { data: sellerProductivityData, isLoading: isLoadingSellerProductivity, isError: isErrorSellerProductivity } = useSellerProductivity(filters, activeTab === 4);
   const { data: stockEntriesData, isLoading: isLoadingStockEntries, isError: isErrorStockEntries } = useStockEntriesReport(filters, activeTab === 5);
 
+  // Função genérica para lidar com o resultado da mutation
+  const onPdfSuccess = (blob: Blob) => {
+    const pdfUrl = URL.createObjectURL(blob);
+    window.open(pdfUrl, '_blank');
+    toast({ title: 'Relatório Gerado', description: 'O PDF foi aberto em uma nova aba.', status: 'success' });
+  };
+  const onPdfError = (error: any) => {
+    toast({ title: 'Erro ao gerar PDF', description: error.response?.data?.error || 'Não foi possível gerar o relatório.', status: 'error' });
+  };
+
+  // Mutations para cada tipo de PDF
+  const productPdfMutation = useMutation<Blob, Error, IProductRankingFilter>({ mutationFn: getProductRankingPdf, onSuccess: onPdfSuccess, onError: onPdfError });
+  const clientPdfMutation = useMutation<Blob, Error, IReportDateFilter>({ mutationFn: getClientRankingPdf, onSuccess: onPdfSuccess, onError: onPdfError });
+  const sellerPdfMutation = useMutation<Blob, Error, IReportDateFilter>({ mutationFn: getSellerProductivityPdf, onSuccess: onPdfSuccess, onError: onPdfError });
+  const stockPdfMutation = useMutation<Blob, Error, IReportDateFilter>({ mutationFn: getStockEntriesPdf, onSuccess: onPdfSuccess, onError: onPdfError });
+
+  const handleGeneratePDF = () => {
+    toast({ title: 'Gerando relatório...', status: 'info', duration: 1500 });
+    switch (activeTab) {
+      case 1: // Produtos
+        productPdfMutation.mutate(productFilters);
+        break;
+      case 2: // Clientes
+        clientPdfMutation.mutate(filters);
+        break;
+      case 4: // Produtividade
+        sellerPdfMutation.mutate(filters);
+        break;
+      case 5: // Estoque
+        stockPdfMutation.mutate(filters);
+        break;
+      default:
+        toast({ title: 'Aviso', description: 'Este relatório não possui uma exportação para PDF.', status: 'warning' });
+    }
+  };
+  
+  const isPdfLoading = productPdfMutation.isPending || clientPdfMutation.isPending || sellerPdfMutation.isPending || stockPdfMutation.isPending;
+  const isPdfSupported = [1, 2, 4, 5].includes(activeTab);
+
   return (
     <Box p={{ base: 4, md: 8 }}>
-      <Heading as="h1" mb={2}>Relatórios Gerenciais</Heading>
-      <Text color="gray.500" mb={6}>Selecione um período para visualizar os relatórios de desempenho do negócio.</Text>
+      <Flex justify="space-between" align="center" mb={2} direction={{base: 'column', md: 'row'}} gap={4}>
+        <Box>
+          <Heading as="h1">Relatórios Gerenciais</Heading>
+          <Text color="gray.500">Selecione um período para visualizar os relatórios de desempenho do negócio.</Text>
+        </Box>
+        <Button 
+          leftIcon={<Icon as={FiDownload} />} 
+          colorScheme="teal"
+          onClick={handleGeneratePDF}
+          isLoading={isPdfLoading}
+          isDisabled={!isPdfSupported}
+          loadingText="Gerando..."
+          w={{base: 'full', md: 'auto'}}
+        >
+          Gerar Relatório
+        </Button>
+      </Flex>
 
-      {/* Seção de Filtros */}
-      <Box p={4} borderWidth={1} borderRadius="md" mb={6} bg={useColorModeValue('gray.50', 'gray.700')}>
+      <Box p={4} borderWidth={1} borderRadius="md" my={6} bg={useColorModeValue('gray.50', 'gray.700')}>
         <Heading size="md" mb={4}>Filtrar por Período</Heading>
         <SimpleGrid columns={{ base: 2, md: 4 }} spacing={2} mb={4}>
           <Button onClick={() => handleSetPeriod(startOfMonth(today), endOfMonth(today))}>Este Mês</Button>
@@ -69,7 +138,6 @@ const RelatoriosPage = () => {
         </Flex>
       </Box>
 
-      {/* Sistema de Abas */}
       <Tabs isFitted variant="enclosed-colored" onChange={(index) => setActiveTab(index)}>
         <TabList overflowX="auto" overflowY="hidden" sx={{ '&::-webkit-scrollbar': { display: 'none' }, 'scrollbarWidth': 'none' }}>
           <Tab>Vendas Gerais</Tab>
@@ -81,13 +149,22 @@ const RelatoriosPage = () => {
         </TabList>
         <TabPanels>
           <TabPanel><ReportKPIs kpis={salesSummaryData?.kpis} isLoading={isLoadingSalesSummary} /><SalesEvolutionChart data={salesSummaryData?.evolucaoVendas} isLoading={isLoadingSalesSummary} isError={isErrorSalesSummary} /></TabPanel>
-          <TabPanel><Flex justify="flex-end" mb={4}><Flex align="center" gap={2}><Text>Ordenar por:</Text><Select w="200px" value={productOrderBy} onChange={(e) => setProductOrderBy(e.target.value as 'valor' | 'quantidade')}><option value="valor">Maior Valor (R$)</option><option value="quantidade">Maior Quantidade</option></Select></Flex></Flex><ProductRankingTable data={productRankingData} isLoading={isLoadingProductRanking} /></TabPanel>
+          <TabPanel>
+            <Flex justify="flex-end" mb={4}>
+              <Flex align="center" gap={2}>
+                <Text>Ordenar por:</Text>
+                <Select w="200px" value={productOrderBy} onChange={(e) => setProductOrderBy(e.target.value as 'valor' | 'quantidade')}>
+                  <option value="valor">Maior Valor (R$)</option>
+                  <option value="quantidade">Maior Quantidade</option>
+                </Select>
+              </Flex>
+            </Flex>
+            <ProductRankingTable data={productRankingData} isLoading={isLoadingProductRanking} />
+          </TabPanel>
           <TabPanel><ClientRankingTable data={clientRankingData} isLoading={isLoadingClientRanking} /></TabPanel>
           <TabPanel><ClientAnalysis data={clientAnalysisData} isLoading={isLoadingClientAnalysis} isError={isErrorClientAnalysis} /></TabPanel>
           <TabPanel><SellerProductivityTable data={sellerProductivityData} isLoading={isLoadingSellerProductivity} isError={isErrorSellerProductivity} /></TabPanel>
-          <TabPanel>
-            <StockEntriesTable data={stockEntriesData} isLoading={isLoadingStockEntries} isError={isErrorStockEntries} />
-          </TabPanel>
+          <TabPanel><StockEntriesTable data={stockEntriesData} isLoading={isLoadingStockEntries} isError={isErrorStockEntries} /></TabPanel>
         </TabPanels>
       </Tabs>
     </Box>
