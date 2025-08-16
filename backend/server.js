@@ -14,6 +14,7 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const reportRoutes = require('./routes/reports');
 const receitaExternaRoutes = require('./routes/receitaExternaRoutes'); // <-- ADICIONADO
 const financasRoutes = require('./routes/financasRoutes');
+const despesaPessoalRoutes = require('./routes/despesaPessoalRoutes');
 const app = express();
 const port = process.env.PORT || 3001;
 
@@ -57,6 +58,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/receitas-externas', receitaExternaRoutes); // <-- ADICIONADO
 app.use('/api/financas', financasRoutes);
+app.use('/api/despesas-pessoais', despesaPessoalRoutes);
 
 // Iniciar o servidor
 app.listen(port, () => {

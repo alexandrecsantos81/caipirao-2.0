@@ -1,20 +1,9 @@
-// frontend/src/components/DashboardFinanceiro.tsx
-
 import {
-  Box,
-  SimpleGrid,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  StatArrow,
-  Skeleton,
-  useColorModeValue,
-  Heading,
-  Center,
-  Text,
+  Box, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText, StatArrow,
+  Skeleton, useColorModeValue, Heading, Center, Text, Icon, HStack
 } from '@chakra-ui/react';
 import { useQuery } from '@tanstack/react-query';
+import { FiArrowDown, FiArrowUp, FiTrendingUp, FiTrendingDown, FiDollarSign, FiMinusCircle } from 'react-icons/fi';
 import { getDashboardConsolidado, IDateFilter } from '../services/financas.service';
 
 interface DashboardFinanceiroProps {
@@ -48,21 +37,43 @@ export const DashboardFinanceiro = ({ filters }: DashboardFinanceiroProps) => {
                 <Text color="red.500">Erro ao carregar os indicadores.</Text>
             </Center>
         ) : (
-        <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
+        <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
+          {/* Card de Receita Total */}
           <Stat p={5} borderWidth={1} borderRadius="md" bg={cardBg} borderColor={cardBorder}>
-            <StatLabel>Receita Total (Caipirão + Pessoal)</StatLabel>
+            <HStack justify="space-between">
+              <StatLabel>Receita Total Consolidada</StatLabel>
+              <Icon as={FiTrendingUp} color="green.400" w={6} h={6} />
+            </HStack>
             <StatNumber color="green.500">{formatCurrency(kpis?.receitaTotalConsolidada)}</StatNumber>
-            <StatHelpText>Soma de todas as entradas</StatHelpText>
+            <StatHelpText>Receitas do Negócio + Pessoais</StatHelpText>
           </Stat>
 
+          {/* Card de Despesa Total */}
           <Stat p={5} borderWidth={1} borderRadius="md" bg={cardBg} borderColor={cardBorder}>
-            <StatLabel>Despesas do Negócio (Caipirão)</StatLabel>
-            <StatNumber color="red.500">{formatCurrency(kpis?.despesasCaipirao)}</StatNumber>
-            <StatHelpText>Total de saídas operacionais</StatHelpText>
+            <HStack justify="space-between">
+              <StatLabel>Despesa Total Consolidada</StatLabel>
+              <Icon as={FiTrendingDown} color="red.400" w={6} h={6} />
+            </HStack>
+            <StatNumber color="red.500">{formatCurrency(kpis?.despesaTotalConsolidada)}</StatNumber>
+            <StatHelpText>Despesas do Negócio + Pessoais</StatHelpText>
           </Stat>
 
+          {/* Card de Despesas Pessoais (NOVO) */}
           <Stat p={5} borderWidth={1} borderRadius="md" bg={cardBg} borderColor={cardBorder}>
-            <StatLabel>Saldo Consolidado</StatLabel>
+            <HStack justify="space-between">
+              <StatLabel>Apenas Despesas Pessoais</StatLabel>
+              <Icon as={FiMinusCircle} color="orange.400" w={6} h={6} />
+            </HStack>
+            <StatNumber color="orange.500">{formatCurrency(kpis?.despesasPessoais)}</StatNumber>
+            <StatHelpText>Gastos fora do negócio</StatHelpText>
+          </Stat>
+
+          {/* Card de Saldo Consolidado */}
+          <Stat p={5} borderWidth={1} borderRadius="md" bg={cardBg} borderColor={cardBorder}>
+            <HStack justify="space-between">
+              <StatLabel>Saldo Consolidado</StatLabel>
+              <Icon as={FiDollarSign} color="blue.400" w={6} h={6} />
+            </HStack>
             <StatNumber color={kpis && kpis.saldoConsolidado >= 0 ? 'blue.500' : 'red.500'}>
                 {formatCurrency(kpis?.saldoConsolidado)}
             </StatNumber>
@@ -75,7 +86,6 @@ export const DashboardFinanceiro = ({ filters }: DashboardFinanceiroProps) => {
         )}
       </Skeleton>
 
-      {/* Futuramente, aqui entrarão os gráficos consolidados */}
       <Center h="200px" mt={8} borderWidth="2px" borderStyle="dashed" borderRadius="md" bg={useColorModeValue('gray.50', 'gray.800')}>
         <Text color="gray.500">Área reservada para futuros gráficos consolidados.</Text>
       </Center>

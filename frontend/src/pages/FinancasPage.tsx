@@ -1,5 +1,3 @@
-// frontend/src/pages/FinancasPage.tsx
-
 import {
   Box, Button, Flex, Heading, IconButton, Spinner, Table, TableContainer, Tbody, Td, Text,
   Th, Thead, Tr, useDisclosure, useToast, VStack, HStack,
@@ -20,8 +18,12 @@ import {
   IReceitaExterna, IReceitaExternaForm, getReceitasExternas, createReceitaExterna, updateReceitaExterna, deleteReceitaExterna
 } from '../services/receitaExterna.service';
 import { DashboardFinanceiro } from '../components/DashboardFinanceiro';
+// 1. IMPORTAR O NOVO COMPONENTE DE TABELA DE DESPESAS
+import { TabelaDespesasPessoais } from '../components/TabelaDespesasPessoais';
 
-// Componente FormularioReceita (sem alterações, omitido para brevidade)
+// ==================================================================
+// COMPONENTE FormularioReceita (CÓDIGO ORIGINAL MANTIDO)
+// ==================================================================
 const FormularioReceita = ({ isOpen, onClose, receita, onSave, isLoading }: {
   isOpen: boolean;
   onClose: () => void;
@@ -92,8 +94,9 @@ const FormularioReceita = ({ isOpen, onClose, receita, onSave, isLoading }: {
   );
 };
 
-
-// Componente TabelaReceitasExternas (sem alterações, omitido para brevidade)
+// ==================================================================
+// COMPONENTE TabelaReceitasExternas (CÓDIGO ORIGINAL MANTIDO)
+// ==================================================================
 const TabelaReceitasExternas = () => {
     const queryClient = useQueryClient();
     const toast = useToast();
@@ -113,6 +116,7 @@ const TabelaReceitasExternas = () => {
         id ? updateReceitaExterna({ id, data }) : createReceitaExterna(data),
         onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['receitasExternas'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboardConsolidado'] });
         toast({ title: `Receita salva com sucesso!`, status: 'success' });
         onDrawerClose();
         },
@@ -125,6 +129,7 @@ const TabelaReceitasExternas = () => {
         mutationFn: deleteReceitaExterna,
         onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['receitasExternas'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboardConsolidado'] });
         toast({ title: 'Receita excluída com sucesso!', status: 'success' });
         onConfirmClose();
         },
@@ -169,8 +174,9 @@ const TabelaReceitasExternas = () => {
     )
 }
 
-
-// Componente Principal da Página com Abas
+// ==================================================================
+// COMPONENTE PRINCIPAL DA PÁGINA (COM AS ATUALIZAÇÕES)
+// ==================================================================
 const FinancasPage = () => {
   const today = new Date();
   const [startDate, setStartDate] = useState(format(startOfMonth(today), 'yyyy-MM-dd'));
@@ -181,8 +187,6 @@ const FinancasPage = () => {
     setEndDate(format(end, 'yyyy-MM-dd'));
   };
 
-  // --- INÍCIO DA ALTERAÇÃO ---
-  // Estilos para as abas
   const tabStyles = {
     fontWeight: 'semibold',
     px: { base: 3, md: 6 },
@@ -198,7 +202,6 @@ const FinancasPage = () => {
       boxShadow: 'md',
     },
   };
-  // --- FIM DA ALTERAÇÃO ---
 
   return (
     <Box p={{ base: 4, md: 8 }}>
@@ -217,12 +220,12 @@ const FinancasPage = () => {
         </Flex>
       </Box>
 
-      {/* Variante 'unstyled' para remover o estilo padrão e aplicar o nosso */}
       <Tabs variant="unstyled" align="center" >
         <TabList gap={3}>
-          {/* Aplicando os estilos customizados em cada Tab */}
-          <Tab {...tabStyles}>Dashboard Consolidado</Tab>
-          <Tab {...tabStyles}>Receitas Externas</Tab>
+          <Tab {...tabStyles}>Dashboard</Tab>
+          <Tab {...tabStyles}>Receitas Pessoais</Tab>
+          {/* 2. ADICIONANDO A NOVA ABA */}
+          <Tab {...tabStyles}>Despesas Pessoais</Tab>
         </TabList>
 
         <TabPanels mt={5}>
@@ -231,6 +234,10 @@ const FinancasPage = () => {
           </TabPanel>
           <TabPanel>
             <TabelaReceitasExternas />
+          </TabPanel>
+          {/* 3. ADICIONANDO O PAINEL PARA A NOVA ABA */}
+          <TabPanel>
+            <TabelaDespesasPessoais filters={{ startDate, endDate }} />
           </TabPanel>
         </TabPanels>
       </Tabs>

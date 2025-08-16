@@ -10,6 +10,7 @@
   "dependencies": {
     "bcryptjs": "latest",
     "cors": "latest",
+    "date-fns": "^4.1.0",
     "dotenv": "latest",
     "express": "latest",
     "jsonwebtoken": "latest",
