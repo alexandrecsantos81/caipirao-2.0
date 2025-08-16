@@ -127,9 +127,7 @@ CREATE TABLE receitas_externas (
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- =====================================================================
---  NOVA TABELA: DESPESAS PESSOAIS (COM LÓGICA DE RECORRÊNCIA)
--- =====================================================================
+-- Tabela de Despesas Pessoais (com lógica de recorrência)
 CREATE TABLE despesas_pessoais (
     id SERIAL PRIMARY KEY,
     descricao VARCHAR(255) NOT NULL,
@@ -139,44 +137,23 @@ CREATE TABLE despesas_pessoais (
     pago BOOLEAN NOT NULL DEFAULT FALSE,
     data_pagamento DATE,
     utilizador_id INT NOT NULL REFERENCES utilizadores(id) ON DELETE CASCADE,
-    
-    -- Campos para controle de recorrência e parcelamento
     recorrente BOOLEAN NOT NULL DEFAULT FALSE,
-    parcela_id UUID, -- Agrupa despesas de um mesmo parcelamento
+    parcela_id UUID,
     numero_parcela INT,
     total_parcelas INT,
-
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 
--- =====================================================================
---  ÍNDICES E DADOS INICIAIS
--- =====================================================================
-
 -- Índices para otimizar consultas
 CREATE INDEX IF NOT EXISTS idx_utilizadores_email ON utilizadores(email);
-CREATE INDEX IF NOT EXISTS idx_utilizadores_telefone ON utilizadores(telefone);
-CREATE INDEX IF NOT EXISTS idx_utilizadores_nickname ON utilizadores(nickname);
-CREATE INDEX IF NOT EXISTS idx_utilizadores_status ON utilizadores(status);
 CREATE INDEX IF NOT EXISTS idx_clientes_nome ON clientes(nome);
-CREATE INDEX IF NOT EXISTS idx_produtos_nome ON produtos(nome);
-CREATE INDEX IF NOT EXISTS idx_movimentacoes_tipo ON movimentacoes(tipo);
 CREATE INDEX IF NOT EXISTS idx_movimentacoes_data_venda ON movimentacoes(data_venda);
-CREATE INDEX IF NOT EXISTS idx_movimentacoes_data_vencimento ON movimentacoes(data_vencimento);
-CREATE INDEX IF NOT EXISTS idx_fornecedores_nome ON fornecedores(nome);
 CREATE INDEX IF NOT EXISTS idx_despesas_vencimento ON despesas(data_vencimento);
-CREATE INDEX IF NOT EXISTS idx_despesas_compra ON despesas(data_compra);
-CREATE INDEX IF NOT EXISTS idx_despesas_pagamento ON despesas(data_pagamento);
-CREATE INDEX IF NOT EXISTS idx_despesas_fornecedor_id ON despesas(fornecedor_id);
-CREATE INDEX IF NOT EXISTS idx_entradas_estoque_produto_id ON entradas_estoque(produto_id);
-CREATE INDEX IF NOT EXISTS idx_entradas_estoque_data_entrada ON entradas_estoque(data_entrada);
 CREATE INDEX IF NOT EXISTS idx_receitas_externas_data ON receitas_externas(data_recebimento);
 CREATE INDEX IF NOT EXISTS idx_despesas_pessoais_vencimento ON despesas_pessoais(data_vencimento);
-CREATE INDEX IF NOT EXISTS idx_despesas_pessoais_parcela_id ON despesas_pessoais(parcela_id); -- Índice para parcelas
+CREATE INDEX IF NOT EXISTS idx_despesas_pessoais_parcela_id ON despesas_pessoais(parcela_id);
 
--- Inserir um utilizador ADMIN padrão para o primeiro login
--- A senha 'admin' deve ser registrada pela API para ser criptografada corretamente.
+-- Inserir um utilizador ADMIN padrão
 INSERT INTO utilizadores (nome, email, nickname, telefone, senha, perfil, status) VALUES 
 ('Admin Principal', 'admin@caipirao.com', 'admin', '00000000000', '$2a$10$ExemploDeHashSeguroNaoUseIsso', 'ADMIN', 'ATIVO');
-
