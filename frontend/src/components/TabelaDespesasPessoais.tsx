@@ -1,6 +1,6 @@
 import {
   Box, Button, Flex, Heading, IconButton, Spinner, Table, TableContainer, Tbody, Td, Text,
-  Th, Thead, Tr, useDisclosure, useToast, VStack, HStack,
+  Th, Thead, Tr, useDisclosure, useToast, HStack,
   AlertDialog, AlertDialogBody, AlertDialogFooter, AlertDialogContent, AlertDialogOverlay,
   Center, Badge, Checkbox, Tooltip, AlertDialogHeader
 } from '@chakra-ui/react';
@@ -17,6 +17,7 @@ import {
 } from '../services/despesaPessoal.service';
 import { FormularioDespesaPessoal } from './FormularioDespesaPessoal';
 
+// Interface para representar um financiamento agrupado na tabela
 interface IFinanciamentoAgrupado {
   parcela_id: string;
   descricaoBase: string;
@@ -85,36 +86,26 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
     }
   });
 
-  // **INÍCIO DA CORREÇÃO**
   const itensDaTabela = useMemo(() => {
-    if (!data || data.length === 0) {
-      return [];
-    }
+    if (!data) return [];
 
-    // 1. Separa o que é despesa única do que é parcela
     const despesasUnicas = data.filter(d => !d.parcela_id);
     const parcelas = data.filter(d => !!d.parcela_id);
 
-    // 2. Agrupa as parcelas por 'parcela_id'
     const grupos = new Map<string, IDespesaPessoal[]>();
     parcelas.forEach(p => {
       const id = p.parcela_id!;
-      if (!grupos.has(id)) {
-        grupos.set(id, []);
-      }
+      if (!grupos.has(id)) grupos.set(id, []);
       grupos.get(id)!.push(p);
     });
 
-    // 3. Transforma os grupos em objetos de financiamento para a tabela
     const financiamentos: IFinanciamentoAgrupado[] = [];
     grupos.forEach((parcelasDoGrupo) => {
       const proximaParcela = parcelasDoGrupo
         .sort((a, b) => a.numero_parcela! - b.numero_parcela!)
         .find(p => !p.pago);
 
-      if (!proximaParcela) {
-        return;
-      }
+      if (!proximaParcela) return;
 
       const saldoRestante = parcelasDoGrupo.reduce((acc, p) => !p.pago ? acc + p.valor : acc, 0);
       
@@ -128,16 +119,18 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
       });
     });
 
-    // 4. Retorna a lista combinada para a renderização
-    return [...despesasUnicas, ...financiamentos];
+    return [...despesasUnicas, ...financiamentos].sort((a, b) => {
+        const dateA = new Date('proximaParcela' in a ? a.proximaParcela.data_vencimento : a.data_vencimento);
+        const dateB = new Date('proximaParcela' in b ? b.proximaParcela.data_vencimento : b.data_vencimento);
+        return dateA.getTime() - dateB.getTime();
+    });
   }, [data]);
-  // **FIM DA CORREÇÃO**
 
   const handleAddClick = () => { setSelectedDespesa(null); onDrawerOpen(); };
   const handleEditClick = () => {
     toast({
         title: 'Função em desenvolvimento',
-        description: 'A edição de despesas parceladas será implementada em breve.',
+        description: 'A edição de despesas será implementada em breve.',
         status: 'info',
         duration: 3000,
         isClosable: true,
@@ -165,8 +158,14 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
           <Table variant="striped">
             <Thead>
               <Tr>
-                <Th>Próximo Vencimento</Th><Th>Parcela</Th><Th>Descrição</Th><Th>Categoria</Th>
-                <Th isNumeric>Valor da Parcela</Th><Th isNumeric>Saldo Restante</Th><Th>Status</Th><Th>Ações</Th>
+                <Th>Próximo Vencimento</Th>
+                <Th>Parcela</Th>
+                <Th>Descrição</Th>
+                <Th>Categoria</Th>
+                <Th isNumeric>Valor da Parcela</Th>
+                <Th isNumeric>Saldo Restante</Th>
+                <Th>Status</Th>
+                <Th>Ações</Th>
               </Tr>
             </Thead>
             <Tbody>

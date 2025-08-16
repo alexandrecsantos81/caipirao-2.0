@@ -10,7 +10,7 @@ const { v4: uuidv4 } = require('uuid');
 const createDespesaPessoal = async (req, res) => {
     const {
         descricao, valor, categoria, recorrente, parcelado,
-        data_vencimento, // Esta é a data de vencimento da parcela atual informada
+        data_vencimento, // Esta é a data de vencimento da parcela atual ou da despesa única
         parcela_atual,
         quantidade_parcelas
     } = req.body;
@@ -25,23 +25,25 @@ const createDespesaPessoal = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // Cenário 1: Despesa Parcelada (com ou sem data no passado)
+        // Cenário 1: Despesa Parcelada (Financiamento)
         if (recorrente && parcelado === 'sim') {
-            if (!parcela_atual || !quantidade_parcelas) {
-                return res.status(400).json({ error: 'Para parcelamento, a parcela atual e o total de parcelas são obrigatórios.' });
+            if (!parcela_atual || !quantidade_parcelas || Number(parcela_atual) <= 0 || Number(quantidade_parcelas) <= 0) {
+                return res.status(400).json({ error: 'Para parcelamento, a parcela atual e o total de parcelas são obrigatórios e devem ser maiores que zero.' });
             }
 
-            const parcela_id = uuidv4();
+            const parcelaId = uuidv4();
             const despesasCriadas = [];
+            const numParcelaAtual = Number(parcela_atual);
+            const totalParcelas = Number(quantidade_parcelas);
 
-            // Calcula a data da 1ª parcela retroativamente
-            const mesesParaSubtrair = parcela_atual - 1;
+            // Calcula a data da 1ª parcela retroativamente para registrar as parcelas corretamente no tempo
+            const mesesParaSubtrair = numParcelaAtual - 1;
             const dataPrimeiraParcela = subMonths(new Date(data_vencimento), mesesParaSubtrair);
 
-            // Cria os registros para a parcela atual e todas as futuras
-            for (let i = (parcela_atual - 1); i < quantidade_parcelas; i++) {
+            // Cria os registros para todas as parcelas (da 1ª à última)
+            for (let i = 0; i < totalParcelas; i++) {
                 const dataVencimentoParcela = addMonths(dataPrimeiraParcela, i);
-                const descricaoParcela = `${descricao.toUpperCase()} (${i + 1}/${quantidade_parcelas})`;
+                const descricaoParcela = `${descricao.trim().toUpperCase()} (${i + 1}/${totalParcelas})`;
 
                 const query = `
                     INSERT INTO despesas_pessoais 
@@ -50,8 +52,9 @@ const createDespesaPessoal = async (req, res) => {
                     RETURNING *`;
                 
                 const values = [
-                    descricaoParcela, valor, dataVencimentoParcela, categoria ? categoria.toUpperCase() : null,
-                    utilizador_id, true, false, parcela_id, i + 1, quantidade_parcelas
+                    descricaoParcela, valor, dataVencimentoParcela, categoria ? categoria.trim().toUpperCase() : null,
+                    utilizador_id, true, false, // 'recorrente' é true, 'pago' é false por padrão
+                    parcelaId, i + 1, totalParcelas
                 ];
 
                 const novaDespesa = await client.query(query, values);
@@ -62,13 +65,13 @@ const createDespesaPessoal = async (req, res) => {
             return res.status(201).json(despesasCriadas);
         }
 
-        // Cenário 2: Despesa Única ou Recorrência Contínua
+        // Cenário 2: Despesa Única ou Recorrência Contínua (Assinatura)
         const query = `
             INSERT INTO despesas_pessoais (descricao, valor, data_vencimento, categoria, utilizador_id, recorrente, pago)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *`;
         const values = [
-            descricao.toUpperCase(), valor, data_vencimento, categoria ? categoria.toUpperCase() : null,
+            descricao.trim().toUpperCase(), valor, data_vencimento, categoria ? categoria.trim().toUpperCase() : null,
             utilizador_id, recorrente || false, false
         ];
         const novaDespesa = await client.query(query, values);
@@ -84,11 +87,7 @@ const createDespesaPessoal = async (req, res) => {
     }
 };
 
-/**
- * @desc    Busca todas as despesas pessoais dentro de um período.
- * @route   GET /api/despesas-pessoais
- * @access  Protegido (Admin)
- */
+// As outras funções (get, update, delete) permanecem as mesmas.
 const getDespesasPessoais = async (req, res) => {
     const { startDate, endDate } = req.query;
     if (!startDate || !endDate) {
@@ -108,14 +107,9 @@ const getDespesasPessoais = async (req, res) => {
     }
 };
 
-/**
- * @desc    Atualiza uma despesa pessoal.
- * @route   PUT /api/despesas-pessoais/:id
- * @access  Protegido (Admin)
- */
 const updateDespesaPessoal = async (req, res) => {
     const { id } = req.params;
-    const { descricao, valor, data_vencimento, categoria, pago } = req.body;
+    const { pago } = req.body;
 
     if (pago === undefined) {
         return res.status(400).json({ error: 'O campo "pago" é obrigatório para atualização.' });
@@ -142,11 +136,6 @@ const updateDespesaPessoal = async (req, res) => {
     }
 };
 
-/**
- * @desc    Deleta uma despesa pessoal ou todas as parcelas futuras.
- * @route   DELETE /api/despesas-pessoais/:id
- * @access  Protegido (Admin)
- */
 const deleteDespesaPessoal = async (req, res) => {
     const { id } = req.params;
     const client = await pool.connect();
@@ -162,10 +151,8 @@ const deleteDespesaPessoal = async (req, res) => {
         const { parcela_id, numero_parcela } = despesaResult.rows[0];
 
         if (parcela_id) {
-            // Se for uma parcela, deleta ela e todas as futuras do mesmo grupo
             await client.query('DELETE FROM despesas_pessoais WHERE parcela_id = $1 AND numero_parcela >= $2', [parcela_id, numero_parcela]);
         } else {
-            // Se for uma despesa única, deleta apenas ela
             await client.query('DELETE FROM despesas_pessoais WHERE id = $1', [id]);
         }
 
@@ -179,6 +166,7 @@ const deleteDespesaPessoal = async (req, res) => {
         client.release();
     }
 };
+
 
 module.exports = {
     createDespesaPessoal,
