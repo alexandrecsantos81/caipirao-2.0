@@ -1,21 +1,27 @@
 -- =====================================================================
---  SCRIPT COMPLETO DO BANCO DE DADOS - CAIPIRÃO 3.0 (VERSÃO CORRIGIDA)
---  Este script reflete a estrutura com as tabelas personalizadas
---  'despesas_pessoais' e 'receitas_externas'.
+--  SCRIPT COMPLETO DO BANCO DE DADOS - CAIPIRÃO 3.0
+--  Versão: 2025-08-16
+--  Este script apaga as tabelas existentes para garantir uma
+--  recriação limpa. Ideal para ambientes de desenvolvimento e
+--  para configurar o banco de dados pela primeira vez.
+--
+--  ATENÇÃO: NÃO EXECUTE EM UM BANCO DE DADOS DE PRODUÇÃO COM DADOS!
 -- =====================================================================
 
--- Exclui as tabelas na ordem correta de dependência para uma recriação limpa.
+
+-- Exclui as tabelas se elas já existirem, para garantir um começo limpo.
+-- A ordem é importante por causa das chaves estrangeiras.
 DROP TABLE IF EXISTS movimentacoes;
 DROP TABLE IF EXISTS entradas_estoque;
 DROP TABLE IF EXISTS despesas;
-DROP TABLE IF EXISTS despesas_pessoais; -- Adicionado
-DROP TABLE IF EXISTS receitas_externas; -- Adicionado
+DROP TABLE IF EXISTS despesas_pessoais; -- Adicionada à lista de exclusão
+DROP TABLE IF EXISTS receitas_externas;
 DROP TABLE IF EXISTS fornecedores;
 DROP TABLE IF EXISTS produtos;
 DROP TABLE IF EXISTS clientes;
 DROP TABLE IF EXISTS utilizadores;
 
--- Tabela de Utilizadores (sem alterações)
+-- Tabela de Utilizadores: armazena os dados de login, perfis e status.
 CREATE TABLE utilizadores (
     id SERIAL PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
@@ -23,12 +29,14 @@ CREATE TABLE utilizadores (
     telefone VARCHAR(20) UNIQUE,
     nickname VARCHAR(50) UNIQUE,
     senha VARCHAR(255),
-    perfil VARCHAR(20) NOT NULL DEFAULT 'PENDENTE' CHECK (perfil IN ('VENDEDOR', 'GERENTE', 'ADMINISTRATIVO', 'ADMIN', 'PENDENTE')),
-    status VARCHAR(10) NOT NULL DEFAULT 'INATIVO' CHECK (status IN ('ATIVO', 'INATIVO')),
+    perfil VARCHAR(20) NOT NULL DEFAULT 'PENDENTE' 
+        CHECK (perfil IN ('VENDEDOR', 'GERENTE', 'ADMINISTRATIVO', 'ADMIN', 'PENDENTE')),
+    status VARCHAR(10) NOT NULL DEFAULT 'INATIVO'
+        CHECK (status IN ('ATIVO', 'INATIVO')),
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabela de Clientes (sem alterações)
+-- Tabela de Clientes
 CREATE TABLE clientes (
     id SERIAL PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
@@ -42,7 +50,7 @@ CREATE TABLE clientes (
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabela de Produtos (sem alterações)
+-- Tabela de Produtos
 CREATE TABLE produtos (
     id SERIAL PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
@@ -53,7 +61,7 @@ CREATE TABLE produtos (
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabela de Movimentações (Vendas/Entradas) (sem alterações)
+-- Tabela de Movimentações (Vendas/Entradas do Frigorífico)
 CREATE TABLE movimentacoes (
     id SERIAL PRIMARY KEY,
     tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('ENTRADA', 'SAIDA')),
@@ -68,7 +76,7 @@ CREATE TABLE movimentacoes (
     data_pagamento DATE
 );
 
--- Tabela de Fornecedores (sem alterações)
+-- Tabela para Fornecedores/Credores
 CREATE TABLE fornecedores (
     id SERIAL PRIMARY KEY,
     nome VARCHAR(150) NOT NULL,
@@ -79,14 +87,16 @@ CREATE TABLE fornecedores (
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabela de Despesas do Negócio (sem alterações)
+-- Tabela de Despesas (Saídas detalhadas do Frigorífico)
 CREATE TABLE despesas (
     id SERIAL PRIMARY KEY,
-    tipo_saida VARCHAR(50) NOT NULL,
+    tipo_saida VARCHAR(50) NOT NULL CHECK (tipo_saida IN (
+        'Compra de Aves', 'Insumos de Produção', 'Mão de Obra', 'Materiais e Embalagens', 
+        'Despesas Operacionais', 'Encargos e Tributos', 'Despesas Administrativas', 
+        'Financeiras', 'Remuneração de Sócios', 'Outros'
+    )),
     valor NUMERIC(10, 2) NOT NULL,
     discriminacao TEXT NOT NULL,
-    parcela_atual INT,
-    total_parcelas INT,
     data_compra DATE NOT NULL DEFAULT CURRENT_DATE,
     data_vencimento DATE NOT NULL,
     data_pagamento DATE DEFAULT NULL,
@@ -95,7 +105,7 @@ CREATE TABLE despesas (
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabela de Entradas de Estoque (sem alterações)
+-- Tabela de Histórico de Entradas de Estoque
 CREATE TABLE entradas_estoque (
     id SERIAL PRIMARY KEY,
     produto_id INT NOT NULL REFERENCES produtos(id) ON DELETE CASCADE,
@@ -106,49 +116,43 @@ CREATE TABLE entradas_estoque (
     data_entrada TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- ✅ NOVA TABELA: Despesas Pessoais
+-- Tabela de Receitas Externas (Finanças Pessoais)
+CREATE TABLE receitas_externas (
+    id SERIAL PRIMARY KEY,
+    descricao VARCHAR(255) NOT NULL,
+    valor NUMERIC(10, 2) NOT NULL,
+    data_recebimento DATE NOT NULL,
+    utilizador_id INT REFERENCES utilizadores(id) ON DELETE SET NULL,
+    categoria VARCHAR(100),
+    data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tabela de Despesas Pessoais (com lógica de recorrência)
 CREATE TABLE despesas_pessoais (
     id SERIAL PRIMARY KEY,
     descricao VARCHAR(255) NOT NULL,
     valor NUMERIC(10, 2) NOT NULL,
     data_vencimento DATE NOT NULL,
     categoria VARCHAR(100),
-    pago BOOLEAN DEFAULT FALSE,
+    pago BOOLEAN NOT NULL DEFAULT FALSE,
     data_pagamento DATE,
-    recorrente BOOLEAN DEFAULT FALSE,
-    tipo_recorrencia VARCHAR(20) CHECK (tipo_recorrencia IN ('PARCELAMENTO', 'ASSINATURA')),
-    parcela_atual INT,
+    utilizador_id INT NOT NULL REFERENCES utilizadores(id) ON DELETE CASCADE,
+    recorrente BOOLEAN NOT NULL DEFAULT FALSE,
+    parcela_id UUID,
+    numero_parcela INT,
     total_parcelas INT,
-    utilizador_id INT NOT NULL REFERENCES utilizadores(id) ON DELETE CASCADE,
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- ✅ NOVA TABELA: Receitas Externas
-CREATE TABLE receitas_externas (
-    id SERIAL PRIMARY KEY,
-    descricao VARCHAR(255) NOT NULL,
-    valor NUMERIC(10, 2) NOT NULL,
-    data_recebimento DATE NOT NULL,
-    categoria VARCHAR(100),
-    utilizador_id INT NOT NULL REFERENCES utilizadores(id) ON DELETE CASCADE,
-    data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-
--- =====================================================================
---  ÍNDICES E DADOS INICIAIS
--- =====================================================================
 
 -- Índices para otimizar consultas
-CREATE INDEX idx_utilizadores_email ON utilizadores(email);
-CREATE INDEX idx_clientes_nome ON clientes(nome);
-CREATE INDEX idx_produtos_nome ON produtos(nome);
-CREATE INDEX idx_movimentacoes_data_venda ON movimentacoes(data_venda);
-CREATE INDEX idx_despesas_vencimento ON despesas(data_vencimento);
-CREATE INDEX idx_despesas_pessoais_vencimento ON despesas_pessoais(data_vencimento);
-CREATE INDEX idx_despesas_pessoais_utilizador_id ON despesas_pessoais(utilizador_id);
-CREATE INDEX idx_receitas_externas_data_recebimento ON receitas_externas(data_recebimento);
-CREATE INDEX idx_receitas_externas_utilizador_id ON receitas_externas(utilizador_id);
+CREATE INDEX IF NOT EXISTS idx_utilizadores_email ON utilizadores(email);
+CREATE INDEX IF NOT EXISTS idx_clientes_nome ON clientes(nome);
+CREATE INDEX IF NOT EXISTS idx_movimentacoes_data_venda ON movimentacoes(data_venda);
+CREATE INDEX IF NOT EXISTS idx_despesas_vencimento ON despesas(data_vencimento);
+CREATE INDEX IF NOT EXISTS idx_receitas_externas_data ON receitas_externas(data_recebimento);
+CREATE INDEX IF NOT EXISTS idx_despesas_pessoais_vencimento ON despesas_pessoais(data_vencimento);
+CREATE INDEX IF NOT EXISTS idx_despesas_pessoais_parcela_id ON despesas_pessoais(parcela_id);
 
 -- Inserir um utilizador ADMIN padrão
 INSERT INTO utilizadores (nome, email, nickname, telefone, senha, perfil, status) VALUES 

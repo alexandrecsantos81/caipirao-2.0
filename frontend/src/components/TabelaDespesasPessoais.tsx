@@ -1,220 +1,263 @@
-// frontend/src/components/TabelaDespesasPessoais.tsx
-
 import {
-  Box, Button, Flex, IconButton, Spinner, Table, TableContainer,
-  Tag, Tbody, Td, Text, Th, Thead, Tr, useDisclosure, useToast, VStack, HStack,
-  Drawer, DrawerBody, DrawerCloseButton, DrawerContent, DrawerFooter, DrawerHeader, DrawerOverlay,
-  FormControl, FormLabel, Input, FormErrorMessage, Switch, Tooltip,
-  AlertDialog, AlertDialogBody, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogOverlay,
-  Center,
-  Heading,
-  InputGroup,
-  InputLeftElement,
-  RadioGroup,
-  Radio,
-  Stack,
+  Box, Button, Flex, Heading, IconButton, Spinner, Table, TableContainer, Tbody, Td, Text,
+  Th, Thead, Tr, useDisclosure, useToast, HStack,
+  AlertDialog, AlertDialogBody, AlertDialogFooter, AlertDialogContent, AlertDialogOverlay,
+  Center, Badge, Checkbox, Tooltip, AlertDialogHeader
 } from '@chakra-ui/react';
-import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { FiEdit, FiPlus, FiTrash2, FiSearch } from 'react-icons/fi';
-import { useForm, SubmitHandler, Controller } from 'react-hook-form';
-import { useState, useRef, useEffect } from 'react';
-import {
-  IDespesa,
-  IDespesaForm,
-  getDespesas,
-  updateDespesa,
-  deleteDespesa,
-  registrarDespesa,
-} from '../services/despesa.service';
-import { Pagination } from './Pagination';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
+import { useState, useRef, useMemo } from 'react';
+import { 
+  IDespesaPessoal, 
+  IDespesaPessoalForm, 
+  getDespesasPessoais, 
+  createDespesaPessoal, 
+  updateDespesaPessoal, 
+  deleteDespesaPessoal 
+} from '../services/despesaPessoal.service';
+import { FormularioDespesaPessoal } from './FormularioDespesaPessoal';
 
-// Hook de Debounce
-const useDebounce = (value: string, delay: number) => {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const handler = setTimeout(() => { setDebouncedValue(value); }, delay);
-    return () => { clearTimeout(handler); };
-  }, [value, delay]);
-  return debouncedValue;
-};
+// Interface para representar um financiamento agrupado na tabela
+interface IFinanciamentoAgrupado {
+  parcela_id: string;
+  descricaoBase: string;
+  proximaParcela: IDespesaPessoal;
+  saldoRestante: number;
+  totalParcelas: number;
+  categoria?: string | null;
+}
 
-// --- COMPONENTE DO FORMULÁRIO ---
-const FormularioDespesa = ({ isOpen, onClose, despesaParaEditar }: {
-  isOpen: boolean;
-  onClose: () => void;
-  despesaParaEditar: IDespesa | null;
-}) => {
+interface TabelaDespesasPessoaisProps {
+  filters: { startDate: string; endDate: string };
+}
+
+export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps) => {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const { register, handleSubmit, reset, watch, control, formState: { errors, isSubmitting } } = useForm<IDespesaForm>();
+  const { isOpen: isDrawerOpen, onOpen: onDrawerOpen, onClose: onDrawerClose } = useDisclosure();
+  const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure();
   
-  const éRecorrente = watch('recorrente');
-  const tipoRecorrencia = watch('tipo_recorrencia');
+  const [selectedDespesa, setSelectedDespesa] = useState<IDespesaPessoal | null>(null);
+  const [itemParaDeletar, setItemParaDeletar] = useState<IDespesaPessoal | IFinanciamentoAgrupado | null>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const portalContainerRef = useRef<HTMLDivElement>(null);
 
-  const mutation = useMutation({
-    mutationFn: (data: { formData: IDespesaForm, id?: number }) =>
-      data.id ? updateDespesa({ id: data.id, data: data.formData }) : registrarDespesa(data.formData),
+  const { data, isLoading, isError } = useQuery<IDespesaPessoal[]>({
+    queryKey: ['despesasPessoais', filters],
+    queryFn: () => getDespesasPessoais(filters.startDate, filters.endDate),
+    enabled: !!filters.startDate && !!filters.endDate,
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: createDespesaPessoal,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['despesasPessoais'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardConsolidado'] });
       toast({ title: `Despesa salva com sucesso!`, status: 'success' });
-      onClose();
+      onDrawerClose();
     },
     onError: (error: any) => {
       toast({ title: 'Erro ao salvar despesa', description: error.response?.data?.error || error.message, status: 'error' });
     }
   });
 
-  useEffect(() => {
-    if (isOpen) {
-      if (despesaParaEditar) {
-        // ✅ CORREÇÃO FINALÍSSIMA APLICADA AQUI
-        reset({
-          ...despesaParaEditar,
-          valor: String(despesaParaEditar.valor),
-          data_vencimento: despesaParaEditar.data_vencimento.split('T')[0],
-          data_pagamento: despesaParaEditar.data_pagamento ? despesaParaEditar.data_pagamento.split('T')[0] : '', // Trata o null
-          categoria: despesaParaEditar.categoria || '',
-          parcela_atual: despesaParaEditar.parcela_atual || '',
-          total_parcelas: despesaParaEditar.total_parcelas || '',
-          tipo_recorrencia: despesaParaEditar.tipo_recorrencia || 'PARCELAMENTO',
-        });
-      } else {
-        reset({
-          discriminacao: '', valor: '', categoria: '', recorrente: false,
-          data_vencimento: new Date().toISOString().split('T')[0],
-          tipo_recorrencia: 'PARCELAMENTO',
-        });
-      }
-    }
-  }, [isOpen, despesaParaEditar, reset]);
-
-  const onSubmit: SubmitHandler<IDespesaForm> = (data) => {
-    const formData: IDespesaForm = {
-      ...data,
-      valor: parseFloat(String(data.valor)),
-      parcela_atual: data.recorrente && data.tipo_recorrencia === 'PARCELAMENTO' ? Number(data.parcela_atual) : undefined,
-      total_parcelas: data.recorrente && data.tipo_recorrencia === 'PARCELAMENTO' ? Number(data.total_parcelas) : undefined,
-    };
-    mutation.mutate({ formData, id: despesaParaEditar?.id });
-  };
-
-  return (
-    <Drawer isOpen={isOpen} placement="right" onClose={onClose} size="md">
-      <DrawerOverlay />
-      <DrawerContent as="form" onSubmit={handleSubmit(onSubmit)}>
-        <DrawerHeader borderBottomWidth="1px">{despesaParaEditar ? 'Editar Despesa' : 'Adicionar Nova Despesa'}</DrawerHeader>
-        <DrawerBody>
-          <VStack spacing={4}>
-            <FormControl isRequired isInvalid={!!errors.discriminacao}><FormLabel>Descrição</FormLabel><Input {...register('discriminacao', { required: 'Descrição é obrigatória' })} /></FormControl>
-            <FormControl isRequired isInvalid={!!errors.valor}><FormLabel>Valor (R$)</FormLabel><Input type="number" step="0.01" {...register('valor', { required: 'Valor é obrigatório', valueAsNumber: true })} /></FormControl>
-            <FormControl><FormLabel>Categoria (Opcional)</FormLabel><Input {...register('categoria')} /></FormControl>
-            <FormControl display="flex" alignItems="center"><FormLabel htmlFor="recorrente-switch" mb="0">É recorrente?</FormLabel><Switch id="recorrente-switch" {...register('recorrente')} /></FormControl>
-            {éRecorrente && (
-              <VStack p={4} borderWidth={1} borderRadius="md" w="100%" align="flex-start" spacing={4}>
-                <FormControl as="fieldset"><FormLabel as="legend">Tipo</FormLabel>
-                  <Controller name="tipo_recorrencia" control={control} render={({ field }) => (
-                      <RadioGroup {...field}><Stack direction="row"><Radio value="PARCELAMENTO">Parcelamento</Radio><Radio value="ASSINATURA">Assinatura</Radio></Stack></RadioGroup>
-                  )} />
-                </FormControl>
-                {tipoRecorrencia === 'PARCELAMENTO' && (
-                  <HStack>
-                    <FormControl isRequired isInvalid={!!errors.parcela_atual}><FormLabel>Parcela Atual</FormLabel><Input type="number" {...register('parcela_atual', { required: 'Campo obrigatório' })} /></FormControl>
-                    <FormControl isRequired isInvalid={!!errors.total_parcelas}><FormLabel>de (Total)</FormLabel><Input type="number" {...register('total_parcelas', { required: 'Campo obrigatório' })} /></FormControl>
-                  </HStack>
-                )}
-              </VStack>
-            )}
-            <FormControl isRequired isInvalid={!!errors.data_vencimento}><FormLabel>Vencimento</FormLabel><Input type="date" {...register('data_vencimento', { required: 'Vencimento é obrigatório' })} /></FormControl>
-          </VStack>
-        </DrawerBody>
-        <DrawerFooter borderTopWidth="1px"><Button variant="outline" mr={3} onClick={onClose}>Cancelar</Button><Button colorScheme="teal" type="submit" isLoading={isSubmitting}>Salvar</Button></DrawerFooter>
-      </DrawerContent>
-    </Drawer>
-  );
-};
-
-
-// --- COMPONENTE PRINCIPAL DA TABELA ---
-export const TabelaDespesasPessoais = ({ filters }: { filters: { startDate: string; endDate: string; } }) => {
-  const queryClient = useQueryClient();
-  const toast = useToast();
-  const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
-  const { isOpen: isAlertOpen, onOpen: onAlertOpen, onClose: onAlertClose } = useDisclosure();
-  
-  const [despesaParaEditar, setDespesaParaEditar] = useState<IDespesa | null>(null);
-  const [despesaParaDeletar, setDespesaParaDeletar] = useState<IDespesa | null>(null);
-  const [pagina, setPagina] = useState(1);
-  const [termoBusca, setTermoBusca] = useState('');
-  const buscaDebounced = useDebounce(termoBusca, 500);
-  const cancelRef = useRef<HTMLButtonElement>(null);
-
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['despesasPessoais', pagina, buscaDebounced, filters],
-    queryFn: () => getDespesas(pagina, 50, buscaDebounced),
-    placeholderData: keepPreviousData,
-  });
-
   const deleteMutation = useMutation({
-    mutationFn: deleteDespesa,
+    mutationFn: deleteDespesaPessoal,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['despesasPessoais'] });
-      toast({ title: 'Despesa excluída!', status: 'success' });
-      onAlertClose();
+      queryClient.invalidateQueries({ queryKey: ['dashboardConsolidado'] });
+      toast({ title: 'Despesa(s) excluída(s) com sucesso!', status: 'success' });
+      onConfirmClose();
     },
     onError: (error: any) => {
-      toast({ title: 'Erro ao excluir', description: error.response?.data?.error || error.message, status: 'error' });
+      toast({ title: 'Erro ao excluir despesa', description: error.response?.data?.error || error.message, status: 'error' });
     }
   });
 
-  const handleOpenForm = (despesa: IDespesa | null) => { setDespesaParaEditar(despesa); onFormOpen(); };
-  const handleDeleteClick = (despesa: IDespesa) => { setDespesaParaDeletar(despesa); onAlertOpen(); };
-  const handleConfirmDelete = () => { if (despesaParaDeletar) { deleteMutation.mutate(despesaParaDeletar.id); } };
+  const togglePagoMutation = useMutation({
+    mutationFn: (despesa: IDespesaPessoal) => updateDespesaPessoal({ id: despesa.id, data: { pago: !despesa.pago } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['despesasPessoais'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardConsolidado'] });
+      toast({ title: 'Status de pagamento atualizado!', status: 'info', duration: 2000 });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Erro ao atualizar pagamento', description: error.response?.data?.error || error.message, status: 'error' });
+    }
+  });
 
-  const calcularSaldoRestante = (despesa: IDespesa) => {
-    if (despesa.pago || !despesa.recorrente || despesa.tipo_recorrencia !== 'PARCELAMENTO' || !despesa.parcela_atual || !despesa.total_parcelas) return '---';
-    const parcelasRestantes = despesa.total_parcelas - despesa.parcela_atual + 1;
-    const saldo = parcelasRestantes * despesa.valor;
-    return saldo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const itensDaTabela = useMemo(() => {
+    if (!data) return [];
+
+    const despesasVisiveis = data.filter(d => {
+        if (d.pago) {
+            const dataPagamento = new Date(d.data_pagamento + 'T00:00:00');
+            return dataPagamento >= new Date(filters.startDate) && dataPagamento <= new Date(filters.endDate);
+        }
+        return true;
+    });
+
+    const despesasUnicas = despesasVisiveis.filter(d => !d.parcela_id && !d.recorrente);
+    const assinaturas = despesasVisiveis.filter(d => d.recorrente && !d.parcela_id);
+
+    const parcelas = data.filter(d => !!d.parcela_id);
+    const grupos = new Map<string, IDespesaPessoal[]>();
+    parcelas.forEach(p => {
+      const id = p.parcela_id!;
+      if (!grupos.has(id)) grupos.set(id, []);
+      grupos.get(id)!.push(p);
+    });
+
+    const financiamentos: IFinanciamentoAgrupado[] = [];
+    grupos.forEach((parcelasDoGrupo) => {
+      const proximaParcela = parcelasDoGrupo
+        .filter(p => !p.pago)
+        .sort((a, b) => a.numero_parcela! - b.numero_parcela!)[0];
+
+      if (!proximaParcela) return;
+
+      const saldoRestante = parcelasDoGrupo.reduce((acc, p) => !p.pago ? acc + p.valor : acc, 0);
+      
+      financiamentos.push({
+        parcela_id: proximaParcela.parcela_id!,
+        descricaoBase: proximaParcela.descricao.replace(/\s*\(\d+\/\d+\)$/, ''),
+        proximaParcela,
+        saldoRestante,
+        totalParcelas: proximaParcela.total_parcelas || 0,
+        categoria: proximaParcela.categoria,
+      });
+    });
+
+    return [...despesasUnicas, ...assinaturas, ...financiamentos].sort((a, b) => {
+        const dateA = new Date('proximaParcela' in a ? a.proximaParcela.data_vencimento : a.data_vencimento);
+        const dateB = new Date('proximaParcela' in b ? b.proximaParcela.data_vencimento : b.data_vencimento);
+        return dateA.getTime() - dateB.getTime();
+    });
+  }, [data, filters.startDate, filters.endDate]);
+
+  // ESTA É A LINHA CORRIGIDA
+  const handleAddClick = () => { setSelectedDespesa(null); onDrawerOpen(); };
+
+  const handleEditClick = () => {
+    toast({
+        title: 'Função em desenvolvimento',
+        description: 'A edição de despesas será implementada em breve.',
+        status: 'info',
+        duration: 3000,
+        isClosable: true,
+    });
   };
+  const handleDeleteClick = (item: IDespesaPessoal | IFinanciamentoAgrupado) => { setItemParaDeletar(item); onConfirmOpen(); };
+  const handleConfirmDelete = () => {
+    if (!itemParaDeletar) return;
+    const idParaDeletar = 'proximaParcela' in itemParaDeletar ? itemParaDeletar.proximaParcela.id : itemParaDeletar.id;
+    deleteMutation.mutate(idParaDeletar);
+  };
+  const handleSave = (formData: IDespesaPessoalForm) => { saveMutation.mutate(formData); };
 
   return (
     <Box>
-      <Flex justify="space-between" align="center" mb={6}>
-        <Heading size="lg">Gestão de Despesas Pessoais</Heading>
-        <Button leftIcon={<FiPlus />} colorScheme="red" onClick={() => handleOpenForm(null)}>Adicionar Despesa</Button>
+      <div ref={portalContainerRef} />
+      <Flex justify="space-between" align="center" mb={6} direction={{ base: 'column', md: 'row' }} gap={4}>
+        <Heading textAlign={{ base: 'center', md: 'left' }}>Gestão de Despesas Pessoais</Heading>
+        <Button leftIcon={<FiPlus />} colorScheme="red" onClick={handleAddClick} w={{ base: 'full', md: 'auto' }}>
+          Adicionar Despesa
+        </Button>
       </Flex>
-      <InputGroup mb={6}><InputLeftElement pointerEvents="none"><FiSearch color="gray.300" /></InputLeftElement><Input placeholder="Buscar..." value={termoBusca} onChange={(e) => setTermoBusca(e.target.value)} /></InputGroup>
-      {isLoading ? <Center p={10}><Spinner size="xl" /></Center> : isError ? <Center p={10}><Text color="red.500">Erro ao carregar.</Text></Center> : (
-        <>
-          <TableContainer>
-            <Table variant="striped">
-              <Thead><Tr><Th>Vencimento</Th><Th>Parcela</Th><Th>Descrição</Th><Th>Categoria</Th><Th isNumeric>Valor</Th><Th isNumeric>Saldo</Th><Th>Status</Th><Th>Ações</Th></Tr></Thead>
-              <Tbody>
-                {data?.dados.map((d) => (
-                  <Tr key={d.id}>
-                    <Td>{new Date(d.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
-                    <Td>{d.tipo_recorrencia === 'PARCELAMENTO' && d.parcela_atual ? `${d.parcela_atual}/${d.total_parcelas}` : '---'}</Td>
-                    <Td>{d.discriminacao}</Td>
-                    <Td>{d.categoria || '---'}</Td>
-                    <Td isNumeric>{d.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
-                    <Td isNumeric>{calcularSaldoRestante(d)}</Td>
-                    <Td><Tag colorScheme={d.pago ? 'green' : 'orange'}>{d.pago ? 'Pago' : 'Pendente'}</Tag></Td>
-                    <Td><HStack><IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleOpenForm(d)} /><IconButton aria-label="Excluir" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDeleteClick(d)} /></HStack></Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
-          </TableContainer>
-          <Pagination paginaAtual={data?.pagina || 1} totalPaginas={data?.totalPaginas || 1} onPageChange={setPagina} />
-        </>
+      {isLoading ? <Center p={8}><Spinner size="xl" /></Center> : isError ? <Center p={8}><Text color="red.500">Erro ao carregar despesas.</Text></Center> : (
+        <TableContainer>
+          <Table variant="striped">
+            <Thead>
+              <Tr>
+                <Th>Próximo Vencimento</Th>
+                <Th>Parcela</Th>
+                <Th>Descrição</Th>
+                <Th>Categoria</Th>
+                <Th isNumeric>Valor da Parcela</Th>
+                <Th isNumeric>Saldo Restante</Th>
+                <Th>Status</Th>
+                <Th>Ações</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {itensDaTabela.map((item) => {
+                if ('proximaParcela' in item) { // É um financiamento agrupado
+                  const financiamento = item as IFinanciamentoAgrupado;
+                  return (
+                    <Tr key={financiamento.parcela_id}>
+                      <Td>{new Date(financiamento.proximaParcela.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR')}</Td>
+                      <Td><Badge colorScheme="blue">{`${financiamento.proximaParcela.numero_parcela}/${financiamento.totalParcelas}`}</Badge></Td>
+                      <Td>{financiamento.descricaoBase}</Td>
+                      <Td>{financiamento.categoria || '---'}</Td>
+                      <Td isNumeric color="red.500" fontWeight="bold">{financiamento.proximaParcela.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
+                      <Td isNumeric>{financiamento.saldoRestante.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
+                      <Td>
+                        <Tooltip label={financiamento.proximaParcela.pago ? 'Pago' : 'Pendente'}>
+                            <Badge colorScheme={financiamento.proximaParcela.pago ? 'green' : 'orange'}>
+                                {financiamento.proximaParcela.pago ? 'Pago' : 'Pendente'}
+                            </Badge>
+                        </Tooltip>
+                      </Td>
+                      <Td>
+                        <HStack>
+                          <IconButton aria-label="Editar" icon={<FiEdit />} onClick={handleEditClick} isDisabled />
+                          <IconButton aria-label="Excluir" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDeleteClick(financiamento)} />
+                        </HStack>
+                      </Td>
+                    </Tr>
+                  );
+                } 
+                else { // É uma despesa única ou assinatura
+                  const despesa = item as IDespesaPessoal;
+                  return (
+                    <Tr key={despesa.id}>
+                      <Td>{new Date(despesa.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR')}</Td>
+                      <Td>{despesa.recorrente ? <Badge colorScheme="purple">Assinatura</Badge> : 'Única'}</Td>
+                      <Td>{despesa.descricao}</Td>
+                      <Td>{despesa.categoria || '---'}</Td>
+                      <Td isNumeric color="red.500" fontWeight="bold">{despesa.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
+                      <Td isNumeric>{despesa.recorrente ? 'N/A' : '---'}</Td>
+                      <Td>
+                        <Tooltip label={despesa.pago ? `Pago em ${despesa.data_pagamento ? new Date(despesa.data_pagamento + 'T00:00:00').toLocaleDateString('pt-BR') : ''}` : 'Pendente'}>
+                           <Badge colorScheme={despesa.pago ? 'green' : 'orange'}>
+                                {despesa.pago ? 'Pago' : 'Pendente'}
+                            </Badge>
+                        </Tooltip>
+                      </Td>
+                      <Td>
+                        <HStack>
+                          <IconButton aria-label="Marcar como pago/pendente" icon={<Checkbox isChecked={despesa.pago} onChange={() => togglePagoMutation.mutate(despesa)} />} />
+                          <IconButton aria-label="Editar" icon={<FiEdit />} onClick={handleEditClick} />
+                          <IconButton aria-label="Excluir" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDeleteClick(despesa)} />
+                        </HStack>
+                      </Td>
+                    </Tr>
+                  );
+                }
+              })}
+            </Tbody>
+          </Table>
+        </TableContainer>
       )}
-      <FormularioDespesa isOpen={isFormOpen} onClose={onFormClose} despesaParaEditar={despesaParaEditar} />
-      <AlertDialog isOpen={isAlertOpen} leastDestructiveRef={cancelRef} onClose={onAlertClose}>
-        <AlertDialogOverlay><AlertDialogContent>
-            <AlertDialogHeader>Confirmar Exclusão</AlertDialogHeader>
-            <AlertDialogBody>Excluir a despesa <strong>{despesaParaDeletar?.discriminacao}</strong>?</AlertDialogBody>
-            <AlertDialogFooter><Button ref={cancelRef} onClick={onAlertClose}>Cancelar</Button><Button colorScheme="red" onClick={handleConfirmDelete} ml={3} isLoading={deleteMutation.isPending}>Sim, Excluir</Button></AlertDialogFooter>
-        </AlertDialogContent></AlertDialogOverlay>
+      <FormularioDespesaPessoal 
+        isOpen={isDrawerOpen} onClose={onDrawerClose} despesa={selectedDespesa} 
+        onSave={handleSave} isLoading={saveMutation.isPending} portalContainerRef={portalContainerRef}
+      />
+      <AlertDialog isOpen={isConfirmOpen} leastDestructiveRef={cancelRef} onClose={onConfirmClose} isCentered>
+        <AlertDialogOverlay />
+        <AlertDialogContent>
+          <AlertDialogHeader fontSize="lg" fontWeight="bold">Confirmar Exclusão</AlertDialogHeader>
+          <AlertDialogBody>
+            Tem certeza que deseja excluir {'proximaParcela' in (itemParaDeletar || {}) 
+              ? `a despesa "${(itemParaDeletar as IFinanciamentoAgrupado).descricaoBase}" e todas as suas parcelas futuras`
+              : `a despesa "${(itemParaDeletar as IDespesaPessoal)?.descricao}"`
+            }? Esta ação não pode ser desfeita.
+          </AlertDialogBody>
+          <AlertDialogFooter>
+            <Button ref={cancelRef} onClick={onConfirmClose}>Cancelar</Button>
+            <Button colorScheme="red" onClick={handleConfirmDelete} ml={3} isLoading={deleteMutation.isPending}>Sim, Excluir</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
       </AlertDialog>
     </Box>
   );

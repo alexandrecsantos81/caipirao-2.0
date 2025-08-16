@@ -63,7 +63,6 @@ const FinancasPage = () => {
             <TabelaReceitasExternas />
           </TabPanel>
           <TabPanel>
-            {/* A mágica acontece aqui: o componente corrigido é renderizado */}
             <TabelaDespesasPessoais filters={{ startDate, endDate }} />
           </TabPanel>
         </TabPanels>

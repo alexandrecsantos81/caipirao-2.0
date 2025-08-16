@@ -3,8 +3,7 @@ import { IPaginatedResponse } from '@/types/common.types'; // Importação centr
 
 // Configuração do cliente Axios
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-// ✅ Aponta para a rota correta que agora lida com despesas pessoais
-const apiClient = axios.create({ baseURL: `${API_URL}/despesas` }   );
+const apiClient = axios.create({ baseURL: `${API_URL}/despesas` }  );
 
 // Interceptor para adicionar o token de autenticação
 apiClient.interceptors.request.use(
@@ -18,86 +17,37 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// --- INTERFACES ATUALIZADAS ---
+// --- INTERFACES ---
 
-// ✅ Interface IDespesa atualizada para refletir a tabela despesas_pessoais
+export const tiposDeSaida = [
+    "Insumos de Produção", "Mão de Obra", "Materiais e Embalagens",
+    "Despesas Operacionais", "Encargos e Tributos", "Despesas Administrativas",
+    "Financeiras", "Remuneração de Sócios", "Outros"
+] as const;
+
+type TipoSaida = typeof tiposDeSaida[number];
+
 export interface IDespesa {
   id: number;
-  discriminacao: string;
+  tipo_saida: TipoSaida;
   valor: number;
-  data_vencimento: string;
-  categoria?: string | null;
-  pago: boolean;
-  data_pagamento?: string | null;
-  recorrente: boolean;
-  tipo_recorrencia?: 'PARCELAMENTO' | 'ASSINATURA' | null;
-  parcela_atual?: number | null;
-  total_parcelas?: number | null;
-  utilizador_id: number;
-  data_criacao: string;
-}
-
-// ✅ Interface IDespesaForm atualizada para o formulário de criação/edição
-export interface IDespesaForm {
   discriminacao: string;
-  valor: number | string;
+  data_compra: string;
   data_vencimento: string;
-  categoria?: string;
-  recorrente: boolean;
-  tipo_recorrencia?: 'PARCELAMENTO' | 'ASSINATURA';
-  parcela_atual?: number | string;
-  total_parcelas?: number | string;
-  pago?: boolean;
-  data_pagamento?: string;
+  data_pagamento?: string | null;
+  fornecedor_id?: number | null;
+  responsavel_pagamento_id?: number | null;
+  nome_fornecedor?: string;
 }
 
-
-// --- FUNÇÕES DO SERVIÇO ATUALIZADAS ---
-
-/**
- * @description Busca a lista paginada de despesas pessoais do usuário.
- */
-export const getDespesas = async (
-  pagina = 1,
-  limite = 50,
-  termoBusca?: string
-): Promise<IPaginatedResponse<IDespesa>> => {
-    const response = await apiClient.get('/', {
-        params: {
-          pagina,
-          limite,
-          termoBusca,
-        },
-    });
-    return response.data;
-};
-
-/**
- * @description Registra uma nova despesa pessoal.
- */
-export const registrarDespesa = async (data: IDespesaForm): Promise<IDespesa> => {
-  const response = await apiClient.post('/', data);
-  return response.data;
-};
-
-/**
- * @description Atualiza uma despesa pessoal existente.
- */
-export const updateDespesa = async ({ id, data }: { id: number, data: IDespesaForm }): Promise<IDespesa> => {
-  const response = await apiClient.put(`/${id}`, data);
-  return response.data;
-};
-
-/**
- * @description Deleta uma despesa pessoal.
- */
-export const deleteDespesa = async (id: number): Promise<void> => {
-  await apiClient.delete(`/${id}`);
-};
-
-
-// --- Funções antigas para despesas do negócio (manter se necessário em outro lugar) ---
-// Estas funções não serão mais usadas pela página de Finanças Pessoais.
+export interface IDespesaForm {
+  tipo_saida: TipoSaida | '';
+  valor: number | string;
+  discriminacao: string;
+  data_compra: string;
+  data_vencimento: string;
+  fornecedor_id?: number | null;
+}
 
 export interface IContasAPagar {
     id: number;
@@ -111,14 +61,49 @@ export interface IQuitacaoData {
     responsavel_pagamento_id?: number;
 }
 
+// --- FUNÇÕES DO SERVIÇO ---
+
+/**
+ * @description Busca a lista completa de despesas com paginação e filtro.
+ * @param pagina - O número da página a ser buscada.
+ * @param limite - O número de itens por página.
+ * @param termoBusca - (Opcional) O termo para filtrar os resultados.
+ */
+export const getDespesas = async (
+  pagina = 1,
+  limite = 10,
+  termoBusca?: string // <-- NOVO PARÂMETRO ADICIONADO
+): Promise<IPaginatedResponse<IDespesa>> => {
+    const response = await apiClient.get('/', {
+        params: {
+          pagina,
+          limite,
+          termoBusca, // <-- PARÂMETRO ENVIADO PARA A API
+        },
+    });
+    return response.data;
+};
+
+export const registrarDespesa = async (data: IDespesaForm): Promise<IDespesa> => {
+  const response = await apiClient.post('/', data);
+  return response.data;
+};
+
+export const updateDespesa = async ({ id, data }: { id: number, data: IDespesaForm }): Promise<IDespesa> => {
+  const response = await apiClient.put(`/${id}`, data);
+  return response.data;
+};
+
+export const deleteDespesa = async (id: number): Promise<void> => {
+  await apiClient.delete(`/${id}`);
+};
+
 export const getContasAPagar = async (): Promise<IContasAPagar[]> => {
-    // Esta rota pode precisar ser ajustada se a lógica de contas a pagar do negócio ainda for usada
     const response = await apiClient.get('/a-pagar');
     return response.data;
 };
 
 export const quitarDespesa = async ({ id, quitacaoData }: { id: number, quitacaoData: IQuitacaoData }): Promise<IDespesa> => {
-    // Esta rota pode precisar ser ajustada
     const response = await apiClient.put(`/${id}/quitar`, quitacaoData);
     return response.data;
 };
