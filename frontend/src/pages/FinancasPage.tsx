@@ -6,7 +6,6 @@ import {
   AlertDialog, AlertDialogBody, AlertDialogFooter, AlertDialogContent, AlertDialogOverlay,
   Center,
   useBreakpointValue,
-  // 1. ADICIONE O 'ModalHeader' QUE ESTAVA FALTANDO AQUI
   ModalHeader,
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -33,7 +32,7 @@ const FormularioReceita = ({ isOpen, onClose, receita, onSave, isLoading }: {
       if (receita) {
         reset({
           ...receita,
-          data_recebimento: receita.data_recebimento.split('T')[0], // Formata a data para o input
+          data_recebimento: receita.data_recebimento.split('T')[0],
         });
       } else {
         reset({
@@ -216,7 +215,6 @@ const FinancasPage = () => {
       <AlertDialog isOpen={isConfirmOpen} leastDestructiveRef={cancelRef} onClose={onConfirmClose} isCentered>
         <AlertDialogOverlay />
         <AlertDialogContent>
-          {/* 2. O ERRO ESTAVA AQUI, AGORA ESTÁ CORRETO */}
           <ModalHeader>Confirmar Exclusão</ModalHeader>
           <AlertDialogBody>
             Tem certeza que deseja excluir a receita "<strong>{itemParaDeletar?.descricao}</strong>"?

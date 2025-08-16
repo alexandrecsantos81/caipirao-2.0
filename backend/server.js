@@ -1,5 +1,3 @@
-// backend/src/server.js
-
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
@@ -14,40 +12,35 @@ const fornecedorRoutes = require('./routes/fornecedorRoutes');
 const despesaRoutes = require('./routes/despesaRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const reportRoutes = require('./routes/reports');
+const receitaExternaRoutes = require('./routes/receitaExternaRoutes'); // <-- ADICIONADO
 
 const app = express();
 const port = process.env.PORT || 3001;
 
-// --- INÍCIO DA CORREÇÃO DE CORS ---
-
-// Lista de origens permitidas. Adicione outras se necessário (ex: http://localhost:5173 para dev )
+// Configuração de CORS
 const allowedOrigins = [
   'https://syscaipirao.netlify.app',
-  'http://localhost:5173' // Adicione a URL de desenvolvimento local
+  'http://localhost:5173'
 ];
 
 const corsOptions = {
   origin: (origin, callback ) => {
-    // Permite requisições sem 'origin' (como apps mobile ou Postman) ou se a origem estiver na lista
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Permite todos os métodos HTTP comuns
-  credentials: true, // Permite o envio de cookies/credenciais
-  optionsSuccessStatus: 204 // Necessário para algumas versões de navegadores
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  credentials: true,
+  optionsSuccessStatus: 204
 };
 
-// Middleware
-app.use(cors(corsOptions)); // <-- APLICA A NOVA CONFIGURAÇÃO DE CORS
+// Middlewares
+app.use(cors(corsOptions));
 app.use(express.json());
 
-// --- FIM DA CORREÇÃO DE CORS ---
-
-
-// Rotas Públicas
+// Rota Pública de Teste
 app.get('/', (req, res) => {
   res.send('API Caipirão 3.0 no ar!');
 });
@@ -62,6 +55,7 @@ app.use('/api/produtos', produtoRoutes);
 app.use('/api/movimentacoes', movimentacaoRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/receitas-externas', receitaExternaRoutes); // <-- ADICIONADO
 
 // Iniciar o servidor
 app.listen(port, () => {
