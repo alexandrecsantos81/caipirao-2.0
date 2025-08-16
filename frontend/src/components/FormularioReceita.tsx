@@ -5,7 +5,7 @@ import {
   Button, VStack, FormControl, FormLabel, Input, FormErrorMessage, useBreakpointValue
 } from '@chakra-ui/react';
 import { useForm, SubmitHandler } from 'react-hook-form';
-import { useEffect } from 'react';
+import { useEffect, RefObject } from 'react'; // 1. Importar RefObject
 import { IReceitaExterna, IReceitaExternaForm } from '../services/receitaExterna.service';
 
 interface FormularioReceitaProps {
@@ -14,9 +14,11 @@ interface FormularioReceitaProps {
   receita: IReceitaExterna | null;
   onSave: (data: IReceitaExternaForm, id?: number) => void;
   isLoading: boolean;
+  // 2. Adicionar a nova prop para receber a referência
+  portalContainerRef: RefObject<HTMLDivElement>;
 }
 
-export const FormularioReceita = ({ isOpen, onClose, receita, onSave, isLoading }: FormularioReceitaProps) => {
+export const FormularioReceita = ({ isOpen, onClose, receita, onSave, isLoading, portalContainerRef }: FormularioReceitaProps) => {
   const { register, handleSubmit, reset, formState: { errors } } = useForm<IReceitaExternaForm>();
   const drawerSize = useBreakpointValue({ base: 'full', md: 'md' });
 
@@ -43,7 +45,14 @@ export const FormularioReceita = ({ isOpen, onClose, receita, onSave, isLoading 
   };
 
   return (
-    <Drawer isOpen={isOpen} placement="right" onClose={onClose} size={drawerSize}>
+    // 3. Aplicar a propriedade portalProps ao Drawer
+    <Drawer 
+      isOpen={isOpen} 
+      placement="right" 
+      onClose={onClose} 
+      size={drawerSize}
+      portalProps={{ containerRef: portalContainerRef }} // <-- SOLUÇÃO APLICADA AQUI
+    >
       <DrawerOverlay />
       <DrawerContent as="form" onSubmit={handleSubmit(onSubmit)}>
         <DrawerHeader borderBottomWidth="1px">{receita ? 'Editar Receita' : 'Adicionar Nova Receita'}</DrawerHeader>

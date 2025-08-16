@@ -8,12 +8,11 @@ import {
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
-import { useState, useRef } from 'react';
+import { useState, useRef } from 'react'; // 1. Importar useRef
 
 import {
   IReceitaExterna, IReceitaExternaForm, getReceitasExternas, createReceitaExterna, updateReceitaExterna, deleteReceitaExterna
 } from '../services/receitaExterna.service';
-// Importando o formulário do seu próprio arquivo
 import { FormularioReceita } from './FormularioReceita';
 
 export const TabelaReceitasExternas = () => {
@@ -24,6 +23,9 @@ export const TabelaReceitasExternas = () => {
     const [selectedReceita, setSelectedReceita] = useState<IReceitaExterna | null>(null);
     const [itemParaDeletar, setItemParaDeletar] = useState<IReceitaExterna | null>(null);
     const cancelRef = useRef<HTMLButtonElement>(null);
+    
+    // 2. Criar a referência para o portal do Drawer
+    const portalContainerRef = useRef<HTMLDivElement>(null);
 
     const { data, isLoading, isError } = useQuery({
         queryKey: ['receitasExternas'],
@@ -65,6 +67,9 @@ export const TabelaReceitasExternas = () => {
 
     return (
         <Box>
+            {/* 3. Adicionar o container do portal ao JSX */}
+            <div ref={portalContainerRef} />
+
             <Flex justify="space-between" align="center" mb={6} direction={{ base: 'column', md: 'row' }} gap={4}>
                 <Heading textAlign={{ base: 'center', md: 'left' }}>Gestão de Receitas Externas</Heading>
                 <Button leftIcon={<FiPlus />} colorScheme="green" onClick={handleAddClick} w={{ base: 'full', md: 'auto' }}>
@@ -85,7 +90,15 @@ export const TabelaReceitasExternas = () => {
                 </TableContainer>
             )}
 
-            <FormularioReceita isOpen={isDrawerOpen} onClose={onDrawerClose} receita={selectedReceita} onSave={handleSave} isLoading={saveMutation.isPending} />
+            {/* 4. Passar a referência para o formulário */}
+            <FormularioReceita 
+              isOpen={isDrawerOpen} 
+              onClose={onDrawerClose} 
+              receita={selectedReceita} 
+              onSave={handleSave} 
+              isLoading={saveMutation.isPending}
+              portalContainerRef={portalContainerRef}
+            />
             
             <AlertDialog isOpen={isConfirmOpen} leastDestructiveRef={cancelRef} onClose={onConfirmClose} isCentered>
                 <AlertDialogOverlay /><AlertDialogContent><ModalHeader>Confirmar Exclusão</ModalHeader><AlertDialogBody>Tem certeza que deseja excluir a receita "<strong>{itemParaDeletar?.descricao}</strong>"?</AlertDialogBody><AlertDialogFooter><Button ref={cancelRef} onClick={onConfirmClose}>Cancelar</Button><Button colorScheme="red" onClick={handleConfirmDelete} ml={3} isLoading={deleteMutation.isPending}>Sim, Excluir</Button></AlertDialogFooter></AlertDialogContent>
