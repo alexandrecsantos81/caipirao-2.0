@@ -1,19 +1,30 @@
-// frontend/src/components/TabelaDespesasPessoais.tsx
-
 import {
   Box, Button, Flex, Heading, IconButton, Spinner, Table, TableContainer, Tbody, Td, Text,
   Th, Thead, Tr, useDisclosure, useToast, VStack, HStack,
   AlertDialog, AlertDialogBody, AlertDialogFooter, AlertDialogContent, AlertDialogOverlay,
-  Center, Badge, Checkbox, Tooltip, ModalHeader
+  Center, Badge, Checkbox, Tooltip, AlertDialogHeader
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
-import { useState, useRef } from 'react'; // useRef já estava aqui
-
-import {
-  IDespesaPessoal, IDespesaPessoalForm, getDespesasPessoais, createDespesaPessoal, updateDespesaPessoal, deleteDespesaPessoal
+import { useState, useRef, useMemo } from 'react';
+import { 
+  IDespesaPessoal, 
+  IDespesaPessoalForm, 
+  getDespesasPessoais, 
+  createDespesaPessoal, 
+  updateDespesaPessoal, 
+  deleteDespesaPessoal 
 } from '../services/despesaPessoal.service';
 import { FormularioDespesaPessoal } from './FormularioDespesaPessoal';
+
+interface IFinanciamentoAgrupado {
+  parcela_id: string;
+  descricaoBase: string;
+  proximaParcela: IDespesaPessoal;
+  saldoRestante: number;
+  totalParcelas: number;
+  categoria?: string | null;
+}
 
 interface TabelaDespesasPessoaisProps {
   filters: { startDate: string; endDate: string };
@@ -26,28 +37,18 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
   const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure();
   
   const [selectedDespesa, setSelectedDespesa] = useState<IDespesaPessoal | null>(null);
-  const [itemParaDeletar, setItemParaDeletar] = useState<IDespesaPessoal | null>(null);
+  const [itemParaDeletar, setItemParaDeletar] = useState<IDespesaPessoal | IFinanciamentoAgrupado | null>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
-  
-  // CORREÇÃO 1: Criar a referência para o portal do Drawer
   const portalContainerRef = useRef<HTMLDivElement>(null);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError } = useQuery<IDespesaPessoal[]>({
     queryKey: ['despesasPessoais', filters],
     queryFn: () => getDespesasPessoais(filters.startDate, filters.endDate),
     enabled: !!filters.startDate && !!filters.endDate,
   });
 
   const saveMutation = useMutation({
-    mutationFn: async ({ data, id }: { data: IDespesaPessoalForm; id?: number }): Promise<IDespesaPessoal[]> => {
-      if (id) {
-        // Na edição, não enviamos a recorrência, apenas atualizamos a despesa atual
-        const { recorrente, parcelado, quantidade_parcelas, ...updateData } = data;
-        const updated = await updateDespesaPessoal({ id, data: { ...updateData, valor: Number(data.valor) } });
-        return [updated];
-      }
-      return createDespesaPessoal(data);
-    },
+    mutationFn: createDespesaPessoal,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['despesasPessoais'] });
       queryClient.invalidateQueries({ queryKey: ['dashboardConsolidado'] });
@@ -64,7 +65,7 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['despesasPessoais'] });
       queryClient.invalidateQueries({ queryKey: ['dashboardConsolidado'] });
-      toast({ title: 'Despesa excluída com sucesso!', status: 'success' });
+      toast({ title: 'Despesa(s) excluída(s) com sucesso!', status: 'success' });
       onConfirmClose();
     },
     onError: (error: any) => {
@@ -73,10 +74,7 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
   });
 
   const togglePagoMutation = useMutation({
-    mutationFn: (despesa: IDespesaPessoal) => updateDespesaPessoal({
-      id: despesa.id,
-      data: { pago: !despesa.pago, data_pagamento: !despesa.pago ? new Date().toISOString().split('T')[0] : null }
-    }),
+    mutationFn: (despesa: IDespesaPessoal) => updateDespesaPessoal({ id: despesa.id, data: { pago: !despesa.pago } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['despesasPessoais'] });
       queryClient.invalidateQueries({ queryKey: ['dashboardConsolidado'] });
@@ -87,68 +85,139 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
     }
   });
 
+  const financiamentosAgrupados = useMemo(() => {
+    if (!data) return [];
+    const despesasUnicas = data.filter(d => !d.parcela_id);
+    const parcelas = data.filter(d => d.parcela_id);
+    const grupos = new Map<string, IDespesaPessoal[]>();
+    parcelas.forEach(p => {
+      if (!grupos.has(p.parcela_id!)) grupos.set(p.parcela_id!, []);
+      grupos.get(p.parcela_id!)!.push(p);
+    });
+    const financiamentos: IFinanciamentoAgrupado[] = [];
+    grupos.forEach((parcelasDoGrupo) => {
+      const proximaParcela = parcelasDoGrupo.sort((a, b) => a.numero_parcela! - b.numero_parcela!).find(p => !p.pago);
+      if (!proximaParcela) return;
+      const saldoRestante = parcelasDoGrupo.reduce((acc, p) => !p.pago ? acc + p.valor : acc, 0);
+      financiamentos.push({
+        parcela_id: proximaParcela.parcela_id!,
+        descricaoBase: proximaParcela.descricao.replace(/\s*\(\d+\/\d+\)$/, ''),
+        proximaParcela,
+        saldoRestante,
+        totalParcelas: proximaParcela.total_parcelas || 0,
+        categoria: proximaParcela.categoria,
+      });
+    });
+    return [...despesasUnicas, ...financiamentos];
+  }, [data]);
+
   const handleAddClick = () => { setSelectedDespesa(null); onDrawerOpen(); };
-  const handleEditClick = (despesa: IDespesaPessoal) => { setSelectedDespesa(despesa); onDrawerOpen(); };
-  const handleDeleteClick = (despesa: IDespesaPessoal) => { setItemParaDeletar(despesa); onConfirmOpen(); };
-  const handleConfirmDelete = () => { if (itemParaDeletar) { deleteMutation.mutate(itemParaDeletar.id); } };
-  const handleSave = (formData: IDespesaPessoalForm, id?: number) => { saveMutation.mutate({ data: formData, id }); };
+  
+  const handleEditClick = () => {
+    toast({
+        title: 'Função em desenvolvimento',
+        description: 'A edição de despesas parceladas será implementada em breve.',
+        status: 'info',
+        duration: 3000,
+        isClosable: true,
+    });
+  };
+
+  const handleDeleteClick = (item: IDespesaPessoal | IFinanciamentoAgrupado) => { setItemParaDeletar(item); onConfirmOpen(); };
+  
+  const handleConfirmDelete = () => {
+    if (!itemParaDeletar) return;
+    const idParaDeletar = 'proximaParcela' in itemParaDeletar ? itemParaDeletar.proximaParcela.id : itemParaDeletar.id;
+    deleteMutation.mutate(idParaDeletar);
+  };
+  
+  const handleSave = (formData: IDespesaPessoalForm) => { saveMutation.mutate(formData); };
 
   return (
     <Box>
-      {/* CORREÇÃO 2: Adicionar o container do portal ao JSX */}
       <div ref={portalContainerRef} />
-
       <Flex justify="space-between" align="center" mb={6} direction={{ base: 'column', md: 'row' }} gap={4}>
         <Heading textAlign={{ base: 'center', md: 'left' }}>Gestão de Despesas Pessoais</Heading>
         <Button leftIcon={<FiPlus />} colorScheme="red" onClick={handleAddClick} w={{ base: 'full', md: 'auto' }}>
           Adicionar Despesa
         </Button>
       </Flex>
-
       {isLoading ? <Center p={8}><Spinner size="xl" /></Center> : isError ? <Center p={8}><Text color="red.500">Erro ao carregar despesas.</Text></Center> : (
         <TableContainer>
           <Table variant="striped">
-            <Thead><Tr><Th>Vencimento</Th><Th>Descrição</Th><Th>Categoria</Th><Th isNumeric>Valor (R$)</Th><Th>Pago?</Th><Th>Ações</Th></Tr></Thead>
+            <Thead>
+              <Tr>
+                <Th>Próximo Vencimento</Th><Th>Parcela</Th><Th>Descrição</Th><Th>Categoria</Th>
+                <Th isNumeric>Valor da Parcela</Th><Th isNumeric>Saldo Restante</Th><Th>Status</Th><Th>Ações</Th>
+              </Tr>
+            </Thead>
             <Tbody>
-              {data?.map((despesa) => (
-                <Tr key={despesa.id} opacity={despesa.pago ? 0.6 : 1}>
-                  <Td>{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
-                  <Td>{despesa.descricao}</Td>
-                  <Td><Badge>{despesa.categoria || '---'}</Badge></Td>
-                  <Td isNumeric color="red.500" fontWeight="bold">{despesa.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
-                  <Td>
-                    <Tooltip label={despesa.pago ? `Pago em ${new Date(despesa.data_pagamento!).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}` : 'Marcar como pago'}>
-                      <Checkbox isChecked={despesa.pago} onChange={() => togglePagoMutation.mutate(despesa)} />
-                    </Tooltip>
-                  </Td>
-                  <Td>
-                    <HStack>
-                      <IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleEditClick(despesa)} />
-                      <IconButton aria-label="Excluir" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDeleteClick(despesa)} />
-                    </HStack>
-                  </Td>
-                </Tr>
-              ))}
+              {financiamentosAgrupados.map((item) => {
+                if ('parcela_id' in item) {
+                  const financiamento = item as IFinanciamentoAgrupado;
+                  return (
+                    <Tr key={financiamento.parcela_id}>
+                      <Td>{new Date(financiamento.proximaParcela.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
+                      <Td><Badge colorScheme="blue">{`${financiamento.proximaParcela.numero_parcela}/${financiamento.totalParcelas}`}</Badge></Td>
+                      <Td>{financiamento.descricaoBase}</Td>
+                      <Td>{financiamento.categoria || '---'}</Td>
+                      <Td isNumeric color="red.500" fontWeight="bold">{financiamento.proximaParcela.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
+                      <Td isNumeric>{financiamento.saldoRestante.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
+                      <Td>
+                        <Tooltip label={financiamento.proximaParcela.pago ? 'Pago' : 'Marcar como pago'}>
+                          <Checkbox isChecked={financiamento.proximaParcela.pago} onChange={() => togglePagoMutation.mutate(financiamento.proximaParcela)} />
+                        </Tooltip>
+                      </Td>
+                      <Td>
+                        <HStack>
+                          {/* CORREÇÃO AQUI */}
+                          <IconButton aria-label="Editar" icon={<FiEdit />} onClick={handleEditClick} isDisabled />
+                          <IconButton aria-label="Excluir" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDeleteClick(financiamento)} />
+                        </HStack>
+                      </Td>
+                    </Tr>
+                  );
+                }
+                const despesa = item as IDespesaPessoal;
+                return (
+                  <Tr key={despesa.id}>
+                    <Td>{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
+                    <Td>---</Td><Td>{despesa.descricao}</Td><Td>{despesa.categoria || '---'}</Td>
+                    <Td isNumeric color="red.500" fontWeight="bold">{despesa.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
+                    <Td isNumeric>---</Td>
+                    <Td>
+                      <Tooltip label={despesa.pago ? 'Pago' : 'Marcar como pago'}>
+                        <Checkbox isChecked={despesa.pago} onChange={() => togglePagoMutation.mutate(despesa)} />
+                      </Tooltip>
+                    </Td>
+                    <Td>
+                      <HStack>
+                        {/* CORREÇÃO AQUI */}
+                        <IconButton aria-label="Editar" icon={<FiEdit />} onClick={handleEditClick} />
+                        <IconButton aria-label="Excluir" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDeleteClick(despesa)} />
+                      </HStack>
+                    </Td>
+                  </Tr>
+                );
+              })}
             </Tbody>
           </Table>
         </TableContainer>
       )}
-
-      {/* CORREÇÃO 3: Passar a referência para o formulário */}
       <FormularioDespesaPessoal 
-        isOpen={isDrawerOpen} 
-        onClose={onDrawerClose} 
-        despesa={selectedDespesa} 
-        onSave={handleSave} 
-        isLoading={saveMutation.isPending}
-        portalContainerRef={portalContainerRef}
+        isOpen={isDrawerOpen} onClose={onDrawerClose} despesa={selectedDespesa} 
+        onSave={handleSave} isLoading={saveMutation.isPending} portalContainerRef={portalContainerRef}
       />
-      
       <AlertDialog isOpen={isConfirmOpen} leastDestructiveRef={cancelRef} onClose={onConfirmClose} isCentered>
         <AlertDialogOverlay />
         <AlertDialogContent>
-          <ModalHeader>Confirmar Exclusão</ModalHeader>
-          <AlertDialogBody>Tem certeza que deseja excluir a despesa "<strong>{itemParaDeletar?.descricao}</strong>"?</AlertDialogBody>
+          <AlertDialogHeader fontSize="lg" fontWeight="bold">Confirmar Exclusão</AlertDialogHeader>
+          <AlertDialogBody>
+            Tem certeza que deseja excluir {'proximaParcela' in (itemParaDeletar || {}) 
+              ? `a despesa "${(itemParaDeletar as IFinanciamentoAgrupado).descricaoBase}" e todas as suas parcelas futuras`
+              : `a despesa "${(itemParaDeletar as IDespesaPessoal)?.descricao}"`
+            }? Esta ação não pode ser desfeita.
+          </AlertDialogBody>
           <AlertDialogFooter>
             <Button ref={cancelRef} onClick={onConfirmClose}>Cancelar</Button>
             <Button colorScheme="red" onClick={handleConfirmDelete} ml={3} isLoading={deleteMutation.isPending}>Sim, Excluir</Button>

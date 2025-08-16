@@ -1,8 +1,6 @@
-// backend/controllers/despesaPessoalController.js
-
 const pool = require('../db');
-const { addMonths } = require('date-fns');
-const { v4: uuidv4 } = require('uuid'); // Biblioteca para gerar IDs únicos para as parcelas
+const { addMonths, subMonths } = require('date-fns');
+const { v4: uuidv4 } = require('uuid');
 
 /**
  * @desc    Cria uma nova despesa pessoal, com lógica para recorrência e parcelamento.
@@ -11,8 +9,10 @@ const { v4: uuidv4 } = require('uuid'); // Biblioteca para gerar IDs únicos par
  */
 const createDespesaPessoal = async (req, res) => {
     const {
-        descricao, valor, data_vencimento, categoria,
-        recorrente, parcelado, quantidade_parcelas
+        descricao, valor, categoria, recorrente, parcelado,
+        data_vencimento, // Esta é a data de vencimento da parcela atual informada
+        parcela_atual,
+        quantidade_parcelas
     } = req.body;
     const utilizador_id = req.user.id;
 
@@ -23,18 +23,24 @@ const createDespesaPessoal = async (req, res) => {
     const client = await pool.connect();
 
     try {
-        // Inicia a transação
         await client.query('BEGIN');
 
-        // Cenário 1: Despesa Parcelada (Recorrente com quantidade definida)
-        if (recorrente && parcelado === 'sim' && quantidade_parcelas && quantidade_parcelas > 1) {
-            const parcela_id = uuidv4(); // Gera um ID único para agrupar todas as parcelas da mesma compra
+        // Cenário 1: Despesa Parcelada (com ou sem data no passado)
+        if (recorrente && parcelado === 'sim') {
+            if (!parcela_atual || !quantidade_parcelas) {
+                return res.status(400).json({ error: 'Para parcelamento, a parcela atual e o total de parcelas são obrigatórios.' });
+            }
+
+            const parcela_id = uuidv4();
             const despesasCriadas = [];
 
-            for (let i = 0; i < quantidade_parcelas; i++) {
-                // Calcula a data de vencimento para a parcela atual
-                const dataVencimentoParcela = addMonths(new Date(data_vencimento), i);
-                // Adiciona o indicador de parcela na descrição (ex: "NETFLIX (1/12)")
+            // Calcula a data da 1ª parcela retroativamente
+            const mesesParaSubtrair = parcela_atual - 1;
+            const dataPrimeiraParcela = subMonths(new Date(data_vencimento), mesesParaSubtrair);
+
+            // Cria os registros para a parcela atual e todas as futuras
+            for (let i = (parcela_atual - 1); i < quantidade_parcelas; i++) {
+                const dataVencimentoParcela = addMonths(dataPrimeiraParcela, i);
                 const descricaoParcela = `${descricao.toUpperCase()} (${i + 1}/${quantidade_parcelas})`;
 
                 const query = `
@@ -44,58 +50,36 @@ const createDespesaPessoal = async (req, res) => {
                     RETURNING *`;
                 
                 const values = [
-                    descricaoParcela,
-                    valor,
-                    dataVencimentoParcela,
-                    categoria ? categoria.toUpperCase() : null,
-                    utilizador_id,
-                    true, // É recorrente
-                    false, // Inicia como não paga
-                    parcela_id,
-                    i + 1, // numero_parcela
-                    quantidade_parcelas // total_parcelas
+                    descricaoParcela, valor, dataVencimentoParcela, categoria ? categoria.toUpperCase() : null,
+                    utilizador_id, true, false, parcela_id, i + 1, quantidade_parcelas
                 ];
 
                 const novaDespesa = await client.query(query, values);
                 despesasCriadas.push(novaDespesa.rows[0]);
             }
             
-            // Se tudo deu certo, confirma a transação
             await client.query('COMMIT');
             return res.status(201).json(despesasCriadas);
         }
 
         // Cenário 2: Despesa Única ou Recorrência Contínua
-        // A lógica para criar o primeiro registro é a mesma. A diferença está no valor do campo 'recorrente'.
         const query = `
-            INSERT INTO despesas_pessoais 
-            (descricao, valor, data_vencimento, categoria, utilizador_id, recorrente, pago)
+            INSERT INTO despesas_pessoais (descricao, valor, data_vencimento, categoria, utilizador_id, recorrente, pago)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *`;
-        
         const values = [
-            descricao.toUpperCase(),
-            valor,
-            data_vencimento,
-            categoria ? categoria.toUpperCase() : null,
-            utilizador_id,
-            recorrente || false, // Se for recorrência contínua, será true. Se for única, será false.
-            false // Inicia como não paga
+            descricao.toUpperCase(), valor, data_vencimento, categoria ? categoria.toUpperCase() : null,
+            utilizador_id, recorrente || false, false
         ];
-
         const novaDespesa = await client.query(query, values);
-        
-        // Confirma a transação
         await client.query('COMMIT');
         res.status(201).json([novaDespesa.rows[0]]);
 
     } catch (error) {
-        // Em caso de qualquer erro, desfaz a transação
         await client.query('ROLLBACK');
         console.error('Erro ao criar despesa pessoal:', error);
-        res.status(500).json({ error: 'Erro interno do servidor ao processar a despesa.' });
+        res.status(500).json({ error: 'Erro interno do servidor.' });
     } finally {
-        // Libera o cliente de volta para o pool de conexões
         client.release();
     }
 };
@@ -131,43 +115,25 @@ const getDespesasPessoais = async (req, res) => {
  */
 const updateDespesaPessoal = async (req, res) => {
     const { id } = req.params;
-    const { descricao, valor, data_vencimento, categoria, pago, data_pagamento } = req.body;
+    const { descricao, valor, data_vencimento, categoria, pago } = req.body;
 
-    // Validação básica
-    if (descricao === undefined && valor === undefined && data_vencimento === undefined && categoria === undefined && pago === undefined) {
-        return res.status(400).json({ error: 'Nenhum dado fornecido para atualização.' });
+    if (pago === undefined) {
+        return res.status(400).json({ error: 'O campo "pago" é obrigatório para atualização.' });
     }
 
     try {
-        // Busca o estado atual da despesa
-        const currentState = await pool.query('SELECT * FROM despesas_pessoais WHERE id = $1', [id]);
-        if (currentState.rows.length === 0) {
+        const data_pagamento = pago ? new Date() : null;
+        const query = `
+            UPDATE despesas_pessoais 
+            SET pago = $1, data_pagamento = $2 
+            WHERE id = $3 
+            RETURNING *`;
+        
+        const resultado = await pool.query(query, [pago, data_pagamento, id]);
+
+        if (resultado.rowCount === 0) {
             return res.status(404).json({ error: 'Despesa não encontrada.' });
         }
-        const despesa = currentState.rows[0];
-
-        // Constrói a query de atualização dinamicamente
-        const fields = [];
-        const values = [];
-        let paramIndex = 1;
-
-        if (descricao !== undefined) { fields.push(`descricao = $${paramIndex++}`); values.push(descricao.toUpperCase()); }
-        if (valor !== undefined) { fields.push(`valor = $${paramIndex++}`); values.push(valor); }
-        if (data_vencimento !== undefined) { fields.push(`data_vencimento = $${paramIndex++}`); values.push(data_vencimento); }
-        if (categoria !== undefined) { fields.push(`categoria = $${paramIndex++}`); values.push(categoria ? categoria.toUpperCase() : null); }
-        if (pago !== undefined) {
-            fields.push(`pago = $${paramIndex++}`);
-            values.push(pago);
-            // Atualiza a data de pagamento com base no status de 'pago'
-            fields.push(`data_pagamento = $${paramIndex++}`);
-            values.push(pago ? (data_pagamento || new Date()) : null);
-        }
-        
-        values.push(id); // Adiciona o ID como último parâmetro
-
-        const query = `UPDATE despesas_pessoais SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
-        
-        const resultado = await pool.query(query, values);
         res.status(200).json(resultado.rows[0]);
 
     } catch (error) {
@@ -177,24 +143,42 @@ const updateDespesaPessoal = async (req, res) => {
 };
 
 /**
- * @desc    Deleta uma despesa pessoal.
+ * @desc    Deleta uma despesa pessoal ou todas as parcelas futuras.
  * @route   DELETE /api/despesas-pessoais/:id
  * @access  Protegido (Admin)
  */
 const deleteDespesaPessoal = async (req, res) => {
     const { id } = req.params;
+    const client = await pool.connect();
     try {
-        const resultado = await pool.query('DELETE FROM despesas_pessoais WHERE id = $1', [id]);
-        if (resultado.rowCount === 0) {
+        await client.query('BEGIN');
+        const despesaResult = await client.query('SELECT parcela_id, numero_parcela FROM despesas_pessoais WHERE id = $1', [id]);
+
+        if (despesaResult.rowCount === 0) {
+            await client.query('ROLLBACK');
             return res.status(404).json({ error: 'Despesa não encontrada.' });
         }
-        res.status(204).send(); // 204 No Content
+
+        const { parcela_id, numero_parcela } = despesaResult.rows[0];
+
+        if (parcela_id) {
+            // Se for uma parcela, deleta ela e todas as futuras do mesmo grupo
+            await client.query('DELETE FROM despesas_pessoais WHERE parcela_id = $1 AND numero_parcela >= $2', [parcela_id, numero_parcela]);
+        } else {
+            // Se for uma despesa única, deleta apenas ela
+            await client.query('DELETE FROM despesas_pessoais WHERE id = $1', [id]);
+        }
+
+        await client.query('COMMIT');
+        res.status(204).send();
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('Erro ao deletar despesa pessoal:', error);
         res.status(500).json({ error: 'Erro interno do servidor.' });
+    } finally {
+        client.release();
     }
 };
-
 
 module.exports = {
     createDespesaPessoal,
