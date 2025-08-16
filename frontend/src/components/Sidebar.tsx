@@ -1,11 +1,11 @@
-// src/components/Sidebar.tsx
-
 import {
   Box, VStack, Heading, Link as ChakraLink, Text, Divider, Avatar, HStack, Tag, Icon, Tooltip, useColorModeValue, Flex,
 } from '@chakra-ui/react';
 import { Link, NavLink as RouterLink, useLocation } from 'react-router-dom';
 import {
   FiHome, FiShoppingCart, FiUsers, FiBox, FiDollarSign, FiLogOut, FiTruck, FiBarChart2, FiClipboard,
+  // 1. Importe um ícone para a nova página
+  FiCreditCard,
 } from 'react-icons/fi';
 import { useAuth } from '../hooks/useAuth';
 
@@ -101,6 +101,10 @@ export const Sidebar = ({ isCollapsed }: SidebarProps) => {
             {isAdmin && <NavItem icon={FiHome} label="Dashboard" to="/dashboard" isCollapsed={isCollapsed} />}
             <NavItem icon={FiShoppingCart} label="Movimentações" to="/movimentacoes" isCollapsed={isCollapsed} />
             {isAdmin && <NavItem icon={FiBarChart2} label="Relatórios" to="/relatorios" isCollapsed={isCollapsed} />}
+            
+            {/* 2. Adicione o novo link de navegação aqui */}
+            {isAdmin && <NavItem icon={FiCreditCard} label="Finanças" to="/financas" isCollapsed={isCollapsed} />}
+
             <NavItem icon={FiDollarSign} label="Clientes" to="/clientes" isCollapsed={isCollapsed} />
             <NavItem icon={FiBox} label="Produtos" to="/produtos" isCollapsed={isCollapsed} />
             {isAdmin && <NavItem icon={FiTruck} label="Fornecedores" to="/fornecedores" isCollapsed={isCollapsed} />}

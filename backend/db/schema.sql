@@ -3,20 +3,18 @@
 --  Este script apaga as tabelas existentes para garantir uma
 --  recriação limpa. Ideal para ambientes de desenvolvimento e
 --  para configurar o banco de dados pela primeira vez.
---  NÃO EXECUTE EM PRODUÇÃO SE QUISER MANTER OS DADOS EXISTENTES.
+--
+--  ATENÇÃO: NÃO EXECUTE EM UM BANCO DE DADOS COM DADOS IMPORTANTES!
 -- =====================================================================
 
-
--- =====================================================================
---  FASE 1: GESTÃO DE UTILIZADORES, CLIENTES, PRODUTOS E MOVIMENTAÇÕES
--- =====================================================================
 
 -- Exclui as tabelas se elas já existirem, para garantir um começo limpo.
 -- A ordem é importante por causa das chaves estrangeiras.
 DROP TABLE IF EXISTS movimentacoes;
-DROP TABLE IF EXISTS entradas_estoque; -- Adicionado para garantir a ordem correta de exclusão
-DROP TABLE IF EXISTS despesas; -- Adicionado para garantir a ordem correta de exclusão
-DROP TABLE IF EXISTS fornecedores; -- Adicionado para garantir a ordem correta de exclusão
+DROP TABLE IF EXISTS entradas_estoque;
+DROP TABLE IF EXISTS despesas;
+DROP TABLE IF EXISTS receitas_externas; -- Adicionada à lista de exclusão
+DROP TABLE IF EXISTS fornecedores;
 DROP TABLE IF EXISTS produtos;
 DROP TABLE IF EXISTS clientes;
 DROP TABLE IF EXISTS utilizadores;
@@ -26,18 +24,13 @@ CREATE TABLE utilizadores (
     id SERIAL PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
-    telefone VARCHAR(20) UNIQUE, -- Adicionado para login e contato
-    nickname VARCHAR(50) UNIQUE, -- Adicionado para login
-    senha VARCHAR(255), -- Senha pode ser nula para solicitações pendentes
-    
-    -- Perfil agora é um ENUM para garantir a consistência dos dados
+    telefone VARCHAR(20) UNIQUE,
+    nickname VARCHAR(50) UNIQUE,
+    senha VARCHAR(255),
     perfil VARCHAR(20) NOT NULL DEFAULT 'PENDENTE' 
         CHECK (perfil IN ('VENDEDOR', 'GERENTE', 'ADMINISTRATIVO', 'ADMIN', 'PENDENTE')),
-        
-    -- Status para controlar o fluxo de ativação do utilizador
     status VARCHAR(10) NOT NULL DEFAULT 'INATIVO'
         CHECK (status IN ('ATIVO', 'INATIVO')),
-
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -66,7 +59,7 @@ CREATE TABLE produtos (
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabela de Movimentações (Vendas/Entradas)
+-- Tabela de Movimentações (Vendas/Entradas do Frigorífico)
 CREATE TABLE movimentacoes (
     id SERIAL PRIMARY KEY,
     tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('ENTRADA', 'SAIDA')),
@@ -81,11 +74,6 @@ CREATE TABLE movimentacoes (
     data_pagamento DATE
 );
 
-
--- =====================================================================
---  FASE 2: GESTÃO DE DESPESAS, FORNECEDORES E ESTOQUE
--- =====================================================================
-
 -- Tabela para Fornecedores/Credores
 CREATE TABLE fornecedores (
     id SERIAL PRIMARY KEY,
@@ -97,12 +85,9 @@ CREATE TABLE fornecedores (
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabela de Despesas (Saídas detalhadas)
+-- Tabela de Despesas (Saídas detalhadas do Frigorífico)
 CREATE TABLE despesas (
     id SERIAL PRIMARY KEY,
-    
-    -- Detalhes da Despesa
-    -- ===== NOVO TIPO "Compra de Aves" ADICIONADO À LISTA =====
     tipo_saida VARCHAR(50) NOT NULL CHECK (tipo_saida IN (
         'Compra de Aves', 'Insumos de Produção', 'Mão de Obra', 'Materiais e Embalagens', 
         'Despesas Operacionais', 'Encargos e Tributos', 'Despesas Administrativas', 
@@ -110,16 +95,11 @@ CREATE TABLE despesas (
     )),
     valor NUMERIC(10, 2) NOT NULL,
     discriminacao TEXT NOT NULL,
-    
-    -- Datas e Status
     data_compra DATE NOT NULL DEFAULT CURRENT_DATE,
     data_vencimento DATE NOT NULL,
     data_pagamento DATE DEFAULT NULL,
-    
-    -- Chaves Estrangeiras
     fornecedor_id INT REFERENCES fornecedores(id) ON DELETE SET NULL,
     responsavel_pagamento_id INT REFERENCES utilizadores(id) ON DELETE SET NULL,
-    
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -132,6 +112,19 @@ CREATE TABLE entradas_estoque (
     custo_total NUMERIC(10, 2) NOT NULL,
     observacao TEXT,
     data_entrada TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =====================================================================
+--  NOVA TABELA: RECEITAS EXTERNAS (FINANÇAS PESSOAIS)
+-- =====================================================================
+CREATE TABLE receitas_externas (
+    id SERIAL PRIMARY KEY,
+    descricao VARCHAR(255) NOT NULL,
+    valor NUMERIC(10, 2) NOT NULL,
+    data_recebimento DATE NOT NULL,
+    utilizador_id INT REFERENCES utilizadores(id) ON DELETE SET NULL,
+    categoria VARCHAR(100),
+    data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 
@@ -156,9 +149,10 @@ CREATE INDEX idx_despesas_pagamento ON despesas(data_pagamento);
 CREATE INDEX idx_despesas_fornecedor_id ON despesas(fornecedor_id);
 CREATE INDEX idx_entradas_estoque_produto_id ON entradas_estoque(produto_id);
 CREATE INDEX idx_entradas_estoque_data_entrada ON entradas_estoque(data_entrada);
+CREATE INDEX idx_receitas_externas_data ON receitas_externas(data_recebimento); -- Índice da nova tabela
 
 -- Inserir um utilizador ADMIN padrão para o primeiro login
 -- A senha 'admin' deve ser registrada pela API para ser criptografada corretamente.
--- Este hash é apenas um exemplo e não corresponde a uma senha real.
 INSERT INTO utilizadores (nome, email, nickname, telefone, senha, perfil, status) VALUES 
 ('Admin Principal', 'admin@caipirao.com', 'admin', '00000000000', '$2a$10$ExemploDeHashSeguroNaoUseIsso', 'ADMIN', 'ATIVO');
+
