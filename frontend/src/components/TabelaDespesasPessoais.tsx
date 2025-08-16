@@ -89,35 +89,22 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
     if (!data || data.length === 0) {
       return [];
     }
-
     const despesasUnicas = data.filter(d => !d.parcela_id);
     const parcelas = data.filter(d => d.parcela_id);
     const grupos = new Map<string, IDespesaPessoal[]>();
-
     parcelas.forEach(p => {
       if (!grupos.has(p.parcela_id!)) {
         grupos.set(p.parcela_id!, []);
       }
       grupos.get(p.parcela_id!)!.push(p);
     });
-
     const financiamentos: IFinanciamentoAgrupado[] = [];
     grupos.forEach((parcelasDoGrupo) => {
-      // **INÍCIO DA CORREÇÃO**
-      // Encontra a primeira parcela não paga para ser a "próxima"
-      const proximaParcela = parcelasDoGrupo
-        .sort((a, b) => a.numero_parcela! - b.numero_parcela!)
-        .find(p => !p.pago);
-
-      // Se não encontrou nenhuma parcela não paga, significa que o financiamento
-      // está quitado. Nesse caso, pulamos para o próximo grupo.
+      const proximaParcela = parcelasDoGrupo.sort((a, b) => a.numero_parcela! - b.numero_parcela!).find(p => !p.pago);
       if (!proximaParcela) {
-        return; 
+        return;
       }
-      // **FIM DA CORREÇÃO**
-
       const saldoRestante = parcelasDoGrupo.reduce((acc, p) => !p.pago ? acc + p.valor : acc, 0);
-      
       financiamentos.push({
         parcela_id: proximaParcela.parcela_id!,
         descricaoBase: proximaParcela.descricao.replace(/\s*\(\d+\/\d+\)$/, ''),
@@ -127,15 +114,10 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
         categoria: proximaParcela.categoria,
       });
     });
-
     return [...despesasUnicas, ...financiamentos];
   }, [data]);
 
-  const handleAddClick = () => { 
-    setSelectedDespesa(null); 
-    onDrawerOpen(); 
-  };
-
+  const handleAddClick = () => { setSelectedDespesa(null); onDrawerOpen(); };
   const handleEditClick = () => {
     toast({
         title: 'Função em desenvolvimento',
@@ -145,23 +127,13 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
         isClosable: true,
     });
   };
-
-  const handleDeleteClick = (item: IDespesaPessoal | IFinanciamentoAgrupado) => { 
-    setItemParaDeletar(item); 
-    onConfirmOpen(); 
-  };
-
+  const handleDeleteClick = (item: IDespesaPessoal | IFinanciamentoAgrupado) => { setItemParaDeletar(item); onConfirmOpen(); };
   const handleConfirmDelete = () => {
     if (!itemParaDeletar) return;
-    const idParaDeletar = 'proximaParcela' in itemParaDeletar 
-      ? itemParaDeletar.proximaParcela.id 
-      : itemParaDeletar.id;
+    const idParaDeletar = 'proximaParcela' in itemParaDeletar ? itemParaDeletar.proximaParcela.id : itemParaDeletar.id;
     deleteMutation.mutate(idParaDeletar);
   };
-
-  const handleSave = (formData: IDespesaPessoalForm) => { 
-    saveMutation.mutate(formData); 
-  };
+  const handleSave = (formData: IDespesaPessoalForm) => { saveMutation.mutate(formData); };
 
   return (
     <Box>
@@ -183,7 +155,9 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
             </Thead>
             <Tbody>
               {financiamentosAgrupados.map((item) => {
-                if ('parcela_id' in item) {
+                // **INÍCIO DA CORREÇÃO**
+                // Verifica se o item é um financiamento agrupado
+                if ('proximaParcela' in item) {
                   const financiamento = item as IFinanciamentoAgrupado;
                   return (
                     <Tr key={financiamento.parcela_id}>
@@ -206,27 +180,33 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
                       </Td>
                     </Tr>
                   );
+                } 
+                // Se não for um financiamento, é uma despesa única
+                else {
+                  const despesa = item as IDespesaPessoal;
+                  return (
+                    <Tr key={despesa.id}>
+                      <Td>{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
+                      <Td>---</Td>
+                      <Td>{despesa.descricao}</Td>
+                      <Td>{despesa.categoria || '---'}</Td>
+                      <Td isNumeric color="red.500" fontWeight="bold">{despesa.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
+                      <Td isNumeric>---</Td>
+                      <Td>
+                        <Tooltip label={despesa.pago ? 'Pago' : 'Marcar como pago'}>
+                          <Checkbox isChecked={despesa.pago} onChange={() => togglePagoMutation.mutate(despesa)} />
+                        </Tooltip>
+                      </Td>
+                      <Td>
+                        <HStack>
+                          <IconButton aria-label="Editar" icon={<FiEdit />} onClick={handleEditClick} />
+                          <IconButton aria-label="Excluir" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDeleteClick(despesa)} />
+                        </HStack>
+                      </Td>
+                    </Tr>
+                  );
                 }
-                const despesa = item as IDespesaPessoal;
-                return (
-                  <Tr key={despesa.id}>
-                    <Td>{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
-                    <Td>---</Td><Td>{despesa.descricao}</Td><Td>{despesa.categoria || '---'}</Td>
-                    <Td isNumeric color="red.500" fontWeight="bold">{despesa.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
-                    <Td isNumeric>---</Td>
-                    <Td>
-                      <Tooltip label={despesa.pago ? 'Pago' : 'Marcar como pago'}>
-                        <Checkbox isChecked={despesa.pago} onChange={() => togglePagoMutation.mutate(despesa)} />
-                      </Tooltip>
-                    </Td>
-                    <Td>
-                      <HStack>
-                        <IconButton aria-label="Editar" icon={<FiEdit />} onClick={handleEditClick} />
-                        <IconButton aria-label="Excluir" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDeleteClick(despesa)} />
-                      </HStack>
-                    </Td>
-                  </Tr>
-                );
+                // **FIM DA CORREÇÃO**
               })}
             </Tbody>
           </Table>
