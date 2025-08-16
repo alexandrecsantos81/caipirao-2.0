@@ -55,6 +55,12 @@ export interface IFluxoCaixaDiario {
   despesas: number;
 }
 
+// ✅ NOVA INTERFACE para os filtros
+export interface IDateFilter {
+  startDate: string;
+  endDate: string;
+}
+
 // --- FUNÇÕES DO SERVIÇO ---
 
 export const getKPIs = async (): Promise<IKPIs> => {
@@ -82,8 +88,10 @@ export const getRankingClientes = async (): Promise<IRankingCliente[]> => {
   return response.data;
 };
 
-// ✅ CORREÇÃO: Ajustado o nome do endpoint para corresponder ao backend.
-export const getFluxoCaixaDiario = async (): Promise<IFluxoCaixaDiario[]> => {
-  const response = await apiClient.get('/fluxo-caixa-diario');
+// ✅ FUNÇÃO ATUALIZADA para aceitar filtros
+export const getFluxoCaixaDiario = async (filters: IDateFilter): Promise<IFluxoCaixaDiario[]> => {
+  const response = await apiClient.get('/fluxo-caixa-diario', {
+    params: filters, // Envia os filtros como query params
+  });
   return response.data;
 };

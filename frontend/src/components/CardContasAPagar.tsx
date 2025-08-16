@@ -1,8 +1,11 @@
+// frontend/src/components/CardContasAPagar.tsx
+
 import {
   Box, Button, Flex, Heading, Spinner, Text, VStack, HStack, useDisclosure,
   useToast,
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, ModalBody, ModalFooter,
-  FormControl, FormLabel, Input, Select, useColorModeValue
+  FormControl, FormLabel, Input, Select, useColorModeValue,
+  Divider, // Adicionar Divider
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -22,11 +25,8 @@ export const CardContasAPagar = () => {
   const [selectedDespesa, setSelectedDespesa] = useState<IContasAPagar | null>(null);
   const { register, handleSubmit, setValue } = useForm<IQuitacaoData>();
 
-  // Cores para o destaque visual do card principal
   const cardBgColor = useColorModeValue('yellow.50', 'yellow.900');
   const cardBorderColor = useColorModeValue('yellow.400', 'yellow.500');
-
-  // Cores para os itens da lista dentro do card
   const urgentItemBgColor = useColorModeValue('red.100', 'red.800');
   const normalItemBgColor = useColorModeValue('whiteAlpha.800', 'whiteAlpha.100');
 
@@ -93,10 +93,10 @@ export const CardContasAPagar = () => {
       h="100%"
       bg={cardBgColor}
       borderColor={cardBorderColor}
-      transition="all 0.2s ease-in-out" // Adiciona uma transição suave
+      transition="all 0.2s ease-in-out"
       _hover={{
-        transform: 'translateY(-4px)', // Efeito de "levantar"
-        boxShadow: 'xl', // Sombra mais pronunciada ao passar o mouse
+        transform: 'translateY(-4px)',
+        boxShadow: 'xl',
       }}
     >
       <Heading size="md" mb={4}>Contas a Pagar Pendentes</Heading>
@@ -106,28 +106,58 @@ export const CardContasAPagar = () => {
         <VStack spacing={3} align="stretch" overflowY="auto" maxHeight="300px">
           {contas && contas.length > 0 ? (
             contas.map((conta) => (
-              <Flex 
-                key={conta.id} 
-                justify="space-between" 
-                align="center" 
-                p={3} 
-                bg={isUrgent(conta.data_vencimento) ? urgentItemBgColor : normalItemBgColor} 
+              <Box
+                key={conta.id}
+                p={3}
+                bg={isUrgent(conta.data_vencimento) ? urgentItemBgColor : normalItemBgColor}
                 borderRadius="md"
                 boxShadow="sm"
               >
-                <VStack align="start" spacing={0}>
-                  <Text fontWeight="bold">{conta.nome_fornecedor || 'Despesa sem fornecedor'}</Text>
-                  <Text fontSize="sm">Vence em: {formatarData(conta.data_vencimento)}</Text>
-                </VStack>
-                <HStack>
-                  <Text fontWeight="bold" color="red.500">
+                <Flex
+                  justify="space-between"
+                  align={{ base: 'flex-start', md: 'center' }}
+                  direction={{ base: 'column', md: 'row' }}
+                >
+                  {/* Informações da Conta */}
+                  <VStack align="start" spacing={0} mb={{ base: 2, md: 0 }}>
+                    <Text fontWeight="bold">{conta.nome_fornecedor || 'Despesa sem fornecedor'}</Text>
+                    <Text fontSize="sm">Vence em: {formatarData(conta.data_vencimento)}</Text>
+                  </VStack>
+
+                  {/* Valor (visível em todos os tamanhos) */}
+                  <Text fontWeight="bold" color="red.500" fontSize="lg" mb={{ base: 2, md: 0 }}>
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(conta.valor)}
                   </Text>
+
+                  {/* Botão Quitar (apenas para desktop nesta posição) */}
                   {user?.perfil === 'ADMIN' && (
-                    <Button colorScheme="green" size="sm" onClick={() => handleQuitarClick(conta)}>Quitar</Button>
+                    <Button
+                      display={{ base: 'none', md: 'inline-flex' }} // Esconde em mobile, mostra em desktop
+                      colorScheme="green"
+                      size="sm"
+                      onClick={() => handleQuitarClick(conta)}
+                    >
+                      Quitar
+                    </Button>
                   )}
-                </HStack>
-              </Flex>
+                </Flex>
+
+                {/* Botão Quitar (apenas para mobile nesta posição) */}
+                {user?.perfil === 'ADMIN' && (
+                  <>
+                    <Divider my={2} display={{ base: 'block', md: 'none' }} />
+                    <Button
+                      display={{ base: 'inline-flex', md: 'none' }} // Mostra em mobile, esconde em desktop
+                      colorScheme="green"
+                      size="sm"
+                      w="full" // Largura total
+                      onClick={() => handleQuitarClick(conta)}
+                    >
+                      Quitar
+                    </Button>
+                  </>
+                )}
+              </Box>
             ))
           ) : (
             <Text color="gray.500" textAlign="center" pt={8}>Nenhuma conta a pagar pendente.</Text>

@@ -217,21 +217,43 @@ const getRankingClientes = async (req, res) => {
  * @access  Protegido
  */
 const getFluxoCaixaDiario = async (req, res) => {
+    // Extrai as datas da query; se não existirem, define um padrão de 30 dias.
+    const { startDate, endDate } = req.query;
+
+    // Validação básica para garantir que as datas, se fornecidas, são válidas.
+    if ((startDate && !endDate) || (!startDate && endDate)) {
+        return res.status(400).json({ error: 'É necessário fornecer tanto a data de início quanto a de fim.' });
+    }
+
     try {
+        // Define os parâmetros da query dinamicamente
+        const params = [];
+        let dateFilterClause;
+
+        if (startDate && endDate) {
+            params.push(startDate, endDate);
+            dateFilterClause = `BETWEEN $1 AND $2`;
+        } else {
+            // Se não houver datas, o padrão é os últimos 30 dias
+            dateFilterClause = `>= CURRENT_DATE - INTERVAL '29 days'`;
+        }
+
         const query = `
-            WITH days AS (
-                SELECT generate_series(
-                    CURRENT_DATE - INTERVAL '29 days',
-                    CURRENT_DATE,
-                    '1 day'::interval
-                )::date AS dia
+            WITH date_range AS (
+                SELECT 
+                    (CASE WHEN $1::date IS NOT NULL THEN $1::date ELSE CURRENT_DATE - INTERVAL '29 days' END) as start_date,
+                    (CASE WHEN $2::date IS NOT NULL THEN $2::date ELSE CURRENT_DATE END) as end_date
+            ),
+            days AS (
+                SELECT generate_series(start_date, end_date, '1 day'::interval)::date AS dia
+                FROM date_range
             ),
             daily_revenues AS (
                 SELECT 
                     data_venda::date AS dia,
                     SUM(valor_total) as receitas
                 FROM movimentacoes
-                WHERE tipo = 'ENTRADA' AND data_venda >= CURRENT_DATE - INTERVAL '29 days'
+                WHERE tipo = 'ENTRADA' AND data_venda BETWEEN (SELECT start_date FROM date_range) AND (SELECT end_date FROM date_range)
                 GROUP BY data_venda::date
             ),
             daily_expenses AS (
@@ -239,7 +261,7 @@ const getFluxoCaixaDiario = async (req, res) => {
                     data_compra::date AS dia,
                     SUM(valor) as despesas
                 FROM despesas
-                WHERE data_compra >= CURRENT_DATE - INTERVAL '29 days'
+                WHERE data_compra BETWEEN (SELECT start_date FROM date_range) AND (SELECT end_date FROM date_range)
                 GROUP BY data_compra::date
             )
             SELECT 
@@ -251,11 +273,13 @@ const getFluxoCaixaDiario = async (req, res) => {
             LEFT JOIN daily_expenses de ON days.dia = de.dia
             ORDER BY days.dia ASC;
         `;
-        const resultado = await pool.query(query);
+        
+        const resultado = await pool.query(query, [startDate || null, endDate || null]);
         res.status(200).json(resultado.rows);
+
     } catch (error) {
         console.error('Erro ao buscar dados de fluxo de caixa diário:', error);
-        res.status(500).json({ error: 'Erro interno do servidor.' });
+        res.status(500).json({ error: 'Erro interno do servidor ao processar a sua solicitação.' });
     }
 };
 
