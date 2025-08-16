@@ -1,14 +1,16 @@
+// frontend/src/components/Sidebar.tsx
+
 import {
   Box, VStack, Heading, Link as ChakraLink, Text, Divider, Avatar, HStack, Tag, Icon, Tooltip, useColorModeValue, Flex,
 } from '@chakra-ui/react';
 import { Link, NavLink as RouterLink, useLocation } from 'react-router-dom';
 import {
   FiHome, FiShoppingCart, FiUsers, FiBox, FiDollarSign, FiLogOut, FiTruck, FiBarChart2, FiClipboard,
-  // 1. Importe um ícone para a nova página
   FiCreditCard,
 } from 'react-icons/fi';
 import { useAuth } from '../hooks/useAuth';
 
+// O componente NavItem permanece o mesmo.
 interface NavItemProps {
   icon: React.ElementType;
   label: string;
@@ -47,6 +49,7 @@ const NavItem = ({ icon, label, to, isCollapsed }: NavItemProps) => {
     </Tooltip>
   );
 };
+
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -97,19 +100,42 @@ export const Sidebar = ({ isCollapsed }: SidebarProps) => {
             </Flex>
           </Link>
           
-          <VStack align="stretch" w="full" mt={4}>
+          {/* --- INÍCIO DA ALTERAÇÃO --- */}
+          <VStack align="stretch" w="full" mt={4} spacing={2}>
+            
+            {/* Bloco 1: Gestão do Negócio */}
             {isAdmin && <NavItem icon={FiHome} label="Dashboard" to="/dashboard" isCollapsed={isCollapsed} />}
             <NavItem icon={FiShoppingCart} label="Movimentações" to="/movimentacoes" isCollapsed={isCollapsed} />
             {isAdmin && <NavItem icon={FiBarChart2} label="Relatórios" to="/relatorios" isCollapsed={isCollapsed} />}
-            
-            {/* 2. Adicione o novo link de navegação aqui */}
-            {isAdmin && <NavItem icon={FiCreditCard} label="Finanças" to="/financas" isCollapsed={isCollapsed} />}
-
             <NavItem icon={FiDollarSign} label="Clientes" to="/clientes" isCollapsed={isCollapsed} />
             <NavItem icon={FiBox} label="Produtos" to="/produtos" isCollapsed={isCollapsed} />
             {isAdmin && <NavItem icon={FiTruck} label="Fornecedores" to="/fornecedores" isCollapsed={isCollapsed} />}
             {isAdmin && <NavItem icon={FiUsers} label="Utilizadores" to="/utilizadores" isCollapsed={isCollapsed} />}
+
+            {/* Bloco 2: Gestão Financeira Consolidada */}
+            {isAdmin && (
+              <>
+                {/* Divisor e Título para a nova seção */}
+                <Divider my={2} borderColor={borderColor} />
+                {!isCollapsed && (
+                  <Text
+                    mx={6}
+                    mb={1}
+                    fontSize="xs"
+                    fontWeight="bold"
+                    color="gray.500"
+                    textTransform="uppercase"
+                  >
+                    Gestão Pessoal
+                  </Text>
+                )}
+                {/* Item de Finanças movido para cá */}
+                <NavItem icon={FiCreditCard} label="Finanças" to="/financas" isCollapsed={isCollapsed} />
+              </>
+            )}
           </VStack>
+          {/* --- FIM DA ALTERAÇÃO --- */}
+
         </VStack>
 
         <VStack align="stretch" w="full" spacing={4} mb={4}>
