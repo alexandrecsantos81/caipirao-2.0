@@ -18,12 +18,9 @@ import {
   IReceitaExterna, IReceitaExternaForm, getReceitasExternas, createReceitaExterna, updateReceitaExterna, deleteReceitaExterna
 } from '../services/receitaExterna.service';
 import { DashboardFinanceiro } from '../components/DashboardFinanceiro';
-// 1. IMPORTAR O NOVO COMPONENTE DE TABELA DE DESPESAS
 import { TabelaDespesasPessoais } from '../components/TabelaDespesasPessoais';
 
-// ==================================================================
-// COMPONENTE FormularioReceita (CÓDIGO ORIGINAL MANTIDO)
-// ==================================================================
+// Componente FormularioReceita (mantido)
 const FormularioReceita = ({ isOpen, onClose, receita, onSave, isLoading }: {
   isOpen: boolean;
   onClose: () => void;
@@ -94,9 +91,7 @@ const FormularioReceita = ({ isOpen, onClose, receita, onSave, isLoading }: {
   );
 };
 
-// ==================================================================
-// COMPONENTE TabelaReceitasExternas (CÓDIGO ORIGINAL MANTIDO)
-// ==================================================================
+// Componente TabelaReceitasExternas (mantido)
 const TabelaReceitasExternas = () => {
     const queryClient = useQueryClient();
     const toast = useToast();
@@ -148,8 +143,9 @@ const TabelaReceitasExternas = () => {
         <Box>
             <Flex justify="space-between" align="center" mb={6} direction={{ base: 'column', md: 'row' }} gap={4}>
                 <Heading textAlign={{ base: 'center', md: 'left' }}>Gestão de Receitas Externas</Heading>
-                <Button leftIcon={<FiPlus />} colorScheme="teal" onClick={handleAddClick} w={{ base: 'full', md: 'auto' }}>
-                Adicionar Receita
+                {/* AJUSTE 1: Garantindo que o botão use o colorScheme verde */}
+                <Button leftIcon={<FiPlus />} colorScheme="green" onClick={handleAddClick} w={{ base: 'full', md: 'auto' }}>
+                  Adicionar Receita
                 </Button>
             </Flex>
 
@@ -174,9 +170,7 @@ const TabelaReceitasExternas = () => {
     )
 }
 
-// ==================================================================
-// COMPONENTE PRINCIPAL DA PÁGINA (COM AS ATUALIZAÇÕES)
-// ==================================================================
+// Componente Principal da Página
 const FinancasPage = () => {
   const today = new Date();
   const [startDate, setStartDate] = useState(format(startOfMonth(today), 'yyyy-MM-dd'));
@@ -187,20 +181,13 @@ const FinancasPage = () => {
     setEndDate(format(end, 'yyyy-MM-dd'));
   };
 
-  const tabStyles = {
+  // AJUSTE 2: Estilos base para as abas
+  const baseTabStyles = {
     fontWeight: 'semibold',
     px: { base: 3, md: 6 },
     py: 3,
     borderRadius: 'md',
     transition: 'all 0.2s ease-in-out',
-    _hover: {
-      bg: useColorModeValue('teal.50', 'gray.600'),
-    },
-    _selected: {
-      color: 'white',
-      bg: 'teal.400',
-      boxShadow: 'md',
-    },
   };
 
   return (
@@ -222,10 +209,11 @@ const FinancasPage = () => {
 
       <Tabs variant="unstyled" align="center" >
         <TabList gap={3}>
-          <Tab {...tabStyles}>Dashboard</Tab>
-          <Tab {...tabStyles}>Receitas Pessoais</Tab>
-          {/* 2. ADICIONANDO A NOVA ABA */}
-          <Tab {...tabStyles}>Despesas Pessoais</Tab>
+          <Tab {...baseTabStyles} _selected={{ color: 'white', bg: 'teal.400', boxShadow: 'md' }} _hover={{ bg: useColorModeValue('teal.50', 'gray.600') }}>Dashboard</Tab>
+          {/* Aba de Receitas com hover verde */}
+          <Tab {...baseTabStyles} _selected={{ color: 'white', bg: 'green.400', boxShadow: 'md' }} _hover={{ bg: useColorModeValue('green.50', 'green.800') }}>Receitas Pessoais</Tab>
+          {/* Aba de Despesas com hover vermelho */}
+          <Tab {...baseTabStyles} _selected={{ color: 'white', bg: 'red.400', boxShadow: 'md' }} _hover={{ bg: useColorModeValue('red.50', 'red.800') }}>Despesas Pessoais</Tab>
         </TabList>
 
         <TabPanels mt={5}>
@@ -235,7 +223,6 @@ const FinancasPage = () => {
           <TabPanel>
             <TabelaReceitasExternas />
           </TabPanel>
-          {/* 3. ADICIONANDO O PAINEL PARA A NOVA ABA */}
           <TabPanel>
             <TabelaDespesasPessoais filters={{ startDate, endDate }} />
           </TabPanel>

@@ -2,7 +2,7 @@ import {
   Box, Button, Flex, Heading, IconButton, Spinner, Table, TableContainer, Tbody, Td, Text,
   Th, Thead, Tr, useDisclosure, useToast, VStack, HStack,
   AlertDialog, AlertDialogBody, AlertDialogFooter, AlertDialogContent, AlertDialogOverlay,
-  Center, Badge, Checkbox, Tooltip, ModalHeader // Adicionado ModalHeader que faltava
+  Center, Badge, Checkbox, Tooltip, ModalHeader // Mantido ModalHeader para o AlertDialog
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
@@ -11,7 +11,6 @@ import { useState, useRef } from 'react';
 import {
   IDespesaPessoal, IDespesaPessoalForm, getDespesasPessoais, createDespesaPessoal, updateDespesaPessoal, deleteDespesaPessoal
 } from '../services/despesaPessoal.service';
-// 1. CORREÇÃO DO CAMINHO DE IMPORTAÇÃO
 import { FormularioDespesaPessoal } from './FormularioDespesaPessoal';
 
 interface TabelaDespesasPessoaisProps {
@@ -34,15 +33,12 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
     enabled: !!filters.startDate && !!filters.endDate,
   });
 
-  // 2. CORREÇÃO DA TIPAGEM DA MUTATION
   const saveMutation = useMutation({
     mutationFn: async ({ data, id }: { data: IDespesaPessoalForm; id?: number }): Promise<IDespesaPessoal[]> => {
       if (id) {
-        // Se for edição, retorna o resultado dentro de um array para manter a consistência
         const updated = await updateDespesaPessoal({ id, data: { ...data, valor: Number(data.valor) } });
         return [updated];
       }
-      // A criação já retorna um array
       return createDespesaPessoal(data);
     },
     onSuccess: () => {
@@ -94,7 +90,8 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
     <Box>
       <Flex justify="space-between" align="center" mb={6} direction={{ base: 'column', md: 'row' }} gap={4}>
         <Heading textAlign={{ base: 'center', md: 'left' }}>Gestão de Despesas Pessoais</Heading>
-        <Button leftIcon={<FiPlus />} colorScheme="teal" onClick={handleAddClick} w={{ base: 'full', md: 'auto' }}>
+        {/* AJUSTE 3: Alterando a cor do botão para 'red' */}
+        <Button leftIcon={<FiPlus />} colorScheme="red" onClick={handleAddClick} w={{ base: 'full', md: 'auto' }}>
           Adicionar Despesa
         </Button>
       </Flex>
@@ -128,6 +125,7 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
         </TableContainer>
       )}
 
+      {/* AJUSTE 1: Garantindo que o Drawer seja usado para o formulário */}
       <FormularioDespesaPessoal isOpen={isDrawerOpen} onClose={onDrawerClose} despesa={selectedDespesa} onSave={handleSave} isLoading={saveMutation.isPending} />
       
       <AlertDialog isOpen={isConfirmOpen} leastDestructiveRef={cancelRef} onClose={onConfirmClose} isCentered>
