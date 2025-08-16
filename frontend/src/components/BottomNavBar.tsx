@@ -5,10 +5,8 @@ import {
   Flex,
   Icon,
   Text,
-  // ✅ REVERSÃO: Voltando a usar o useColorModeValue da v2
   useColorModeValue,
   Link as ChakraLink,
-  // ✅ REVERSÃO: Importando os componentes de Menu individualmente, como na v2
   Menu,
   MenuButton,
   MenuList,
@@ -25,6 +23,7 @@ import {
   FiTruck,
   FiGrid,
   FiUserCheck,
+  FiCreditCard,
 } from 'react-icons/fi';
 import { NavLink as RouterLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -38,12 +37,17 @@ interface NavItemProps {
 const NavItem = ({ icon, label, to }: NavItemProps) => {
   const location = useLocation();
   const isActive = location.pathname === to;
-  // ✅ REVERSÃO: Reintroduzindo o useColorModeValue
-  const activeColor = useColorModeValue('teal.500', 'teal.200');
-  const inactiveColor = useColorModeValue('gray.600', 'gray.400');
+
+  // --- INÍCIO DA ALTERAÇÃO 1: Cores dos Ícones ---
+  // A cor ativa agora é um branco mais forte para se destacar no fundo azul.
+  const activeColor = 'white';
+  // A cor inativa é um branco com um pouco de transparência.
+  const inactiveColor = useColorModeValue('whiteAlpha.700', 'whiteAlpha.600');
+  // A cor do hover será o mesmo branco forte da cor ativa.
+  const hoverColor = 'white';
+  // --- FIM DA ALTERAÇÃO 1 ---
 
   return (
-    // ✅ REVERSÃO: Usando a prop 'as' para integração com React Router, como na v2
     <ChakraLink
       as={RouterLink}
       to={to}
@@ -55,7 +59,7 @@ const NavItem = ({ icon, label, to }: NavItemProps) => {
       py={2}
       color={isActive ? activeColor : inactiveColor}
       fontWeight={isActive ? 'bold' : 'normal'}
-      _hover={{ textDecoration: 'none', color: activeColor }}
+      _hover={{ textDecoration: 'none', color: hoverColor }}
       transition="color 0.2s ease-in-out"
     >
       <Icon as={icon} fontSize="2xl" />
@@ -70,9 +74,14 @@ export const BottomNavBar = () => {
   const { user, logout } = useAuth();
   const isAdmin = user?.perfil === 'ADMIN';
 
-  // ✅ REVERSÃO: Reintroduzindo o useColorModeValue
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
+  // --- INÍCIO DA ALTERAÇÃO 2: Cor de Fundo da Barra ---
+  // Define a nova cor de fundo de destaque.
+  const bgColor = useColorModeValue('blue.500', 'blue.800');
+  // A borda superior pode ser um pouco mais escura para dar profundidade.
+  const borderColor = useColorModeValue('blue.600', 'blue.900');
+  // Cor para o ícone de "Mais" (grid) e o ícone de "Sair".
+  const iconColor = useColorModeValue('whiteAlpha.700', 'whiteAlpha.600');
+  // --- FIM DA ALTERAÇÃO 2 ---
 
   return (
     <Box
@@ -81,11 +90,12 @@ export const BottomNavBar = () => {
       bottom="0"
       left="0"
       right="0"
-      bg={bgColor}
+      bg={bgColor} // Aplicando a nova cor de fundo
       borderTopWidth="1px"
-      borderColor={borderColor}
+      borderColor={borderColor} // Aplicando a nova cor de borda
       zIndex="sticky"
       display={{ base: 'block', md: 'none' }}
+      boxShadow="0 -2px 10px rgba(0, 0, 0, 0.15)" // Adiciona uma sombra para mais destaque
     >
       <Flex align="center" justify="space-around" h="60px">
         <NavItem icon={FiShoppingCart} label="Movim." to="/movimentacoes" />
@@ -93,7 +103,6 @@ export const BottomNavBar = () => {
         <NavItem icon={FiBox} label="Produtos" to="/produtos" />
 
         {isAdmin ? (
-          // ✅ REVERSÃO: Estrutura de Menu da v2
           <Menu>
             <MenuButton
               as={IconButton}
@@ -101,15 +110,16 @@ export const BottomNavBar = () => {
               icon={<FiGrid />}
               variant="ghost"
               fontSize="2xl"
-              color={useColorModeValue('gray.600', 'gray.400')}
+              color={iconColor} // Aplicando a cor do ícone
+              _hover={{ bg: useColorModeValue('blue.600', 'blue.700') }} // Efeito hover no botão
               flex={1}
               h="full"
               py={2}
             />
             <MenuList>
-              {/* ✅ REVERSÃO: Passando 'as' e 'icon' como props, como na v2 */}
               <MenuItem as={RouterLink} to="/dashboard" icon={<FiHome />}>Dashboard</MenuItem>
               <MenuItem as={RouterLink} to="/relatorios" icon={<FiBarChart2 />}>Relatórios</MenuItem>
+              <MenuItem as={RouterLink} to="/financas" icon={<FiCreditCard />}>Finanças</MenuItem>
               <MenuItem as={RouterLink} to="/fornecedores" icon={<FiTruck />}>Fornecedores</MenuItem>
               <MenuItem as={RouterLink} to="/utilizadores" icon={<FiUserCheck />}>Utilizadores</MenuItem>
               <MenuItem icon={<FiLogOut />} onClick={logout}>Sair</MenuItem>
@@ -124,7 +134,7 @@ export const BottomNavBar = () => {
             justifyContent="center"
             flex="1"
             py={2}
-            color={useColorModeValue('gray.600', 'gray.400')}
+            color={iconColor} // Aplicando a cor do ícone
           >
             <Icon as={FiLogOut} fontSize="2xl" />
             <Text fontSize="xs" mt={1}>Sair</Text>
