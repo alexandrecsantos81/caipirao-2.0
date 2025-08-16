@@ -8,7 +8,7 @@ import {
   AlertDialog, AlertDialogBody, AlertDialogFooter, AlertDialogContent, AlertDialogOverlay,
   Center, useBreakpointValue, ModalHeader,
   Tabs, TabList, TabPanels, Tab, SimpleGrid, useColorModeValue,
-  TabPanel // <-- CORREÇÃO: ADICIONADO AQUI
+  TabPanel
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
@@ -21,8 +21,7 @@ import {
 } from '../services/receitaExterna.service';
 import { DashboardFinanceiro } from '../components/DashboardFinanceiro';
 
-// O componente FormularioReceita permanece o mesmo, então o omiti para economizar espaço.
-// Certifique-se de que ele está no seu arquivo.
+// Componente FormularioReceita (sem alterações, omitido para brevidade)
 const FormularioReceita = ({ isOpen, onClose, receita, onSave, isLoading }: {
   isOpen: boolean;
   onClose: () => void;
@@ -94,7 +93,7 @@ const FormularioReceita = ({ isOpen, onClose, receita, onSave, isLoading }: {
 };
 
 
-// Componente da Tabela de Receitas Externas (para a segunda aba)
+// Componente TabelaReceitasExternas (sem alterações, omitido para brevidade)
 const TabelaReceitasExternas = () => {
     const queryClient = useQueryClient();
     const toast = useToast();
@@ -182,6 +181,25 @@ const FinancasPage = () => {
     setEndDate(format(end, 'yyyy-MM-dd'));
   };
 
+  // --- INÍCIO DA ALTERAÇÃO ---
+  // Estilos para as abas
+  const tabStyles = {
+    fontWeight: 'semibold',
+    px: { base: 3, md: 6 },
+    py: 3,
+    borderRadius: 'md',
+    transition: 'all 0.2s ease-in-out',
+    _hover: {
+      bg: useColorModeValue('teal.50', 'gray.600'),
+    },
+    _selected: {
+      color: 'white',
+      bg: 'teal.400',
+      boxShadow: 'md',
+    },
+  };
+  // --- FIM DA ALTERAÇÃO ---
+
   return (
     <Box p={{ base: 4, md: 8 }}>
       <Heading as="h1" mb={2}>Centro Financeiro</Heading>
@@ -199,12 +217,15 @@ const FinancasPage = () => {
         </Flex>
       </Box>
 
-      <Tabs isFitted variant="enclosed-colored">
-        <TabList>
-          <Tab>Dashboard Consolidado</Tab>
-          <Tab>Receitas Externas</Tab>
+      {/* Variante 'unstyled' para remover o estilo padrão e aplicar o nosso */}
+      <Tabs variant="unstyled" align="center" >
+        <TabList gap={3}>
+          {/* Aplicando os estilos customizados em cada Tab */}
+          <Tab {...tabStyles}>Dashboard Consolidado</Tab>
+          <Tab {...tabStyles}>Receitas Externas</Tab>
         </TabList>
-        <TabPanels>
+
+        <TabPanels mt={5}>
           <TabPanel>
             <DashboardFinanceiro filters={{ startDate, endDate }} />
           </TabPanel>
