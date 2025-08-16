@@ -2,21 +2,13 @@
 
 const pool = require('../db');
 
-/**
- * @desc    Busca dados consolidados para o dashboard financeiro.
- * @route   GET /api/financas/dashboard-consolidado
- * @access  Protegido (Admin)
- */
 const getDashboardConsolidado = async (req, res) => {
-    // Extrai as datas da query; se não existirem, define o mês atual como padrão.
     const { startDate, endDate } = req.query;
-
     if (!startDate || !endDate) {
         return res.status(400).json({ error: 'As datas de início e fim são obrigatórias.' });
     }
 
     try {
-        // Query para buscar as receitas do Caipirão (vendas)
         const receitasCaipiraoQuery = `
             SELECT COALESCE(SUM(valor_total), 0) as total
             FROM movimentacoes
@@ -25,16 +17,16 @@ const getDashboardConsolidado = async (req, res) => {
         const receitasCaipiraoResult = await pool.query(receitasCaipiraoQuery, [startDate, endDate]);
         const totalReceitasCaipirao = parseFloat(receitasCaipiraoResult.rows[0].total);
 
-        // Query para buscar as despesas do Caipirão
+        // --- INÍCIO DA CORREÇÃO ---
         const despesasCaipiraoQuery = `
             SELECT COALESCE(SUM(valor), 0) as total
             FROM despesas
-            WHERE data_pagamento BETWEEN $1 AND $2;
+            WHERE data_compra BETWEEN $1 AND $2;
         `;
+        // --- FIM DA CORREÇÃO ---
         const despesasCaipiraoResult = await pool.query(despesasCaipiraoQuery, [startDate, endDate]);
         const totalDespesasCaipirao = parseFloat(despesasCaipiraoResult.rows[0].total);
 
-        // Query para buscar as receitas externas (pessoais)
         const receitasExternasQuery = `
             SELECT COALESCE(SUM(valor), 0) as total
             FROM receitas_externas
@@ -43,7 +35,6 @@ const getDashboardConsolidado = async (req, res) => {
         const receitasExternasResult = await pool.query(receitasExternasQuery, [startDate, endDate]);
         const totalReceitasExternas = parseFloat(receitasExternasResult.rows[0].total);
 
-        // Monta o objeto de KPIs (Indicadores Chave de Desempenho)
         const kpis = {
             receitasCaipirao: totalReceitasCaipirao,
             despesasCaipirao: totalDespesasCaipirao,
@@ -52,7 +43,6 @@ const getDashboardConsolidado = async (req, res) => {
             saldoConsolidado: (totalReceitasCaipirao + totalReceitasExternas) - totalDespesasCaipirao,
         };
 
-        // Responde com os dados consolidados
         res.status(200).json({ kpis });
 
     } catch (error) {
