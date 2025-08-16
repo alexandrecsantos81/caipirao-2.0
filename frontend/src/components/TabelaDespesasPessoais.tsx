@@ -85,26 +85,39 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
     }
   });
 
-  const financiamentosAgrupados = useMemo(() => {
+  // **INÍCIO DA CORREÇÃO**
+  const itensDaTabela = useMemo(() => {
     if (!data || data.length === 0) {
       return [];
     }
+
+    // 1. Separa o que é despesa única do que é parcela
     const despesasUnicas = data.filter(d => !d.parcela_id);
-    const parcelas = data.filter(d => d.parcela_id);
+    const parcelas = data.filter(d => !!d.parcela_id);
+
+    // 2. Agrupa as parcelas por 'parcela_id'
     const grupos = new Map<string, IDespesaPessoal[]>();
     parcelas.forEach(p => {
-      if (!grupos.has(p.parcela_id!)) {
-        grupos.set(p.parcela_id!, []);
+      const id = p.parcela_id!;
+      if (!grupos.has(id)) {
+        grupos.set(id, []);
       }
-      grupos.get(p.parcela_id!)!.push(p);
+      grupos.get(id)!.push(p);
     });
+
+    // 3. Transforma os grupos em objetos de financiamento para a tabela
     const financiamentos: IFinanciamentoAgrupado[] = [];
     grupos.forEach((parcelasDoGrupo) => {
-      const proximaParcela = parcelasDoGrupo.sort((a, b) => a.numero_parcela! - b.numero_parcela!).find(p => !p.pago);
+      const proximaParcela = parcelasDoGrupo
+        .sort((a, b) => a.numero_parcela! - b.numero_parcela!)
+        .find(p => !p.pago);
+
       if (!proximaParcela) {
         return;
       }
+
       const saldoRestante = parcelasDoGrupo.reduce((acc, p) => !p.pago ? acc + p.valor : acc, 0);
+      
       financiamentos.push({
         parcela_id: proximaParcela.parcela_id!,
         descricaoBase: proximaParcela.descricao.replace(/\s*\(\d+\/\d+\)$/, ''),
@@ -114,8 +127,11 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
         categoria: proximaParcela.categoria,
       });
     });
+
+    // 4. Retorna a lista combinada para a renderização
     return [...despesasUnicas, ...financiamentos];
   }, [data]);
+  // **FIM DA CORREÇÃO**
 
   const handleAddClick = () => { setSelectedDespesa(null); onDrawerOpen(); };
   const handleEditClick = () => {
@@ -154,7 +170,7 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
               </Tr>
             </Thead>
             <Tbody>
-              {financiamentosAgrupados.map((item) => {
+              {itensDaTabela.map((item) => {
                 if ('proximaParcela' in item) {
                   const financiamento = item as IFinanciamentoAgrupado;
                   return (
@@ -189,13 +205,11 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
                       <Td>{despesa.categoria || '---'}</Td>
                       <Td isNumeric color="red.500" fontWeight="bold">{despesa.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
                       <Td isNumeric>---</Td>
-                      {/* **INÍCIO DA CORREÇÃO** */}
                       <Td>
                         <Tooltip label={despesa.pago ? `Pago em ${despesa.data_pagamento ? new Date(despesa.data_pagamento).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : ''}` : 'Marcar como pago'}>
                           <Checkbox isChecked={despesa.pago} onChange={() => togglePagoMutation.mutate(despesa)} />
                         </Tooltip>
                       </Td>
-                      {/* **FIM DA CORREÇÃO** */}
                       <Td>
                         <HStack>
                           <IconButton aria-label="Editar" icon={<FiEdit />} onClick={handleEditClick} />
