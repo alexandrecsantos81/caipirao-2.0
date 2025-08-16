@@ -155,8 +155,6 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
             </Thead>
             <Tbody>
               {financiamentosAgrupados.map((item) => {
-                // **INÍCIO DA CORREÇÃO**
-                // Verifica se o item é um financiamento agrupado
                 if ('proximaParcela' in item) {
                   const financiamento = item as IFinanciamentoAgrupado;
                   return (
@@ -181,7 +179,6 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
                     </Tr>
                   );
                 } 
-                // Se não for um financiamento, é uma despesa única
                 else {
                   const despesa = item as IDespesaPessoal;
                   return (
@@ -192,11 +189,13 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
                       <Td>{despesa.categoria || '---'}</Td>
                       <Td isNumeric color="red.500" fontWeight="bold">{despesa.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
                       <Td isNumeric>---</Td>
+                      {/* **INÍCIO DA CORREÇÃO** */}
                       <Td>
-                        <Tooltip label={despesa.pago ? 'Pago' : 'Marcar como pago'}>
+                        <Tooltip label={despesa.pago ? `Pago em ${despesa.data_pagamento ? new Date(despesa.data_pagamento).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : ''}` : 'Marcar como pago'}>
                           <Checkbox isChecked={despesa.pago} onChange={() => togglePagoMutation.mutate(despesa)} />
                         </Tooltip>
                       </Td>
+                      {/* **FIM DA CORREÇÃO** */}
                       <Td>
                         <HStack>
                           <IconButton aria-label="Editar" icon={<FiEdit />} onClick={handleEditClick} />
@@ -206,7 +205,6 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
                     </Tr>
                   );
                 }
-                // **FIM DA CORREÇÃO**
               })}
             </Tbody>
           </Table>
