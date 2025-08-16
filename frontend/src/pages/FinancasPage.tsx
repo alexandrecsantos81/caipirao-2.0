@@ -7,7 +7,8 @@ import {
   FormControl, FormLabel, Input, FormErrorMessage,
   AlertDialog, AlertDialogBody, AlertDialogFooter, AlertDialogContent, AlertDialogOverlay,
   Center, useBreakpointValue, ModalHeader,
-  Tabs, TabList, TabPanels, Tab, SimpleGrid, useColorModeValue
+  Tabs, TabList, TabPanels, Tab, SimpleGrid, useColorModeValue,
+  TabPanel // <-- CORREÇÃO: ADICIONADO AQUI
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
@@ -18,7 +19,7 @@ import { startOfMonth, endOfMonth, subDays, format } from 'date-fns';
 import {
   IReceitaExterna, IReceitaExternaForm, getReceitasExternas, createReceitaExterna, updateReceitaExterna, deleteReceitaExterna
 } from '../services/receitaExterna.service';
-import { DashboardFinanceiro } from '../components/DashboardFinanceiro'; // <-- Importe o novo componente
+import { DashboardFinanceiro } from '../components/DashboardFinanceiro';
 
 // O componente FormularioReceita permanece o mesmo, então o omiti para economizar espaço.
 // Certifique-se de que ele está no seu arquivo.
