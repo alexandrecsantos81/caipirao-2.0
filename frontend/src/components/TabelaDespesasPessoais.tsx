@@ -1,12 +1,14 @@
+// frontend/src/components/TabelaDespesasPessoais.tsx
+
 import {
   Box, Button, Flex, Heading, IconButton, Spinner, Table, TableContainer, Tbody, Td, Text,
   Th, Thead, Tr, useDisclosure, useToast, VStack, HStack,
   AlertDialog, AlertDialogBody, AlertDialogFooter, AlertDialogContent, AlertDialogOverlay,
-  Center, Badge, Checkbox, Tooltip, ModalHeader // Mantido ModalHeader para o AlertDialog
+  Center, Badge, Checkbox, Tooltip, ModalHeader
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
-import { useState, useRef } from 'react';
+import { useState, useRef } from 'react'; // useRef já estava aqui
 
 import {
   IDespesaPessoal, IDespesaPessoalForm, getDespesasPessoais, createDespesaPessoal, updateDespesaPessoal, deleteDespesaPessoal
@@ -26,6 +28,9 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
   const [selectedDespesa, setSelectedDespesa] = useState<IDespesaPessoal | null>(null);
   const [itemParaDeletar, setItemParaDeletar] = useState<IDespesaPessoal | null>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
+  
+  // CORREÇÃO 1: Criar a referência para o portal do Drawer
+  const portalContainerRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['despesasPessoais', filters],
@@ -36,7 +41,9 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
   const saveMutation = useMutation({
     mutationFn: async ({ data, id }: { data: IDespesaPessoalForm; id?: number }): Promise<IDespesaPessoal[]> => {
       if (id) {
-        const updated = await updateDespesaPessoal({ id, data: { ...data, valor: Number(data.valor) } });
+        // Na edição, não enviamos a recorrência, apenas atualizamos a despesa atual
+        const { recorrente, parcelado, quantidade_parcelas, ...updateData } = data;
+        const updated = await updateDespesaPessoal({ id, data: { ...updateData, valor: Number(data.valor) } });
         return [updated];
       }
       return createDespesaPessoal(data);
@@ -88,9 +95,11 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
 
   return (
     <Box>
+      {/* CORREÇÃO 2: Adicionar o container do portal ao JSX */}
+      <div ref={portalContainerRef} />
+
       <Flex justify="space-between" align="center" mb={6} direction={{ base: 'column', md: 'row' }} gap={4}>
         <Heading textAlign={{ base: 'center', md: 'left' }}>Gestão de Despesas Pessoais</Heading>
-        {/* AJUSTE 3: Alterando a cor do botão para 'red' */}
         <Button leftIcon={<FiPlus />} colorScheme="red" onClick={handleAddClick} w={{ base: 'full', md: 'auto' }}>
           Adicionar Despesa
         </Button>
@@ -125,8 +134,15 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
         </TableContainer>
       )}
 
-      {/* AJUSTE 1: Garantindo que o Drawer seja usado para o formulário */}
-      <FormularioDespesaPessoal isOpen={isDrawerOpen} onClose={onDrawerClose} despesa={selectedDespesa} onSave={handleSave} isLoading={saveMutation.isPending} />
+      {/* CORREÇÃO 3: Passar a referência para o formulário */}
+      <FormularioDespesaPessoal 
+        isOpen={isDrawerOpen} 
+        onClose={onDrawerClose} 
+        despesa={selectedDespesa} 
+        onSave={handleSave} 
+        isLoading={saveMutation.isPending}
+        portalContainerRef={portalContainerRef}
+      />
       
       <AlertDialog isOpen={isConfirmOpen} leastDestructiveRef={cancelRef} onClose={onConfirmClose} isCentered>
         <AlertDialogOverlay />

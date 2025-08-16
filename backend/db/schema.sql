@@ -1,10 +1,11 @@
 -- =====================================================================
 --  SCRIPT COMPLETO DO BANCO DE DADOS - CAIPIRÃO 3.0
+--  Versão: 2025-08-16
 --  Este script apaga as tabelas existentes para garantir uma
 --  recriação limpa. Ideal para ambientes de desenvolvimento e
 --  para configurar o banco de dados pela primeira vez.
 --
---  ATENÇÃO: NÃO EXECUTE EM UM BANCO DE DADOS COM DADOS IMPORTANTES!
+--  ATENÇÃO: NÃO EXECUTE EM UM BANCO DE DADOS DE PRODUÇÃO COM DADOS!
 -- =====================================================================
 
 
@@ -13,7 +14,8 @@
 DROP TABLE IF EXISTS movimentacoes;
 DROP TABLE IF EXISTS entradas_estoque;
 DROP TABLE IF EXISTS despesas;
-DROP TABLE IF EXISTS receitas_externas; -- Adicionada à lista de exclusão
+DROP TABLE IF EXISTS despesas_pessoais; -- Adicionada à lista de exclusão
+DROP TABLE IF EXISTS receitas_externas;
 DROP TABLE IF EXISTS fornecedores;
 DROP TABLE IF EXISTS produtos;
 DROP TABLE IF EXISTS clientes;
@@ -114,9 +116,7 @@ CREATE TABLE entradas_estoque (
     data_entrada TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- =====================================================================
---  NOVA TABELA: RECEITAS EXTERNAS (FINANÇAS PESSOAIS)
--- =====================================================================
+-- Tabela de Receitas Externas (Finanças Pessoais)
 CREATE TABLE receitas_externas (
     id SERIAL PRIMARY KEY,
     descricao VARCHAR(255) NOT NULL,
@@ -127,29 +127,53 @@ CREATE TABLE receitas_externas (
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- =====================================================================
+--  NOVA TABELA: DESPESAS PESSOAIS (COM LÓGICA DE RECORRÊNCIA)
+-- =====================================================================
+CREATE TABLE despesas_pessoais (
+    id SERIAL PRIMARY KEY,
+    descricao VARCHAR(255) NOT NULL,
+    valor NUMERIC(10, 2) NOT NULL,
+    data_vencimento DATE NOT NULL,
+    categoria VARCHAR(100),
+    pago BOOLEAN NOT NULL DEFAULT FALSE,
+    data_pagamento DATE,
+    utilizador_id INT NOT NULL REFERENCES utilizadores(id) ON DELETE CASCADE,
+    
+    -- Campos para controle de recorrência e parcelamento
+    recorrente BOOLEAN NOT NULL DEFAULT FALSE,
+    parcela_id UUID, -- Agrupa despesas de um mesmo parcelamento
+    numero_parcela INT,
+    total_parcelas INT,
+
+    data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 
 -- =====================================================================
 --  ÍNDICES E DADOS INICIAIS
 -- =====================================================================
 
 -- Índices para otimizar consultas
-CREATE INDEX idx_utilizadores_email ON utilizadores(email);
-CREATE INDEX idx_utilizadores_telefone ON utilizadores(telefone);
-CREATE INDEX idx_utilizadores_nickname ON utilizadores(nickname);
-CREATE INDEX idx_utilizadores_status ON utilizadores(status);
-CREATE INDEX idx_clientes_nome ON clientes(nome);
-CREATE INDEX idx_produtos_nome ON produtos(nome);
-CREATE INDEX idx_movimentacoes_tipo ON movimentacoes(tipo);
-CREATE INDEX idx_movimentacoes_data_venda ON movimentacoes(data_venda);
-CREATE INDEX idx_movimentacoes_data_vencimento ON movimentacoes(data_vencimento);
-CREATE INDEX idx_fornecedores_nome ON fornecedores(nome);
-CREATE INDEX idx_despesas_vencimento ON despesas(data_vencimento);
-CREATE INDEX idx_despesas_compra ON despesas(data_compra);
-CREATE INDEX idx_despesas_pagamento ON despesas(data_pagamento);
-CREATE INDEX idx_despesas_fornecedor_id ON despesas(fornecedor_id);
-CREATE INDEX idx_entradas_estoque_produto_id ON entradas_estoque(produto_id);
-CREATE INDEX idx_entradas_estoque_data_entrada ON entradas_estoque(data_entrada);
-CREATE INDEX idx_receitas_externas_data ON receitas_externas(data_recebimento); -- Índice da nova tabela
+CREATE INDEX IF NOT EXISTS idx_utilizadores_email ON utilizadores(email);
+CREATE INDEX IF NOT EXISTS idx_utilizadores_telefone ON utilizadores(telefone);
+CREATE INDEX IF NOT EXISTS idx_utilizadores_nickname ON utilizadores(nickname);
+CREATE INDEX IF NOT EXISTS idx_utilizadores_status ON utilizadores(status);
+CREATE INDEX IF NOT EXISTS idx_clientes_nome ON clientes(nome);
+CREATE INDEX IF NOT EXISTS idx_produtos_nome ON produtos(nome);
+CREATE INDEX IF NOT EXISTS idx_movimentacoes_tipo ON movimentacoes(tipo);
+CREATE INDEX IF NOT EXISTS idx_movimentacoes_data_venda ON movimentacoes(data_venda);
+CREATE INDEX IF NOT EXISTS idx_movimentacoes_data_vencimento ON movimentacoes(data_vencimento);
+CREATE INDEX IF NOT EXISTS idx_fornecedores_nome ON fornecedores(nome);
+CREATE INDEX IF NOT EXISTS idx_despesas_vencimento ON despesas(data_vencimento);
+CREATE INDEX IF NOT EXISTS idx_despesas_compra ON despesas(data_compra);
+CREATE INDEX IF NOT EXISTS idx_despesas_pagamento ON despesas(data_pagamento);
+CREATE INDEX IF NOT EXISTS idx_despesas_fornecedor_id ON despesas(fornecedor_id);
+CREATE INDEX IF NOT EXISTS idx_entradas_estoque_produto_id ON entradas_estoque(produto_id);
+CREATE INDEX IF NOT EXISTS idx_entradas_estoque_data_entrada ON entradas_estoque(data_entrada);
+CREATE INDEX IF NOT EXISTS idx_receitas_externas_data ON receitas_externas(data_recebimento);
+CREATE INDEX IF NOT EXISTS idx_despesas_pessoais_vencimento ON despesas_pessoais(data_vencimento);
+CREATE INDEX IF NOT EXISTS idx_despesas_pessoais_parcela_id ON despesas_pessoais(parcela_id); -- Índice para parcelas
 
 -- Inserir um utilizador ADMIN padrão para o primeiro login
 -- A senha 'admin' deve ser registrada pela API para ser criptografada corretamente.
