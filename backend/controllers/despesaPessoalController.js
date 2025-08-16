@@ -1,16 +1,12 @@
 const pool = require('../db');
-const { addMonths, subMonths } = require('date-fns');
+const { addMonths, subMonths, formatISO } = require('date-fns'); // Adicionado formatISO
 const { v4: uuidv4 } = require('uuid');
 
-/**
- * @desc    Cria uma nova despesa pessoal, com lógica para recorrência e parcelamento.
- * @route   POST /api/despesas-pessoais
- * @access  Protegido (Admin)
- */
+// A função createDespesaPessoal permanece a mesma da correção anterior.
 const createDespesaPessoal = async (req, res) => {
     const {
         descricao, valor, categoria, recorrente, parcelado,
-        data_vencimento, // Esta é a data de vencimento da parcela atual ou da despesa única
+        data_vencimento, 
         parcela_atual,
         quantidade_parcelas
     } = req.body;
@@ -25,7 +21,6 @@ const createDespesaPessoal = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // Cenário 1: Despesa Parcelada (Financiamento)
         if (recorrente && parcelado === 'sim') {
             if (!parcela_atual || !quantidade_parcelas || Number(parcela_atual) <= 0 || Number(quantidade_parcelas) <= 0) {
                 return res.status(400).json({ error: 'Para parcelamento, a parcela atual e o total de parcelas são obrigatórios e devem ser maiores que zero.' });
@@ -35,12 +30,13 @@ const createDespesaPessoal = async (req, res) => {
             const despesasCriadas = [];
             const numParcelaAtual = Number(parcela_atual);
             const totalParcelas = Number(quantidade_parcelas);
+            
+            // CORREÇÃO DE TIMEZONE: Garante que a data seja tratada como local
+            const dataVencimentoBase = new Date(data_vencimento + 'T00:00:00');
 
-            // Calcula a data da 1ª parcela retroativamente para registrar as parcelas corretamente no tempo
             const mesesParaSubtrair = numParcelaAtual - 1;
-            const dataPrimeiraParcela = subMonths(new Date(data_vencimento), mesesParaSubtrair);
+            const dataPrimeiraParcela = subMonths(dataVencimentoBase, mesesParaSubtrair);
 
-            // Cria os registros para todas as parcelas (da 1ª à última)
             for (let i = 0; i < totalParcelas; i++) {
                 const dataVencimentoParcela = addMonths(dataPrimeiraParcela, i);
                 const descricaoParcela = `${descricao.trim().toUpperCase()} (${i + 1}/${totalParcelas})`;
@@ -53,7 +49,7 @@ const createDespesaPessoal = async (req, res) => {
                 
                 const values = [
                     descricaoParcela, valor, dataVencimentoParcela, categoria ? categoria.trim().toUpperCase() : null,
-                    utilizador_id, true, false, // 'recorrente' é true, 'pago' é false por padrão
+                    utilizador_id, true, false, 
                     parcelaId, i + 1, totalParcelas
                 ];
 
@@ -65,7 +61,6 @@ const createDespesaPessoal = async (req, res) => {
             return res.status(201).json(despesasCriadas);
         }
 
-        // Cenário 2: Despesa Única ou Recorrência Contínua (Assinatura)
         const query = `
             INSERT INTO despesas_pessoais (descricao, valor, data_vencimento, categoria, utilizador_id, recorrente, pago)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -87,7 +82,14 @@ const createDespesaPessoal = async (req, res) => {
     }
 };
 
-// As outras funções (get, update, delete) permanecem as mesmas.
+
+/**
+ * @desc    Busca despesas pessoais.
+ * @route   GET /api/despesas-pessoais
+ * @access  Protegido (Admin)
+ * @logic   CORREÇÃO: Busca todas as despesas não pagas OU as pagas dentro do período do filtro.
+ *          Isso garante que financiamentos ativos sempre apareçam por completo.
+ */
 const getDespesasPessoais = async (req, res) => {
     const { startDate, endDate } = req.query;
     if (!startDate || !endDate) {
@@ -96,7 +98,10 @@ const getDespesasPessoais = async (req, res) => {
     try {
         const query = `
             SELECT * FROM despesas_pessoais
-            WHERE data_vencimento BETWEEN $1 AND $2
+            WHERE 
+                pago = FALSE 
+                OR 
+                (pago = TRUE AND data_pagamento BETWEEN $1 AND $2)
             ORDER BY data_vencimento ASC, data_criacao ASC
         `;
         const resultado = await pool.query(query, [startDate, endDate]);
@@ -107,6 +112,7 @@ const getDespesasPessoais = async (req, res) => {
     }
 };
 
+// As funções de update e delete permanecem as mesmas.
 const updateDespesaPessoal = async (req, res) => {
     const { id } = req.params;
     const { pago } = req.body;
@@ -166,7 +172,6 @@ const deleteDespesaPessoal = async (req, res) => {
         client.release();
     }
 };
-
 
 module.exports = {
     createDespesaPessoal,

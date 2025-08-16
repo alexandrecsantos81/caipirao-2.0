@@ -89,9 +89,18 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
   const itensDaTabela = useMemo(() => {
     if (!data) return [];
 
-    const despesasUnicas = data.filter(d => !d.parcela_id);
-    const parcelas = data.filter(d => !!d.parcela_id);
+    const despesasVisiveis = data.filter(d => {
+        if (d.pago) {
+            const dataPagamento = new Date(d.data_pagamento + 'T00:00:00');
+            return dataPagamento >= new Date(filters.startDate) && dataPagamento <= new Date(filters.endDate);
+        }
+        return true;
+    });
 
+    const despesasUnicas = despesasVisiveis.filter(d => !d.parcela_id && !d.recorrente);
+    const assinaturas = despesasVisiveis.filter(d => d.recorrente && !d.parcela_id);
+
+    const parcelas = data.filter(d => !!d.parcela_id);
     const grupos = new Map<string, IDespesaPessoal[]>();
     parcelas.forEach(p => {
       const id = p.parcela_id!;
@@ -102,8 +111,8 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
     const financiamentos: IFinanciamentoAgrupado[] = [];
     grupos.forEach((parcelasDoGrupo) => {
       const proximaParcela = parcelasDoGrupo
-        .sort((a, b) => a.numero_parcela! - b.numero_parcela!)
-        .find(p => !p.pago);
+        .filter(p => !p.pago)
+        .sort((a, b) => a.numero_parcela! - b.numero_parcela!)[0];
 
       if (!proximaParcela) return;
 
@@ -119,14 +128,16 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
       });
     });
 
-    return [...despesasUnicas, ...financiamentos].sort((a, b) => {
+    return [...despesasUnicas, ...assinaturas, ...financiamentos].sort((a, b) => {
         const dateA = new Date('proximaParcela' in a ? a.proximaParcela.data_vencimento : a.data_vencimento);
         const dateB = new Date('proximaParcela' in b ? b.proximaParcela.data_vencimento : b.data_vencimento);
         return dateA.getTime() - dateB.getTime();
     });
-  }, [data]);
+  }, [data, filters.startDate, filters.endDate]);
 
+  // ESTA É A LINHA CORRIGIDA
   const handleAddClick = () => { setSelectedDespesa(null); onDrawerOpen(); };
+
   const handleEditClick = () => {
     toast({
         title: 'Função em desenvolvimento',
@@ -170,19 +181,21 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
             </Thead>
             <Tbody>
               {itensDaTabela.map((item) => {
-                if ('proximaParcela' in item) {
+                if ('proximaParcela' in item) { // É um financiamento agrupado
                   const financiamento = item as IFinanciamentoAgrupado;
                   return (
                     <Tr key={financiamento.parcela_id}>
-                      <Td>{new Date(financiamento.proximaParcela.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
+                      <Td>{new Date(financiamento.proximaParcela.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR')}</Td>
                       <Td><Badge colorScheme="blue">{`${financiamento.proximaParcela.numero_parcela}/${financiamento.totalParcelas}`}</Badge></Td>
                       <Td>{financiamento.descricaoBase}</Td>
                       <Td>{financiamento.categoria || '---'}</Td>
                       <Td isNumeric color="red.500" fontWeight="bold">{financiamento.proximaParcela.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
                       <Td isNumeric>{financiamento.saldoRestante.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
                       <Td>
-                        <Tooltip label={financiamento.proximaParcela.pago ? 'Pago' : 'Marcar como pago'}>
-                          <Checkbox isChecked={financiamento.proximaParcela.pago} onChange={() => togglePagoMutation.mutate(financiamento.proximaParcela)} />
+                        <Tooltip label={financiamento.proximaParcela.pago ? 'Pago' : 'Pendente'}>
+                            <Badge colorScheme={financiamento.proximaParcela.pago ? 'green' : 'orange'}>
+                                {financiamento.proximaParcela.pago ? 'Pago' : 'Pendente'}
+                            </Badge>
                         </Tooltip>
                       </Td>
                       <Td>
@@ -194,23 +207,26 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
                     </Tr>
                   );
                 } 
-                else {
+                else { // É uma despesa única ou assinatura
                   const despesa = item as IDespesaPessoal;
                   return (
                     <Tr key={despesa.id}>
-                      <Td>{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td>
-                      <Td>---</Td>
+                      <Td>{new Date(despesa.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR')}</Td>
+                      <Td>{despesa.recorrente ? <Badge colorScheme="purple">Assinatura</Badge> : 'Única'}</Td>
                       <Td>{despesa.descricao}</Td>
                       <Td>{despesa.categoria || '---'}</Td>
                       <Td isNumeric color="red.500" fontWeight="bold">{despesa.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
-                      <Td isNumeric>---</Td>
+                      <Td isNumeric>{despesa.recorrente ? 'N/A' : '---'}</Td>
                       <Td>
-                        <Tooltip label={despesa.pago ? `Pago em ${despesa.data_pagamento ? new Date(despesa.data_pagamento).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : ''}` : 'Marcar como pago'}>
-                          <Checkbox isChecked={despesa.pago} onChange={() => togglePagoMutation.mutate(despesa)} />
+                        <Tooltip label={despesa.pago ? `Pago em ${despesa.data_pagamento ? new Date(despesa.data_pagamento + 'T00:00:00').toLocaleDateString('pt-BR') : ''}` : 'Pendente'}>
+                           <Badge colorScheme={despesa.pago ? 'green' : 'orange'}>
+                                {despesa.pago ? 'Pago' : 'Pendente'}
+                            </Badge>
                         </Tooltip>
                       </Td>
                       <Td>
                         <HStack>
+                          <IconButton aria-label="Marcar como pago/pendente" icon={<Checkbox isChecked={despesa.pago} onChange={() => togglePagoMutation.mutate(despesa)} />} />
                           <IconButton aria-label="Editar" icon={<FiEdit />} onClick={handleEditClick} />
                           <IconButton aria-label="Excluir" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDeleteClick(despesa)} />
                         </HStack>
