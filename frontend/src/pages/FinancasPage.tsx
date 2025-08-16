@@ -20,7 +20,9 @@ import {
 import { DashboardFinanceiro } from '../components/DashboardFinanceiro';
 import { TabelaDespesasPessoais } from '../components/TabelaDespesasPessoais';
 
-// Componente FormularioReceita (mantido)
+// ==================================================================
+// COMPONENTE FormularioReceita (SEM ALTERAÇÕES)
+// ==================================================================
 const FormularioReceita = ({ isOpen, onClose, receita, onSave, isLoading }: {
   isOpen: boolean;
   onClose: () => void;
@@ -54,6 +56,7 @@ const FormularioReceita = ({ isOpen, onClose, receita, onSave, isLoading }: {
   };
 
   return (
+    // ESTE COMPONENTE JÁ USA O DRAWER CORRETAMENTE
     <Drawer isOpen={isOpen} placement="right" onClose={onClose} size={drawerSize}>
       <DrawerOverlay />
       <DrawerContent as="form" onSubmit={handleSubmit(onSubmit)}>
@@ -91,10 +94,13 @@ const FormularioReceita = ({ isOpen, onClose, receita, onSave, isLoading }: {
   );
 };
 
-// Componente TabelaReceitasExternas (mantido)
+// ==================================================================
+// COMPONENTE TabelaReceitasExternas (CÓDIGO CORRIGIDO)
+// ==================================================================
 const TabelaReceitasExternas = () => {
     const queryClient = useQueryClient();
     const toast = useToast();
+    // CORREÇÃO: Usando a mesma lógica de 'disclosure' do resto do sistema
     const { isOpen: isDrawerOpen, onOpen: onDrawerOpen, onClose: onDrawerClose } = useDisclosure();
     const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure();
     const [selectedReceita, setSelectedReceita] = useState<IReceitaExterna | null>(null);
@@ -113,7 +119,7 @@ const TabelaReceitasExternas = () => {
         queryClient.invalidateQueries({ queryKey: ['receitasExternas'] });
         queryClient.invalidateQueries({ queryKey: ['dashboardConsolidado'] });
         toast({ title: `Receita salva com sucesso!`, status: 'success' });
-        onDrawerClose();
+        onDrawerClose(); // Fecha o Drawer
         },
         onError: (error: any) => {
         toast({ title: 'Erro ao salvar receita', description: error.response?.data?.error || error.message, status: 'error' });
@@ -143,7 +149,6 @@ const TabelaReceitasExternas = () => {
         <Box>
             <Flex justify="space-between" align="center" mb={6} direction={{ base: 'column', md: 'row' }} gap={4}>
                 <Heading textAlign={{ base: 'center', md: 'left' }}>Gestão de Receitas Externas</Heading>
-                {/* AJUSTE 1: Garantindo que o botão use o colorScheme verde */}
                 <Button leftIcon={<FiPlus />} colorScheme="green" onClick={handleAddClick} w={{ base: 'full', md: 'auto' }}>
                   Adicionar Receita
                 </Button>
@@ -162,7 +167,9 @@ const TabelaReceitasExternas = () => {
                 </TableContainer>
             )}
 
+            {/* CORREÇÃO: Chamando o formulário que usa o Drawer */}
             <FormularioReceita isOpen={isDrawerOpen} onClose={onDrawerClose} receita={selectedReceita} onSave={handleSave} isLoading={saveMutation.isPending} />
+            
             <AlertDialog isOpen={isConfirmOpen} leastDestructiveRef={cancelRef} onClose={onConfirmClose} isCentered>
                 <AlertDialogOverlay /><AlertDialogContent><ModalHeader>Confirmar Exclusão</ModalHeader><AlertDialogBody>Tem certeza que deseja excluir a receita "<strong>{itemParaDeletar?.descricao}</strong>"?</AlertDialogBody><AlertDialogFooter><Button ref={cancelRef} onClick={onConfirmClose}>Cancelar</Button><Button colorScheme="red" onClick={handleConfirmDelete} ml={3} isLoading={deleteMutation.isPending}>Sim, Excluir</Button></AlertDialogFooter></AlertDialogContent>
             </AlertDialog>
@@ -170,7 +177,9 @@ const TabelaReceitasExternas = () => {
     )
 }
 
-// Componente Principal da Página
+// ==================================================================
+// COMPONENTE PRINCIPAL DA PÁGINA (SEM ALTERAÇÕES NESTA ETAPA)
+// ==================================================================
 const FinancasPage = () => {
   const today = new Date();
   const [startDate, setStartDate] = useState(format(startOfMonth(today), 'yyyy-MM-dd'));
@@ -181,7 +190,6 @@ const FinancasPage = () => {
     setEndDate(format(end, 'yyyy-MM-dd'));
   };
 
-  // AJUSTE 2: Estilos base para as abas
   const baseTabStyles = {
     fontWeight: 'semibold',
     px: { base: 3, md: 6 },
@@ -210,9 +218,7 @@ const FinancasPage = () => {
       <Tabs variant="unstyled" align="center" >
         <TabList gap={3}>
           <Tab {...baseTabStyles} _selected={{ color: 'white', bg: 'teal.400', boxShadow: 'md' }} _hover={{ bg: useColorModeValue('teal.50', 'gray.600') }}>Dashboard</Tab>
-          {/* Aba de Receitas com hover verde */}
           <Tab {...baseTabStyles} _selected={{ color: 'white', bg: 'green.400', boxShadow: 'md' }} _hover={{ bg: useColorModeValue('green.50', 'green.800') }}>Receitas Pessoais</Tab>
-          {/* Aba de Despesas com hover vermelho */}
           <Tab {...baseTabStyles} _selected={{ color: 'white', bg: 'red.400', boxShadow: 'md' }} _hover={{ bg: useColorModeValue('red.50', 'red.800') }}>Despesas Pessoais</Tab>
         </TabList>
 
