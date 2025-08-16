@@ -17,10 +17,11 @@ import {
 } from '../services/despesaPessoal.service';
 import { FormularioDespesaPessoal } from './FormularioDespesaPessoal';
 
+// Interface para agrupar os dados de um financiamento para exibição na tabela
 interface IFinanciamentoAgrupado {
   parcela_id: string;
   descricaoBase: string;
-  proximaParcela: IDespesaPessoal;
+  proximaParcela: IDespesaPessoal; // A próxima parcela pendente
   saldoRestante: number;
   totalParcelas: number;
   categoria?: string | null;
@@ -86,18 +87,27 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
   });
 
   const financiamentosAgrupados = useMemo(() => {
-    if (!data) return [];
+    if (!data || data.length === 0) {
+      return [];
+    }
+
     const despesasUnicas = data.filter(d => !d.parcela_id);
     const parcelas = data.filter(d => d.parcela_id);
     const grupos = new Map<string, IDespesaPessoal[]>();
+
     parcelas.forEach(p => {
-      if (!grupos.has(p.parcela_id!)) grupos.set(p.parcela_id!, []);
+      if (!grupos.has(p.parcela_id!)) {
+        grupos.set(p.parcela_id!, []);
+      }
       grupos.get(p.parcela_id!)!.push(p);
     });
+
     const financiamentos: IFinanciamentoAgrupado[] = [];
     grupos.forEach((parcelasDoGrupo) => {
       const proximaParcela = parcelasDoGrupo.sort((a, b) => a.numero_parcela! - b.numero_parcela!).find(p => !p.pago);
-      if (!proximaParcela) return;
+      if (!proximaParcela) {
+        return;
+      }
       const saldoRestante = parcelasDoGrupo.reduce((acc, p) => !p.pago ? acc + p.valor : acc, 0);
       financiamentos.push({
         parcela_id: proximaParcela.parcela_id!,
@@ -108,11 +118,15 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
         categoria: proximaParcela.categoria,
       });
     });
+
     return [...despesasUnicas, ...financiamentos];
   }, [data]);
 
-  const handleAddClick = () => { setSelectedDespesa(null); onDrawerOpen(); };
-  
+  const handleAddClick = () => { 
+    setSelectedDespesa(null); 
+    onDrawerOpen(); 
+  };
+
   const handleEditClick = () => {
     toast({
         title: 'Função em desenvolvimento',
@@ -123,15 +137,22 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
     });
   };
 
-  const handleDeleteClick = (item: IDespesaPessoal | IFinanciamentoAgrupado) => { setItemParaDeletar(item); onConfirmOpen(); };
-  
+  const handleDeleteClick = (item: IDespesaPessoal | IFinanciamentoAgrupado) => { 
+    setItemParaDeletar(item); 
+    onConfirmOpen(); 
+  };
+
   const handleConfirmDelete = () => {
     if (!itemParaDeletar) return;
-    const idParaDeletar = 'proximaParcela' in itemParaDeletar ? itemParaDeletar.proximaParcela.id : itemParaDeletar.id;
+    const idParaDeletar = 'proximaParcela' in itemParaDeletar 
+      ? itemParaDeletar.proximaParcela.id 
+      : itemParaDeletar.id;
     deleteMutation.mutate(idParaDeletar);
   };
-  
-  const handleSave = (formData: IDespesaPessoalForm) => { saveMutation.mutate(formData); };
+
+  const handleSave = (formData: IDespesaPessoalForm) => { 
+    saveMutation.mutate(formData); 
+  };
 
   return (
     <Box>
@@ -170,7 +191,6 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
                       </Td>
                       <Td>
                         <HStack>
-                          {/* CORREÇÃO AQUI */}
                           <IconButton aria-label="Editar" icon={<FiEdit />} onClick={handleEditClick} isDisabled />
                           <IconButton aria-label="Excluir" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDeleteClick(financiamento)} />
                         </HStack>
@@ -192,7 +212,6 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
                     </Td>
                     <Td>
                       <HStack>
-                        {/* CORREÇÃO AQUI */}
                         <IconButton aria-label="Editar" icon={<FiEdit />} onClick={handleEditClick} />
                         <IconButton aria-label="Excluir" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDeleteClick(despesa)} />
                       </HStack>
