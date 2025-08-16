@@ -17,11 +17,10 @@ import {
 } from '../services/despesaPessoal.service';
 import { FormularioDespesaPessoal } from './FormularioDespesaPessoal';
 
-// Interface para agrupar os dados de um financiamento para exibição na tabela
 interface IFinanciamentoAgrupado {
   parcela_id: string;
   descricaoBase: string;
-  proximaParcela: IDespesaPessoal; // A próxima parcela pendente
+  proximaParcela: IDespesaPessoal;
   saldoRestante: number;
   totalParcelas: number;
   categoria?: string | null;
@@ -104,11 +103,21 @@ export const TabelaDespesasPessoais = ({ filters }: TabelaDespesasPessoaisProps)
 
     const financiamentos: IFinanciamentoAgrupado[] = [];
     grupos.forEach((parcelasDoGrupo) => {
-      const proximaParcela = parcelasDoGrupo.sort((a, b) => a.numero_parcela! - b.numero_parcela!).find(p => !p.pago);
+      // **INÍCIO DA CORREÇÃO**
+      // Encontra a primeira parcela não paga para ser a "próxima"
+      const proximaParcela = parcelasDoGrupo
+        .sort((a, b) => a.numero_parcela! - b.numero_parcela!)
+        .find(p => !p.pago);
+
+      // Se não encontrou nenhuma parcela não paga, significa que o financiamento
+      // está quitado. Nesse caso, pulamos para o próximo grupo.
       if (!proximaParcela) {
-        return;
+        return; 
       }
+      // **FIM DA CORREÇÃO**
+
       const saldoRestante = parcelasDoGrupo.reduce((acc, p) => !p.pago ? acc + p.valor : acc, 0);
+      
       financiamentos.push({
         parcela_id: proximaParcela.parcela_id!,
         descricaoBase: proximaParcela.descricao.replace(/\s*\(\d+\/\d+\)$/, ''),
