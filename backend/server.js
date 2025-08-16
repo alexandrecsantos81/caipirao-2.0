@@ -12,9 +12,11 @@ const fornecedorRoutes = require('./routes/fornecedorRoutes');
 const despesaRoutes = require('./routes/despesaRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const reportRoutes = require('./routes/reports');
-const receitaExternaRoutes = require('./routes/receitaExternaRoutes'); // <-- ADICIONADO
+const receitaExternaRoutes = require('./routes/receitaExternaRoutes');
 const financasRoutes = require('./routes/financasRoutes');
+// >>> IMPORTAÇÃO DA NOVA ROTA <<<
 const despesaPessoalRoutes = require('./routes/despesaPessoalRoutes');
+
 const app = express();
 const port = process.env.PORT || 3001;
 
@@ -56,8 +58,9 @@ app.use('/api/produtos', produtoRoutes);
 app.use('/api/movimentacoes', movimentacaoRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/reports', reportRoutes);
-app.use('/api/receitas-externas', receitaExternaRoutes); // <-- ADICIONADO
+app.use('/api/receitas-externas', receitaExternaRoutes);
 app.use('/api/financas', financasRoutes);
+// >>> REGISTRO DA NOVA ROTA <<<
 app.use('/api/despesas-pessoais', despesaPessoalRoutes);
 
 // Iniciar o servidor
