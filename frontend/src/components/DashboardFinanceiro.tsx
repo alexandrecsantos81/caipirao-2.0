@@ -3,7 +3,7 @@ import {
   Skeleton, useColorModeValue, Heading, Center, Text, Icon, HStack
 } from '@chakra-ui/react';
 import { useQuery } from '@tanstack/react-query';
-import { FiArrowDown, FiArrowUp, FiTrendingUp, FiTrendingDown, FiDollarSign, FiMinusCircle } from 'react-icons/fi';
+import { FiArrowDown, FiArrowUp, FiTrendingUp, FiTrendingDown, FiDollarSign, FiMinusCircle, FiPlusCircle } from 'react-icons/fi';
 import { getDashboardConsolidado, IDateFilter } from '../services/financas.service';
 
 interface DashboardFinanceiroProps {
@@ -37,8 +37,8 @@ export const DashboardFinanceiro = ({ filters }: DashboardFinanceiroProps) => {
                 <Text color="red.500">Erro ao carregar os indicadores.</Text>
             </Center>
         ) : (
-        <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
-          {/* Card de Receita Total */}
+        <SimpleGrid columns={{ base: 1, md: 2, lg: 5 }} spacing={6}>
+          {/* 1. Card de Receita Total */}
           <Stat p={5} borderWidth={1} borderRadius="md" bg={cardBg} borderColor={cardBorder}>
             <HStack justify="space-between">
               <StatLabel>Receita Total Consolidada</StatLabel>
@@ -48,7 +48,7 @@ export const DashboardFinanceiro = ({ filters }: DashboardFinanceiroProps) => {
             <StatHelpText>Receitas do Negócio + Pessoais</StatHelpText>
           </Stat>
 
-          {/* Card de Despesa Total */}
+          {/* 2. Card de Despesa Total */}
           <Stat p={5} borderWidth={1} borderRadius="md" bg={cardBg} borderColor={cardBorder}>
             <HStack justify="space-between">
               <StatLabel>Despesa Total Consolidada</StatLabel>
@@ -58,7 +58,17 @@ export const DashboardFinanceiro = ({ filters }: DashboardFinanceiroProps) => {
             <StatHelpText>Despesas do Negócio + Pessoais</StatHelpText>
           </Stat>
 
-          {/* Card de Despesas Pessoais (NOVO) */}
+          {/* 3. Card de Receitas Pessoais (NOVO) */}
+          <Stat p={5} borderWidth={1} borderRadius="md" bg={cardBg} borderColor={cardBorder}>
+            <HStack justify="space-between">
+              <StatLabel>Apenas Receitas Pessoais</StatLabel>
+              <Icon as={FiPlusCircle} color="cyan.400" w={6} h={6} />
+            </HStack>
+            <StatNumber color="cyan.500">{formatCurrency(kpis?.receitasPessoais)}</StatNumber>
+            <StatHelpText>Receitas fora do negócio</StatHelpText>
+          </Stat>
+
+          {/* 4. Card de Despesas Pessoais */}
           <Stat p={5} borderWidth={1} borderRadius="md" bg={cardBg} borderColor={cardBorder}>
             <HStack justify="space-between">
               <StatLabel>Apenas Despesas Pessoais</StatLabel>
@@ -68,7 +78,7 @@ export const DashboardFinanceiro = ({ filters }: DashboardFinanceiroProps) => {
             <StatHelpText>Gastos fora do negócio</StatHelpText>
           </Stat>
 
-          {/* Card de Saldo Consolidado */}
+          {/* 5. Card de Saldo Consolidado */}
           <Stat p={5} borderWidth={1} borderRadius="md" bg={cardBg} borderColor={cardBorder}>
             <HStack justify="space-between">
               <StatLabel>Saldo Consolidado</StatLabel>
@@ -85,10 +95,6 @@ export const DashboardFinanceiro = ({ filters }: DashboardFinanceiroProps) => {
         </SimpleGrid>
         )}
       </Skeleton>
-
-      <Center h="200px" mt={8} borderWidth="2px" borderStyle="dashed" borderRadius="md" bg={useColorModeValue('gray.50', 'gray.800')}>
-        <Text color="gray.500">Área reservada para futuros gráficos consolidados.</Text>
-      </Center>
     </Box>
   );
 };

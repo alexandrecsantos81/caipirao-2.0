@@ -14,14 +14,21 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// --- INTERFACES ATUALIZADAS ---
+// --- INTERFACES ---
+
+export interface IDateFilter {
+    startDate: string;
+    endDate: string;
+}
+
 export interface IFinancasConsolidadasKPIs {
   receitasCaipirao: number;
   despesasCaipirao: number;
   receitasExternas: number;
-  despesasPessoais: number; // NOVO
+  receitasPessoais: number; // NOVO
+  despesasPessoais: number;
   receitaTotalConsolidada: number;
-  despesaTotalConsolidada: number; // NOVO
+  despesaTotalConsolidada: number;
   saldoConsolidado: number;
 }
 
@@ -29,12 +36,25 @@ export interface IDashboardConsolidadoResponse {
   kpis: IFinancasConsolidadasKPIs;
 }
 
-export interface IDateFilter {
-    startDate: string;
-    endDate: string;
+export interface IDespesaPorCategoria {
+  name: string;
+  value: number;
 }
 
-// --- FUNÇÃO DO SERVIÇO ---
+export interface IBalancoMensal {
+  name: string;
+  receitas: number;
+  despesas: number;
+}
+
+export interface IAnaliseFinanceiraResponse {
+  despesasPorCategoria: IDespesaPorCategoria[];
+  balancoMensal: IBalancoMensal[];
+}
+
+
+// --- FUNÇÕES DO SERVIÇO ---
+
 export const getDashboardConsolidado = async (filters: IDateFilter): Promise<IDashboardConsolidadoResponse> => {
   const response = await apiClient.get('/dashboard-consolidado', {
     params: filters,
@@ -42,11 +62,17 @@ export const getDashboardConsolidado = async (filters: IDateFilter): Promise<IDa
   return response.data;
 };
 
-// Funções para gerar relatórios em PDF
+export const getAnaliseFinanceira = async (filters: IDateFilter): Promise<IAnaliseFinanceiraResponse> => {
+  const response = await apiClient.get('/analise-mensal', {
+    params: filters,
+  });
+  return response.data;
+};
+
 const getPdf = async (url: string, params: any): Promise<Blob> => {
   const response = await apiClient.get(url, {
     params,
-    responseType: 'blob', // Importante para receber o arquivo
+    responseType: 'blob',
   });
   return new Blob([response.data], { type: 'application/pdf' });
 };
