@@ -6,6 +6,7 @@ import { useForm, SubmitHandler } from 'react-hook-form';
 import { useEffect } from 'react';
 import { IReceitaExterna, IReceitaExternaForm } from '../services/receitaExterna.service';
 
+// A interface de props está correta, sem a propriedade 'portalContainerRef'.
 interface FormularioReceitaProps {
   isOpen: boolean;
   onClose: () => void;
@@ -41,6 +42,7 @@ export const FormularioReceita = ({ isOpen, onClose, receita, onSave, isLoading 
   };
 
   return (
+    // O componente Drawer não possui mais a propriedade 'portalProps'.
     <Drawer 
       isOpen={isOpen} 
       placement="right" 
@@ -53,7 +55,6 @@ export const FormularioReceita = ({ isOpen, onClose, receita, onSave, isLoading 
         <DrawerCloseButton />
         <DrawerBody>
           <VStack spacing={4}>
-            {/* --- VALIDAÇÃO APLICADA --- */}
             <FormControl isRequired isInvalid={!!errors.descricao}>
               <FormLabel>Descrição</FormLabel>
               <Input 
@@ -78,7 +79,6 @@ export const FormularioReceita = ({ isOpen, onClose, receita, onSave, isLoading 
               />
               <FormErrorMessage>{errors.valor?.message}</FormErrorMessage>
             </FormControl>
-            {/* --- FIM DA VALIDAÇÃO --- */}
             <FormControl isRequired isInvalid={!!errors.data_recebimento}>
               <FormLabel>Data de Recebimento</FormLabel>
               <Input type="date" {...register('data_recebimento', { required: 'Data é obrigatória' })} />

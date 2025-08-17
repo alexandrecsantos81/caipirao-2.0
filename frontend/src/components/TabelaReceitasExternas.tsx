@@ -1,26 +1,19 @@
-// frontend/src/components/TabelaReceitasExternas.tsx (COMPLETO E CORRIGIDO)
-
 import {
   Box, Button, Flex, Heading, IconButton, Spinner, Table, TableContainer, Tbody, Td, Text,
   Th, Thead, Tr, useDisclosure, useToast, HStack,
   AlertDialog, AlertDialogBody, AlertDialogFooter, AlertDialogContent, AlertDialogOverlay,
-  Center, ModalHeader
+  Center, AlertDialogHeader // <--- CORREÇÃO APLICADA AQUI
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef } from 'react';
 
 import {
   IReceitaExterna, IReceitaExternaForm, getReceitasExternas, createReceitaExterna, updateReceitaExterna, deleteReceitaExterna
 } from '../services/receitaExterna.service';
 import { FormularioReceita } from './FormularioReceita';
 
-interface TabelaReceitasExternasProps {
-  filters: { startDate: string; endDate: string };
-  termoBusca: string;
-}
-
-export const TabelaReceitasExternas = ({ filters, termoBusca }: TabelaReceitasExternasProps) => {
+export const TabelaReceitasExternas = () => {
     const queryClient = useQueryClient();
     const toast = useToast();
     const { isOpen: isDrawerOpen, onOpen: onDrawerOpen, onClose: onDrawerClose } = useDisclosure();
@@ -28,26 +21,11 @@ export const TabelaReceitasExternas = ({ filters, termoBusca }: TabelaReceitasEx
     const [selectedReceita, setSelectedReceita] = useState<IReceitaExterna | null>(null);
     const [itemParaDeletar, setItemParaDeletar] = useState<IReceitaExterna | null>(null);
     const cancelRef = useRef<HTMLButtonElement>(null);
-    // --- INÍCIO DA CORREÇÃO ---
-    const portalContainerRef = useRef<HTMLDivElement>(null);
-    // --- FIM DA CORREÇÃO ---
 
     const { data, isLoading, isError } = useQuery({
-        queryKey: ['receitasExternas', filters],
-        queryFn: () => getReceitasExternas(filters.startDate, filters.endDate),
-        enabled: !!filters.startDate && !!filters.endDate,
+        queryKey: ['receitasExternas'],
+        queryFn: () => getReceitasExternas(),
     });
-
-    const receitasFiltradas = useMemo(() => {
-      if (!data) return [];
-      if (!termoBusca) return data;
-
-      const termo = termoBusca.toLowerCase();
-      return data.filter(receita => 
-        receita.descricao.toLowerCase().includes(termo) ||
-        (receita.categoria && receita.categoria.toLowerCase().includes(termo))
-      );
-    }, [data, termoBusca]);
 
     const saveMutation = useMutation({
         mutationFn: ({ data, id }: { data: IReceitaExternaForm; id?: number }) =>
@@ -84,10 +62,6 @@ export const TabelaReceitasExternas = ({ filters, termoBusca }: TabelaReceitasEx
 
     return (
         <Box>
-            {/* --- INÍCIO DA CORREÇÃO --- */}
-            <div ref={portalContainerRef} />
-            {/* --- FIM DA CORREÇÃO --- */}
-
             <Flex justify="space-between" align="center" mb={6} direction={{ base: 'column', md: 'row' }} gap={4}>
                 <Heading textAlign={{ base: 'center', md: 'left' }}>Gestão de Receitas Externas</Heading>
                 <Button leftIcon={<FiPlus />} colorScheme="green" onClick={handleAddClick} w={{ base: 'full', md: 'auto' }}>
@@ -100,7 +74,7 @@ export const TabelaReceitasExternas = ({ filters, termoBusca }: TabelaReceitasEx
                 <Table variant="striped">
                     <Thead><Tr><Th>Data</Th><Th>Descrição</Th><Th>Categoria</Th><Th isNumeric>Valor (R$)</Th><Th>Ações</Th></Tr></Thead>
                     <Tbody>
-                    {receitasFiltradas.map((receita) => (
+                    {data?.map((receita) => (
                         <Tr key={receita.id}><Td>{new Date(receita.data_recebimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Td><Td>{receita.descricao}</Td><Td>{receita.categoria || '---'}</Td><Td isNumeric color="green.500" fontWeight="bold">{receita.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td><Td><HStack><IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleEditClick(receita)} /><IconButton aria-label="Excluir" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDeleteClick(receita)} /></HStack></Td></Tr>
                     ))}
                     </Tbody>
@@ -108,19 +82,25 @@ export const TabelaReceitasExternas = ({ filters, termoBusca }: TabelaReceitasEx
                 </TableContainer>
             )}
 
-            {/* --- INÍCIO DA CORREÇÃO --- */}
             <FormularioReceita 
                 isOpen={isDrawerOpen} 
                 onClose={onDrawerClose} 
                 receita={selectedReceita} 
                 onSave={handleSave} 
-                isLoading={saveMutation.isPending}
-                portalContainerRef={portalContainerRef}
+                isLoading={saveMutation.isPending} 
             />
-            {/* --- FIM DA CORREÇÃO --- */}
             
             <AlertDialog isOpen={isConfirmOpen} leastDestructiveRef={cancelRef} onClose={onConfirmClose} isCentered>
-                <AlertDialogOverlay /><AlertDialogContent><ModalHeader>Confirmar Exclusão</ModalHeader><AlertDialogBody>Tem certeza que deseja excluir a receita "<strong>{itemParaDeletar?.descricao}</strong>"?</AlertDialogBody><AlertDialogFooter><Button ref={cancelRef} onClick={onConfirmClose}>Cancelar</Button><Button colorScheme="red" onClick={handleConfirmDelete} ml={3} isLoading={deleteMutation.isPending}>Sim, Excluir</Button></AlertDialogFooter></AlertDialogContent>
+                <AlertDialogOverlay />
+                <AlertDialogContent>
+                    {/* O erro estava aqui, pois AlertDialogHeader não estava importado */}
+                    <AlertDialogHeader>Confirmar Exclusão</AlertDialogHeader>
+                    <AlertDialogBody>Tem certeza que deseja excluir a receita "<strong>{itemParaDeletar?.descricao}</strong>"?</AlertDialogBody>
+                    <AlertDialogFooter>
+                        <Button ref={cancelRef} onClick={onConfirmClose}>Cancelar</Button>
+                        <Button colorScheme="red" onClick={handleConfirmDelete} ml={3} isLoading={deleteMutation.isPending}>Sim, Excluir</Button>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
             </AlertDialog>
         </Box>
     );
