@@ -80,33 +80,88 @@ const getDespesas = async (req, res) => {
 
 const quitarDespesa = async (req, res) => {
     const { id } = req.params;
-    const { data_pagamento, responsavel_pagamento_id } = req.body;
+    const { data_pagamento, responsavel_pagamento_id, valor_pago } = req.body;
     const userIdFromToken = req.user.id;
 
-    if (!data_pagamento) {
-        return res.status(400).json({ error: 'A data de pagamento é obrigatória.' });
+    if (!data_pagamento || valor_pago === undefined || valor_pago <= 0) {
+        return res.status(400).json({ error: 'Data de pagamento e um valor pago válido são obrigatórios.' });
     }
     
     const responsavelId = responsavel_pagamento_id || userIdFromToken;
+    const client = await pool.connect();
+
     try {
-        const despesaQuitada = await pool.query(
-            `UPDATE despesas 
-             SET data_pagamento = $1, responsavel_pagamento_id = $2 
-             WHERE id = $3 AND data_pagamento IS NULL
-             RETURNING *`,
-            [data_pagamento, responsavelId, id]
+        await client.query('BEGIN');
+
+        const despesaOriginalResult = await client.query(
+            'SELECT * FROM despesas WHERE id = $1 AND data_pagamento IS NULL FOR UPDATE', 
+            [id]
         );
 
-        if (despesaQuitada.rowCount === 0) {
-            return res.status(404).json({ error: 'Despesa não encontrada ou já quitada.' });
+        if (despesaOriginalResult.rowCount === 0) {
+            throw new Error('Despesa não encontrada ou já quitada.');
         }
 
-        res.status(200).json(despesaQuitada.rows[0]);
+        const despesaOriginal = despesaOriginalResult.rows[0];
+        const valorPagoNumerico = parseFloat(valor_pago);
+
+        // --- NOVA RESTRIÇÃO ---
+        // Impede que o valor pago seja maior que o valor devido.
+        if (valorPagoNumerico > despesaOriginal.valor) {
+            return res.status(400).json({ error: `O valor a pagar (R$ ${valorPagoNumerico.toFixed(2)}) não pode ser maior que o saldo devedor (R$ ${despesaOriginal.valor.toFixed(2)}).` });
+        }
+        // --- FIM DA RESTRIÇÃO ---
+
+        const valorRestante = despesaOriginal.valor - valorPagoNumerico;
+
+        if (valorRestante <= 0) { // Usar <= 0 para lidar com imprecisões de ponto flutuante
+            // --- LÓGICA DE QUITAÇÃO TOTAL ---
+            const despesaQuitada = await client.query(
+                `UPDATE despesas 
+                 SET data_pagamento = $1, responsavel_pagamento_id = $2, valor = $3
+                 WHERE id = $4
+                 RETURNING *`,
+                [data_pagamento, responsavelId, valorPagoNumerico, id] // Garante que o valor pago seja registrado corretamente
+            );
+            await client.query('COMMIT');
+            return res.status(200).json(despesaQuitada.rows[0]);
+
+        } else {
+            // --- LÓGICA DE PAGAMENTO PARCIAL ---
+            await client.query(
+                'UPDATE despesas SET valor = $1 WHERE id = $2',
+                [valorRestante, id]
+            );
+
+            const novaDespesaQuitada = await client.query(
+                `INSERT INTO despesas (tipo_saida, valor, discriminacao, data_compra, data_vencimento, data_pagamento, fornecedor_id, responsavel_pagamento_id)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                 RETURNING *`,
+                [
+                    despesaOriginal.tipo_saida,
+                    valorPagoNumerico,
+                    `PAGAMENTO PARCIAL - REF. DESPESA #${id} - ${despesaOriginal.discriminacao}`,
+                    despesaOriginal.data_compra,
+                    despesaOriginal.data_vencimento,
+                    data_pagamento,
+                    despesaOriginal.fornecedor_id,
+                    responsavelId
+                ]
+            );
+            
+            await client.query('COMMIT');
+            return res.status(200).json(novaDespesaQuitada.rows[0]);
+        }
+
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('Erro ao quitar despesa:', error);
-        res.status(500).json({ error: 'Erro interno do servidor.' });
+        res.status(500).json({ error: error.message || 'Erro interno do servidor.' });
+    } finally {
+        client.release();
     }
 };
+
 
 const getDespesasAPagar = async (req, res) => {
     try {
@@ -181,4 +236,5 @@ module.exports = {
     getDespesasAPagar,
     updateDespesa,
     deleteDespesa,
+    quitarDespesa,
 };
