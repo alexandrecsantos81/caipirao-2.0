@@ -100,8 +100,6 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
     }
   }, [produtoIdAtual, produtos]);
 
-  // CORREÇÃO DEFINITIVA:
-  // 1. `valorTotalBase` calcula o total dos itens já adicionados.
   const valorTotalBase = useMemo(() => {
     return produtosNaVenda.reduce((total, item) => {
       const preco = item.preco_manual ?? item.preco_original;
@@ -109,11 +107,10 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
     }, 0);
   }, [produtosNaVenda]);
 
-  // 2. `valorTotalComItemAtual` adiciona o valor do item que está sendo digitado.
   const valorTotalComItemAtual = useMemo(() => {
     const produtoInfo = produtos?.find(p => p.id === Number(produtoIdAtual));
     if (!produtoInfo || !quantidadeAtual) {
-      return valorTotalBase; // Se não houver produto ou quantidade, retorna apenas o total da lista
+      return valorTotalBase;
     }
 
     const precoUnitario = Number(precoManualAtual) || produtoInfo.price;
@@ -329,7 +326,6 @@ const FormularioNovaVenda = ({ isOpen, onClose, vendaParaEditar }: { isOpen: boo
                 <Box textAlign="right">
                   <Text fontSize="lg">Vendedor: {user?.nome}</Text>
                   <Heading size="lg" color="teal.500">
-                    {/* 3. Usar a nova variável para exibir o total dinâmico */}
                     Total: {valorTotalComItemAtual.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </Heading>
                 </Box>
@@ -445,7 +441,6 @@ const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: { isOpen:
     </Drawer>
   );
 };
-
 // --- COMPONENTE TABELA VENDAS ---
 const TabelaVendas = ({ onEdit, onDelete, onGeneratePdf, buscaDebounced }: { 
   onEdit: (venda: IVenda) => void; 
@@ -570,7 +565,15 @@ const TabelaDespesas = ({ onEdit, onDelete, buscaDebounced }: { onEdit: (despesa
                 <Heading size="sm" noOfLines={1}>{despesa.discriminacao}</Heading>
                 {isAdmin && (
                    <HStack spacing={1}>
-                    <IconButton aria-label="Editar" icon={<FiEdit />} size="sm" onClick={() => onEdit(despesa)} />
+                    <Tooltip label="Não é possível editar um registro de pagamento parcial" isDisabled={!despesa.discriminacao.startsWith('PAGAMENTO PARCIAL')}>
+                      <IconButton 
+                        aria-label="Editar" 
+                        icon={<FiEdit />} 
+                        size="sm" 
+                        onClick={() => onEdit(despesa)} 
+                        isDisabled={despesa.discriminacao.startsWith('PAGAMENTO PARCIAL')}
+                      />
+                    </Tooltip>
                     <IconButton aria-label="Excluir" icon={<FiTrash2 />} size="sm" colorScheme="red" onClick={() => onDelete(despesa.id)} />
                   </HStack>
                 )}
@@ -620,7 +623,14 @@ const TabelaDespesas = ({ onEdit, onDelete, buscaDebounced }: { onEdit: (despesa
               <Td><Badge colorScheme={despesa.data_pagamento ? 'green' : 'orange'}>{despesa.data_pagamento ? 'Pago' : 'Pendente'}</Badge></Td>
               <Td isNumeric>{despesa.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
               {isAdmin && (<Td><HStack spacing={2}>
-                <IconButton aria-label="Editar" icon={<FiEdit />} size="sm" onClick={() => onEdit(despesa)} />
+                <Tooltip label="Não é possível editar um registro de pagamento parcial" isDisabled={!despesa.discriminacao.startsWith('PAGAMENTO PARCIAL')}>
+                    <IconButton 
+                        aria-label="Editar" 
+                        icon={<FiEdit />} 
+                        onClick={() => onEdit(despesa)} 
+                        isDisabled={despesa.discriminacao.startsWith('PAGAMENTO PARCIAL')}
+                    />
+                </Tooltip>
                 <IconButton aria-label="Excluir" icon={<FiTrash2 />} size="sm" colorScheme="red" onClick={() => onDelete(despesa.id)} />
               </HStack></Td>)}
              </Tr>
@@ -631,7 +641,6 @@ const TabelaDespesas = ({ onEdit, onDelete, buscaDebounced }: { onEdit: (despesa
     </>
   );
 };
-
 // --- PÁGINA PRINCIPAL DE MOVIMENTAÇÕES ---
 const MovimentacoesPage = () => {
   const { user } = useAuth();
@@ -691,7 +700,9 @@ const MovimentacoesPage = () => {
   const deleteDespesaMutation = useMutation({ 
     mutationFn: deleteDespesa, 
     onSuccess: () => { 
-      queryClient.invalidateQueries({ queryKey: ['despesas'] }); 
+      queryClient.invalidateQueries({ queryKey: ['despesas'] });
+      queryClient.invalidateQueries({ queryKey: ['contasAPagar'] }); // Invalida contas a pagar também
+      queryClient.invalidateQueries({ queryKey: ['dashboardKPIs'] }); // Invalida KPIs do dashboard
       toast({ title: 'Despesa excluída!', status: 'success' }); 
       onConfirmClose(); 
     },

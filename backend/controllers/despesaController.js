@@ -25,7 +25,6 @@ const registrarDespesa = async (req, res) => {
 };
 
 const getDespesas = async (req, res) => {
-    // ✅ Define o limite padrão como 50
     const { pagina = 1, limite = 50, termoBusca } = req.query;
     const offset = (pagina - 1) * limite;
 
@@ -50,7 +49,6 @@ const getDespesas = async (req, res) => {
         const totalItens = parseInt(totalResult.rows[0].count, 10);
         const totalPaginas = Math.ceil(totalItens / limite);
 
-        // ✅ Altera a ordenação para 'data_criacao DESC'
         const despesasQuery = `
             SELECT 
                 d.*, 
@@ -105,37 +103,33 @@ const quitarDespesa = async (req, res) => {
         const despesaOriginal = despesaOriginalResult.rows[0];
         const valorPagoNumerico = parseFloat(valor_pago);
 
-        // --- NOVA RESTRIÇÃO ---
-        // Impede que o valor pago seja maior que o valor devido.
         if (valorPagoNumerico > despesaOriginal.valor) {
+            await client.query('ROLLBACK');
             return res.status(400).json({ error: `O valor a pagar (R$ ${valorPagoNumerico.toFixed(2)}) não pode ser maior que o saldo devedor (R$ ${despesaOriginal.valor.toFixed(2)}).` });
         }
-        // --- FIM DA RESTRIÇÃO ---
 
         const valorRestante = despesaOriginal.valor - valorPagoNumerico;
 
-        if (valorRestante <= 0) { // Usar <= 0 para lidar com imprecisões de ponto flutuante
-            // --- LÓGICA DE QUITAÇÃO TOTAL ---
+        if (valorRestante <= 0.009) { // Usar uma pequena margem para evitar problemas com ponto flutuante
             const despesaQuitada = await client.query(
                 `UPDATE despesas 
                  SET data_pagamento = $1, responsavel_pagamento_id = $2, valor = $3
                  WHERE id = $4
                  RETURNING *`,
-                [data_pagamento, responsavelId, valorPagoNumerico, id] // Garante que o valor pago seja registrado corretamente
+                [data_pagamento, responsavelId, despesaOriginal.valor, id]
             );
             await client.query('COMMIT');
             return res.status(200).json(despesaQuitada.rows[0]);
 
         } else {
-            // --- LÓGICA DE PAGAMENTO PARCIAL ---
             await client.query(
                 'UPDATE despesas SET valor = $1 WHERE id = $2',
                 [valorRestante, id]
             );
 
             const novaDespesaQuitada = await client.query(
-                `INSERT INTO despesas (tipo_saida, valor, discriminacao, data_compra, data_vencimento, data_pagamento, fornecedor_id, responsavel_pagamento_id)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                `INSERT INTO despesas (tipo_saida, valor, discriminacao, data_compra, data_vencimento, data_pagamento, fornecedor_id, responsavel_pagamento_id, despesa_pai_id)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                  RETURNING *`,
                 [
                     despesaOriginal.tipo_saida,
@@ -145,7 +139,8 @@ const quitarDespesa = async (req, res) => {
                     despesaOriginal.data_vencimento,
                     data_pagamento,
                     despesaOriginal.fornecedor_id,
-                    responsavelId
+                    responsavelId,
+                    id
                 ]
             );
             
@@ -161,7 +156,6 @@ const quitarDespesa = async (req, res) => {
         client.release();
     }
 };
-
 
 const getDespesasAPagar = async (req, res) => {
     try {
@@ -217,17 +211,45 @@ const updateDespesa = async (req, res) => {
 
 const deleteDespesa = async (req, res) => {
     const { id } = req.params;
+    const client = await pool.connect();
+
     try {
-        const resultado = await pool.query('DELETE FROM despesas WHERE id = $1', [id]);
-        if (resultado.rowCount === 0) {
-            return res.status(404).json({ error: 'Despesa não encontrada.' });
+        await client.query('BEGIN');
+
+        const despesaParaDeletarResult = await client.query('SELECT * FROM despesas WHERE id = $1', [id]);
+
+        if (despesaParaDeletarResult.rowCount === 0) {
+            throw new Error('Despesa não encontrada.');
         }
+
+        const despesaParaDeletar = despesaParaDeletarResult.rows[0];
+
+        if (despesaParaDeletar.despesa_pai_id) {
+            await client.query(
+                `UPDATE despesas 
+                 SET valor = valor + $1 
+                 WHERE id = $2`,
+                [despesaParaDeletar.valor, despesaParaDeletar.despesa_pai_id]
+            );
+        }
+
+        await client.query('DELETE FROM despesas WHERE id = $1', [id]);
+
+        await client.query('COMMIT');
         res.status(204).send();
+
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('Erro ao deletar despesa:', error);
-        res.status(500).json({ error: 'Erro interno do servidor.' });
+        if (error.code === '23503') { // Checagem de chave estrangeira
+            return res.status(400).json({ error: 'Não é possível excluir esta despesa, pois ela é referência para um pagamento parcial. Exclua o pagamento primeiro.' });
+        }
+        res.status(500).json({ error: error.message || 'Erro interno do servidor.' });
+    } finally {
+        client.release();
     }
 };
+
 
 module.exports = {
     registrarDespesa,

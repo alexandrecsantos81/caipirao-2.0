@@ -1,6 +1,6 @@
 -- =====================================================================
 --  SCRIPT COMPLETO DO BANCO DE DADOS - CAIPIRÃO 3.0
---  Versão: 2025-08-16
+--  Versão: 2025-08-17
 --  Este script apaga as tabelas existentes para garantir uma
 --  recriação limpa. Ideal para ambientes de desenvolvimento e
 --  para configurar o banco de dados pela primeira vez.
@@ -14,7 +14,7 @@
 DROP TABLE IF EXISTS movimentacoes;
 DROP TABLE IF EXISTS entradas_estoque;
 DROP TABLE IF EXISTS despesas;
-DROP TABLE IF EXISTS despesas_pessoais; -- Adicionada à lista de exclusão
+DROP TABLE IF EXISTS despesas_pessoais;
 DROP TABLE IF EXISTS receitas_externas;
 DROP TABLE IF EXISTS fornecedores;
 DROP TABLE IF EXISTS produtos;
@@ -102,6 +102,7 @@ CREATE TABLE despesas (
     data_pagamento DATE DEFAULT NULL,
     fornecedor_id INT REFERENCES fornecedores(id) ON DELETE SET NULL,
     responsavel_pagamento_id INT REFERENCES utilizadores(id) ON DELETE SET NULL,
+    despesa_pai_id INT REFERENCES despesas(id) ON DELETE SET NULL, -- <<< COLUNA ADICIONADA AQUI
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -156,4 +157,5 @@ CREATE INDEX IF NOT EXISTS idx_despesas_pessoais_parcela_id ON despesas_pessoais
 
 -- Inserir um utilizador ADMIN padrão
 INSERT INTO utilizadores (nome, email, nickname, telefone, senha, perfil, status) VALUES 
-('Admin Principal', 'admin@caipirao.com', 'admin', '00000000000', '$2a$10$ExemploDeHashSeguroNaoUseIsso', 'ADMIN', 'ATIVO');
+('Admin Principal', 'admin@caipirao.com', 'admin', '00000000000', '$2a$10$ExemploDeHashSeguroNaoUseIsso', 'ADMIN', 'ATIVO')
+ON CONFLICT (email) DO NOTHING; -- Evita erro se o admin já existir
