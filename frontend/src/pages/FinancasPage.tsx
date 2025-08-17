@@ -16,7 +16,7 @@ import { useMutation } from '@tanstack/react-query';
 import { DashboardFinanceiro } from '../components/DashboardFinanceiro';
 import { TabelaReceitasExternas } from '../components/TabelaReceitasExternas';
 import { TabelaDespesasPessoais } from '../components/TabelaDespesasPessoais';
-import { useDebounce } from '@/hooks/useDebounce';
+import { useDebounce } from '../hooks/useDebounce';
 import { getDespesasPessoaisPdf, getReceitasPessoaisPdf } from '../services/financas.service';
 
 const FinancasPage = () => {
@@ -43,14 +43,12 @@ const FinancasPage = () => {
   };
 
   const despesasPdfMutation = useMutation({ mutationFn: getDespesasPessoaisPdf, onSuccess: onPdfSuccess, onError: onPdfError });
-  // A mutação agora usa o nome correto da função: getReceitasPessoaisPdf
   const receitasPdfMutation = useMutation({ mutationFn: getReceitasPessoaisPdf, onSuccess: onPdfSuccess, onError: onPdfError });
-
+  
   const handleGeneratePDF = () => {
     toast({ title: 'Gerando relatório...', status: 'info', duration: 1500 });
     const filters = { startDate, endDate };
     if (activeTab === 1) { // Aba Receitas
-      // A chamada da mutação para receitas agora usa a função correta
       receitasPdfMutation.mutate(filters);
     } else if (activeTab === 2) { // Aba Despesas
       despesasPdfMutation.mutate(filters);
@@ -113,7 +111,8 @@ const FinancasPage = () => {
                 <Input placeholder="Buscar por descrição ou categoria..." value={termoBusca} onChange={(e) => setTermoBusca(e.target.value)} />
               </InputGroup>
             </Box>
-            <TabelaReceitasExternas filters={{ startDate, endDate }} termoBusca={buscaDebounced} />
+            {/* --- CORREÇÃO APLICADA AQUI --- */}
+            <TabelaReceitasExternas />
           </TabPanel>
           <TabPanel>
             <Box mb={6}>
