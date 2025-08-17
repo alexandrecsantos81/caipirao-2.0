@@ -42,4 +42,19 @@ export const getDashboardConsolidado = async (filters: IDateFilter): Promise<IDa
   return response.data;
 };
 
-//ATUALIZAÇÃO
+// Funções para gerar relatórios em PDF
+const getPdf = async (url: string, params: any): Promise<Blob> => {
+  const response = await apiClient.get(url, {
+    params,
+    responseType: 'blob', // Importante para receber o arquivo
+  });
+  return new Blob([response.data], { type: 'application/pdf' });
+};
+
+export const getReceitasPessoaisPdf = async (filters: IDateFilter): Promise<Blob> => {
+  return getPdf('/report/receitas-pessoais/pdf', filters);
+};
+
+export const getDespesasPessoaisPdf = async (filters: IDateFilter): Promise<Blob> => {
+  return getPdf('/report/despesas-pessoais/pdf', filters);
+};

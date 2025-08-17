@@ -1,11 +1,9 @@
-// frontend/src/components/FormularioReceita.tsx
-
 import {
   Drawer, DrawerBody, DrawerFooter, DrawerHeader, DrawerOverlay, DrawerContent, DrawerCloseButton,
   Button, VStack, FormControl, FormLabel, Input, FormErrorMessage, useBreakpointValue
 } from '@chakra-ui/react';
 import { useForm, SubmitHandler } from 'react-hook-form';
-import { useEffect, RefObject } from 'react'; // 1. Importar RefObject
+import { useEffect } from 'react';
 import { IReceitaExterna, IReceitaExternaForm } from '../services/receitaExterna.service';
 
 interface FormularioReceitaProps {
@@ -14,11 +12,9 @@ interface FormularioReceitaProps {
   receita: IReceitaExterna | null;
   onSave: (data: IReceitaExternaForm, id?: number) => void;
   isLoading: boolean;
-  // 2. Adicionar a nova prop para receber a referência
-  portalContainerRef: RefObject<HTMLDivElement>;
 }
 
-export const FormularioReceita = ({ isOpen, onClose, receita, onSave, isLoading, portalContainerRef }: FormularioReceitaProps) => {
+export const FormularioReceita = ({ isOpen, onClose, receita, onSave, isLoading }: FormularioReceitaProps) => {
   const { register, handleSubmit, reset, formState: { errors } } = useForm<IReceitaExternaForm>();
   const drawerSize = useBreakpointValue({ base: 'full', md: 'md' });
 
@@ -45,13 +41,11 @@ export const FormularioReceita = ({ isOpen, onClose, receita, onSave, isLoading,
   };
 
   return (
-    // 3. Aplicar a propriedade portalProps ao Drawer
     <Drawer 
       isOpen={isOpen} 
       placement="right" 
       onClose={onClose} 
       size={drawerSize}
-      portalProps={{ containerRef: portalContainerRef }} // <-- SOLUÇÃO APLICADA AQUI
     >
       <DrawerOverlay />
       <DrawerContent as="form" onSubmit={handleSubmit(onSubmit)}>
@@ -59,16 +53,32 @@ export const FormularioReceita = ({ isOpen, onClose, receita, onSave, isLoading,
         <DrawerCloseButton />
         <DrawerBody>
           <VStack spacing={4}>
+            {/* --- VALIDAÇÃO APLICADA --- */}
             <FormControl isRequired isInvalid={!!errors.descricao}>
               <FormLabel>Descrição</FormLabel>
-              <Input {...register('descricao', { required: 'Descrição é obrigatória' })} textTransform="uppercase" />
+              <Input 
+                {...register('descricao', { 
+                  required: 'Descrição é obrigatória',
+                  validate: (value) => value.trim() !== '' || 'A descrição não pode conter apenas espaços.'
+                })} 
+                textTransform="uppercase" 
+              />
               <FormErrorMessage>{errors.descricao?.message}</FormErrorMessage>
             </FormControl>
             <FormControl isRequired isInvalid={!!errors.valor}>
               <FormLabel>Valor (R$)</FormLabel>
-              <Input type="number" step="0.01" {...register('valor', { required: 'Valor é obrigatório', valueAsNumber: true })} />
+              <Input 
+                type="number" 
+                step="0.01" 
+                {...register('valor', { 
+                  required: 'Valor é obrigatório', 
+                  valueAsNumber: true,
+                  min: { value: 0.01, message: 'O valor deve ser maior que zero.' }
+                })} 
+              />
               <FormErrorMessage>{errors.valor?.message}</FormErrorMessage>
             </FormControl>
+            {/* --- FIM DA VALIDAÇÃO --- */}
             <FormControl isRequired isInvalid={!!errors.data_recebimento}>
               <FormLabel>Data de Recebimento</FormLabel>
               <Input type="date" {...register('data_recebimento', { required: 'Data é obrigatória' })} />

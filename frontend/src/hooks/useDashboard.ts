@@ -1,4 +1,4 @@
-// frontend/src/hooks/useDashboard.ts
+// frontend/src/hooks/useDashboard.ts (COMPLETO E CORRIGIDO)
 
 import { useQuery } from '@tanstack/react-query';
 import { 
@@ -13,50 +13,65 @@ import {
 } from '../services/dashboard.service';
 import { getContasAPagar, IContasAPagar } from '../services/despesa.service';
 
-const DASHBOARD_KPI_QUERY_KEY = ['dashboardKPIs'];
-const DASHBOARD_VENDAS_DIA_QUERY_KEY = ['dashboardVendasPorDia'];
-const DASHBOARD_RANKING_PRODUTOS_QUERY_KEY = ['dashboardRankingProdutos'];
-const DASHBOARD_RANKING_CLIENTES_QUERY_KEY = ['dashboardRankingClientes'];
-const DASHBOARD_CONTAS_PAGAR_QUERY_KEY = ['dashboardContasAPagar'];
+// --- INÍCIO DA CORREÇÃO ---
+// Manter as chaves como constantes fora do hook é a melhor prática.
+const DASHBOARD_QUERIES = {
+  kpis: {
+    queryKey: ['dashboardKPIs'],
+    queryFn: getKPIs,
+  },
+  vendasPorDia: {
+    queryKey: ['dashboardVendasPorDia'],
+    queryFn: getVendasPorDia,
+  },
+  rankingProdutos: {
+    queryKey: ['dashboardRankingProdutos'],
+    queryFn: getRankingProdutos,
+  },
+  rankingClientes: {
+    queryKey: ['dashboardRankingClientes'],
+    queryFn: getRankingClientes,
+  },
+  contasAPagar: {
+    queryKey: ['dashboardContasAPagar'],
+    queryFn: getContasAPagar,
+  },
+};
+// --- FIM DA CORREÇÃO ---
 
 export const useDashboardData = () => {
+  const staleTime = 1000 * 60 * 5; // 5 minutos
+
   const kpisQuery = useQuery<IKPIs, Error>({
-    queryKey: DASHBOARD_KPI_QUERY_KEY,
-    queryFn: getKPIs,
-    staleTime: 1000 * 60 * 5,
+    ...DASHBOARD_QUERIES.kpis, // Usa a chave e a função estáveis
+    staleTime,
   });
 
   const vendasPorDiaQuery = useQuery<IVendasPorDia[], Error>({
-    queryKey: DASHBOARD_VENDAS_DIA_QUERY_KEY,
-    queryFn: getVendasPorDia,
-    staleTime: 1000 * 60 * 5,
+    ...DASHBOARD_QUERIES.vendasPorDia, // Usa a chave e a função estáveis
+    staleTime,
   });
 
   const rankingProdutosQuery = useQuery<IRankingProduto[], Error>({
-    queryKey: DASHBOARD_RANKING_PRODUTOS_QUERY_KEY,
-    queryFn: getRankingProdutos,
-    staleTime: 1000 * 60 * 5,
+    ...DASHBOARD_QUERIES.rankingProdutos, // Usa a chave e a função estáveis
+    staleTime,
   });
 
   const rankingClientesQuery = useQuery<IRankingCliente[], Error>({
-    queryKey: DASHBOARD_RANKING_CLIENTES_QUERY_KEY,
-    queryFn: getRankingClientes,
-    staleTime: 1000 * 60 * 5,
+    ...DASHBOARD_QUERIES.rankingClientes, // Usa a chave e a função estáveis
+    staleTime,
   });
 
   const contasAPagarQuery = useQuery<IContasAPagar[], Error>({
-    queryKey: DASHBOARD_CONTAS_PAGAR_QUERY_KEY,
-    queryFn: getContasAPagar,
-    staleTime: 1000 * 60 * 5,
+    ...DASHBOARD_QUERIES.contasAPagar, // Usa a chave e a função estáveis
+    staleTime,
   });
 
-  // A query do fluxo de caixa foi removida daqui
   return {
     kpisQuery,
     vendasPorDiaQuery,
     rankingProdutosQuery,
     rankingClientesQuery,
     contasAPagarQuery,
-    // A exportação do fluxo de caixa também foi removida
   };
 };

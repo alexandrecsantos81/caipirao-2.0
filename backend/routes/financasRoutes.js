@@ -4,13 +4,11 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken, checkAdmin } = require('../middleware/authMiddleware');
 const { getDashboardConsolidado } = require('../controllers/financasController');
+const { getReceitasPessoaisPDF, getDespesasPessoaisPDF } = require('../controllers/financasReportController');
 
-// Protege todas as rotas neste arquivo, exigindo login de Admin
 router.use(verifyToken, checkAdmin);
-
-// Define a rota para o dashboard consolidado
-// GET /api/financas/dashboard-consolidado
 router.get('/dashboard-consolidado', getDashboardConsolidado);
+router.get('/report/receitas-pessoais/pdf', getReceitasPessoaisPDF);
+router.get('/report/despesas-pessoais/pdf', getDespesasPessoaisPDF);
 
-// A LINHA QUE FALTAVA:
-module.exports = router; // <-- CORREÇÃO: Exporta o router configurado.
+module.exports = router;

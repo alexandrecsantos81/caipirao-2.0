@@ -1,8 +1,8 @@
 const pool = require('../db');
-const { addMonths, subMonths, formatISO } = require('date-fns'); // Adicionado formatISO
+const { addMonths, subMonths } = require('date-fns');
 const { v4: uuidv4 } = require('uuid');
 
-// A função createDespesaPessoal permanece a mesma da correção anterior.
+// A função de criar permanece a mesma
 const createDespesaPessoal = async (req, res) => {
     const {
         descricao, valor, categoria, recorrente, parcelado,
@@ -31,13 +31,12 @@ const createDespesaPessoal = async (req, res) => {
             const numParcelaAtual = Number(parcela_atual);
             const totalParcelas = Number(quantidade_parcelas);
             
-            // CORREÇÃO DE TIMEZONE: Garante que a data seja tratada como local
             const dataVencimentoBase = new Date(data_vencimento + 'T00:00:00');
 
             const mesesParaSubtrair = numParcelaAtual - 1;
             const dataPrimeiraParcela = subMonths(dataVencimentoBase, mesesParaSubtrair);
 
-            for (let i = 0; i < totalParcelas; i++) {
+            for (let i = numParcelaAtual - 1; i < totalParcelas; i++) {
                 const dataVencimentoParcela = addMonths(dataPrimeiraParcela, i);
                 const descricaoParcela = `${descricao.trim().toUpperCase()} (${i + 1}/${totalParcelas})`;
 
@@ -82,14 +81,7 @@ const createDespesaPessoal = async (req, res) => {
     }
 };
 
-
-/**
- * @desc    Busca despesas pessoais.
- * @route   GET /api/despesas-pessoais
- * @access  Protegido (Admin)
- * @logic   CORREÇÃO: Busca todas as despesas não pagas OU as pagas dentro do período do filtro.
- *          Isso garante que financiamentos ativos sempre apareçam por completo.
- */
+// A função de buscar permanece a mesma
 const getDespesasPessoais = async (req, res) => {
     const { startDate, endDate } = req.query;
     if (!startDate || !endDate) {
@@ -112,27 +104,34 @@ const getDespesasPessoais = async (req, res) => {
     }
 };
 
-// As funções de update e delete permanecem as mesmas.
-const updateDespesaPessoal = async (req, res) => {
-    const { id } = req.params;
-    const { pago } = req.body;
+// --- INÍCIO DA CORREÇÃO ---
 
-    if (pago === undefined) {
-        return res.status(400).json({ error: 'O campo "pago" é obrigatório para atualização.' });
+// NOVA FUNÇÃO para editar os detalhes de uma despesa
+const updateDespesa = async (req, res) => {
+    const { id } = req.params;
+    const { descricao, valor, data_vencimento, categoria } = req.body;
+
+    if (!descricao || !valor || !data_vencimento) {
+        return res.status(400).json({ error: 'Descrição, valor e data de vencimento são obrigatórios.' });
     }
 
     try {
-        const data_pagamento = pago ? new Date() : null;
         const query = `
             UPDATE despesas_pessoais 
-            SET pago = $1, data_pagamento = $2 
-            WHERE id = $3 
+            SET descricao = $1, valor = $2, data_vencimento = $3, categoria = $4
+            WHERE id = $5 AND recorrente = FALSE
             RETURNING *`;
         
-        const resultado = await pool.query(query, [pago, data_pagamento, id]);
+        const resultado = await pool.query(query, [
+            descricao.trim().toUpperCase(), 
+            valor, 
+            data_vencimento, 
+            categoria ? categoria.trim().toUpperCase() : null, 
+            id
+        ]);
 
         if (resultado.rowCount === 0) {
-            return res.status(404).json({ error: 'Despesa não encontrada.' });
+            return res.status(404).json({ error: 'Despesa não encontrada ou não pode ser editada (pode ser recorrente).' });
         }
         res.status(200).json(resultado.rows[0]);
 
@@ -141,6 +140,34 @@ const updateDespesaPessoal = async (req, res) => {
         res.status(500).json({ error: 'Erro interno do servidor.' });
     }
 };
+
+const togglePagamentoDespesa = async (req, res) => {
+    const { id } = req.params;
+    const { pago, data_pagamento } = req.body; 
+    if (pago === undefined) {
+        return res.status(400).json({ error: 'O campo "pago" é obrigatório para atualização.' });
+    }
+    
+    const dataFinalPagamento = pago ? (data_pagamento || new Date()) : null;
+    try {
+        const query = `
+            UPDATE despesas_pessoais 
+            SET pago = $1, data_pagamento = $2 
+            WHERE id = $3 
+            RETURNING *`;
+        
+        const resultado = await pool.query(query, [pago, dataFinalPagamento, id]);
+        if (resultado.rowCount === 0) {
+            return res.status(404).json({ error: 'Despesa não encontrada.' });
+        }
+        res.status(200).json(resultado.rows[0]);
+
+    } catch (error) {
+        console.error('Erro ao atualizar pagamento da despesa:', error);
+        res.status(500).json({ error: 'Erro interno do servidor.' });
+    }
+};
+
 
 const deleteDespesaPessoal = async (req, res) => {
     const { id } = req.params;
@@ -176,6 +203,8 @@ const deleteDespesaPessoal = async (req, res) => {
 module.exports = {
     createDespesaPessoal,
     getDespesasPessoais,
-    updateDespesaPessoal,
+    updateDespesa,
+    togglePagamentoDespesa,
     deleteDespesaPessoal,
 };
+

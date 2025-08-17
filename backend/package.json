@@ -15,7 +15,9 @@
     "express": "latest",
     "jsonwebtoken": "latest",
     "pdfkit": "^0.17.1",
-    "pg": "latest"
+    "pdfkit-table": "^0.1.99",
+    "pg": "latest",
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
     "nodemon": "latest"

@@ -1,16 +1,14 @@
-// frontend/src/components/CardContasAPagar.tsx
-
 import {
   Box, Button, Flex, Heading, Spinner, Text, VStack, HStack, useDisclosure,
   useToast,
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, ModalBody, ModalFooter,
   FormControl, FormLabel, Input, Select, useColorModeValue,
-  Divider, // Adicionar Divider
+  Divider,
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
-import { addDays, isBefore, startOfDay } from 'date-fns';
+import { addDays, isBefore, startOfDay, isValid } from 'date-fns'; // Importar a função 'isValid'
 
 import { IContasAPagar, quitarDespesa, IQuitacaoData, getContasAPagar } from '../services/despesa.service';
 import { getUtilizadores, IUtilizador } from '../services/utilizador.service';
@@ -73,16 +71,28 @@ export const CardContasAPagar = () => {
     }
   };
 
-  const formatarData = (data: string) => {
-    return new Date(data).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+  // --- INÍCIO DA CORREÇÃO 1 ---
+  const formatarData = (data: string | null | undefined) => {
+    if (!data) return 'Data inválida';
+    const dateObj = new Date(data);
+    // Adiciona a verificação se a data é válida
+    if (!isValid(dateObj)) return 'Data inválida';
+    return dateObj.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
   };
 
-  const isUrgent = (dataVencimento: string) => {
+  const isUrgent = (dataVencimento: string | null | undefined) => {
+    if (!dataVencimento) return false; // Se não há data, não é urgente
+    
     const hoje = startOfDay(new Date());
     const dataLimite = addDays(hoje, 5);
     const dataVenc = startOfDay(new Date(dataVencimento));
+
+    // Adiciona a verificação se a data é válida
+    if (!isValid(dataVenc)) return false;
+
     return isBefore(dataVenc, dataLimite);
   };
+  // --- FIM DA CORREÇÃO 1 ---
 
   return (
     <Box 
@@ -118,21 +128,18 @@ export const CardContasAPagar = () => {
                   align={{ base: 'flex-start', md: 'center' }}
                   direction={{ base: 'column', md: 'row' }}
                 >
-                  {/* Informações da Conta */}
                   <VStack align="start" spacing={0} mb={{ base: 2, md: 0 }}>
                     <Text fontWeight="bold">{conta.nome_fornecedor || 'Despesa sem fornecedor'}</Text>
                     <Text fontSize="sm">Vence em: {formatarData(conta.data_vencimento)}</Text>
                   </VStack>
 
-                  {/* Valor (visível em todos os tamanhos) */}
                   <Text fontWeight="bold" color="red.500" fontSize="lg" mb={{ base: 2, md: 0 }}>
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(conta.valor)}
                   </Text>
 
-                  {/* Botão Quitar (apenas para desktop nesta posição) */}
                   {user?.perfil === 'ADMIN' && (
                     <Button
-                      display={{ base: 'none', md: 'inline-flex' }} // Esconde em mobile, mostra em desktop
+                      display={{ base: 'none', md: 'inline-flex' }}
                       colorScheme="green"
                       size="sm"
                       onClick={() => handleQuitarClick(conta)}
@@ -142,15 +149,14 @@ export const CardContasAPagar = () => {
                   )}
                 </Flex>
 
-                {/* Botão Quitar (apenas para mobile nesta posição) */}
                 {user?.perfil === 'ADMIN' && (
                   <>
                     <Divider my={2} display={{ base: 'block', md: 'none' }} />
                     <Button
-                      display={{ base: 'inline-flex', md: 'none' }} // Mostra em mobile, esconde em desktop
+                      display={{ base: 'inline-flex', md: 'none' }}
                       colorScheme="green"
                       size="sm"
-                      w="full" // Largura total
+                      w="full"
                       onClick={() => handleQuitarClick(conta)}
                     >
                       Quitar
@@ -165,7 +171,6 @@ export const CardContasAPagar = () => {
         </VStack>
       )}
 
-      {/* O Modal de quitação permanece o mesmo */}
       <Modal isOpen={isOpen} onClose={onClose} isCentered>
         <ModalOverlay />
         <ModalContent as="form" onSubmit={handleSubmit(onConfirmarQuitacao)}>

@@ -1,21 +1,7 @@
 import {
-  Box,
-  Heading,
-  SimpleGrid,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  Spinner,
-  Text,
-  Center,
-  StatArrow,
-  VStack,
-  useColorModeValue,
-  Input,
-  HStack,
-  Button,
-  Flex,
+  Box, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText, StatArrow,
+  Skeleton, useColorModeValue, Heading, Center, Text, Icon, HStack,
+  VStack, Input, Button, Flex, Spinner
 } from '@chakra-ui/react';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -33,23 +19,24 @@ const formatCurrency = (value: number | undefined) => {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
-// Função para formatar a data para a API (yyyy-MM-dd)
 const formatDateForAPI = (date: Date): string => format(date, 'yyyy-MM-dd');
 
-// Estilo de hover reutilizável para os cards
-const cardHoverEffect = {
-  transform: 'translateY(-4px)',
-  boxShadow: 'xl',
-};
-
 const DashboardPage = () => {
+  // --- INÍCIO DA CORREÇÃO ---
+  // 1. Mover a chamada de hooks que estava depois do 'if' para o topo.
+  const cardHoverEffect = {
+    transform: 'translateY(-4px)',
+    boxShadow: 'xl',
+  };
+  const borderColor = useColorModeValue('blue.200', 'blue.600');
+  // --- FIM DA CORREÇÃO ---
+
   const { 
     kpisQuery, 
     rankingProdutosQuery,
     rankingClientesQuery,
   } = useDashboardData();
 
-  // Estado para os filtros de data do gráfico de fluxo de caixa
   const [dateFilters, setDateFilters] = useState({
     startDate: formatDateForAPI(subDays(new Date(), 29)),
     endDate: formatDateForAPI(new Date()),
@@ -60,14 +47,12 @@ const DashboardPage = () => {
   const { data: rankingProdutosData, isLoading: isLoadingRankingProdutos, isError: isErrorRankingProdutos } = rankingProdutosQuery;
   const { data: rankingClientesData, isLoading: isLoadingRankingClientes, isError: isErrorRankingClientes } = rankingClientesQuery;
 
-  // Hook useQuery para o fluxo de caixa, que agora reage às mudanças de data
   const { data: fluxoCaixaData, isLoading: isLoadingFluxoCaixa, isError: isErrorFluxoCaixa } = useQuery<IFluxoCaixaDiario[], Error>({
-    queryKey: ['dashboardFluxoCaixa', dateFilters], // A chave da query agora depende das datas
+    queryKey: ['dashboardFluxoCaixa', dateFilters],
     queryFn: () => getFluxoCaixaDiario(dateFilters),
-    staleTime: 1000 * 60 * 5, // 5 minutos
+    staleTime: 1000 * 60 * 5,
   });
 
-  // Funções para manipular os filtros de data
   const handleSetPeriod = (start: Date, end: Date, filterName: typeof activeFilter) => {
     setDateFilters({
       startDate: formatDateForAPI(start),
@@ -81,6 +66,7 @@ const DashboardPage = () => {
     setActiveFilter('custom');
   };
 
+  // O 'if' de carregamento agora está depois de todas as chamadas de hooks.
   if (isLoadingKPIs) {
     return <Center p={8} minH="50vh"><Spinner size="xl" /></Center>;
   }
@@ -94,16 +80,16 @@ const DashboardPage = () => {
       <Heading as="h1" size="lg" mb={6}>Dashboard</Heading>
       
       <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
-        <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm" transition="all 0.2s ease-in-out" _hover={cardHoverEffect} borderColor={useColorModeValue('blue.200', 'blue.600')}><StatLabel>Receita (Mês)</StatLabel><StatNumber color="green.500">{formatCurrency(kpis?.totalVendasMes)}</StatNumber><StatHelpText>Total de vendas no mês atual.</StatHelpText></Stat>
-        <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm" transition="all 0.2s ease-in-out" _hover={cardHoverEffect} borderColor={useColorModeValue('blue.200', 'blue.600')}><StatLabel>Despesas (Mês)</StatLabel><StatNumber color="red.500">{formatCurrency(kpis?.totalDespesasMes)}</StatNumber><StatHelpText>Total de despesas no mês atual.</StatHelpText></Stat>
-        <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm" transition="all 0.2s ease-in-out" _hover={cardHoverEffect} borderColor={useColorModeValue('blue.200', 'blue.600')}><StatLabel>Saldo (Mês)</StatLabel><StatNumber color={kpis && kpis.saldoMes >= 0 ? 'blue.500' : 'red.500'}>{formatCurrency(kpis?.saldoMes)}</StatNumber><StatHelpText><StatArrow type={kpis && kpis.saldoMes >= 0 ? 'increase' : 'decrease'} />Balanço do mês atual</StatHelpText></Stat>
-        <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm" transition="all 0.2s ease-in-out" _hover={cardHoverEffect} borderColor={useColorModeValue('blue.200', 'blue.600')}><StatLabel>Contas a Receber</StatLabel><StatNumber>{formatCurrency(kpis?.totalContasAReceber)}</StatNumber><StatHelpText>Total de vendas a prazo pendentes.</StatHelpText></Stat>
-        <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm" transition="all 0.2s ease-in-out" _hover={cardHoverEffect} borderColor={useColorModeValue('blue.200', 'blue.600')}><StatLabel>Contas a Pagar</StatLabel><StatNumber>{formatCurrency(kpis?.totalContasAPagar)}</StatNumber><StatHelpText>Total de despesas pendentes.</StatHelpText></Stat>
-        <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm" transition="all 0.2s ease-in-out" _hover={cardHoverEffect} borderColor={useColorModeValue('blue.200', 'blue.600')}><StatLabel>Novos Clientes (Mês)</StatLabel><StatNumber>{kpis?.novosClientesMes ?? 'N/D'}</StatNumber><StatHelpText>Clientes cadastrados no mês atual.</StatHelpText></Stat>
+        <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm" transition="all 0.2s ease-in-out" _hover={cardHoverEffect} borderColor={borderColor}><StatLabel>Receita (Mês)</StatLabel><StatNumber color="green.500">{formatCurrency(kpis?.totalVendasMes)}</StatNumber><StatHelpText>Total de vendas no mês atual.</StatHelpText></Stat>
+        <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm" transition="all 0.2s ease-in-out" _hover={cardHoverEffect} borderColor={borderColor}><StatLabel>Despesas (Mês)</StatLabel><StatNumber color="red.500">{formatCurrency(kpis?.totalDespesasMes)}</StatNumber><StatHelpText>Total de despesas no mês atual.</StatHelpText></Stat>
+        <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm" transition="all 0.2s ease-in-out" _hover={cardHoverEffect} borderColor={borderColor}><StatLabel>Saldo (Mês)</StatLabel><StatNumber color={kpis && kpis.saldoMes >= 0 ? 'blue.500' : 'red.500'}>{formatCurrency(kpis?.saldoMes)}</StatNumber><StatHelpText><StatArrow type={kpis && kpis.saldoMes >= 0 ? 'increase' : 'decrease'} />Balanço do mês atual</StatHelpText></Stat>
+        <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm" transition="all 0.2s ease-in-out" _hover={cardHoverEffect} borderColor={borderColor}><StatLabel>Contas a Receber</StatLabel><StatNumber>{formatCurrency(kpis?.totalContasAReceber)}</StatNumber><StatHelpText>Total de vendas a prazo pendentes.</StatHelpText></Stat>
+        <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm" transition="all 0.2s ease-in-out" _hover={cardHoverEffect} borderColor={borderColor}><StatLabel>Contas a Pagar</StatLabel><StatNumber>{formatCurrency(kpis?.totalContasAPagar)}</StatNumber><StatHelpText>Total de despesas pendentes.</StatHelpText></Stat>
+        <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm" transition="all 0.2s ease-in-out" _hover={cardHoverEffect} borderColor={borderColor}><StatLabel>Novos Clientes (Mês)</StatLabel><StatNumber>{kpis?.novosClientesMes ?? 'N/D'}</StatNumber><StatHelpText>Clientes cadastrados no mês atual.</StatHelpText></Stat>
       </SimpleGrid>
 
       <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6} mt={8}>
-        <Box borderWidth={1} borderRadius="md" p={4} boxShadow="sm" minH="400px" transition="all 0.2s ease-in-out" _hover={cardHoverEffect} borderColor={useColorModeValue('blue.200', 'blue.600')}>
+        <Box borderWidth={1} borderRadius="md" p={4} boxShadow="sm" minH="400px" transition="all 0.2s ease-in-out" _hover={cardHoverEffect} borderColor={borderColor}>
           <Flex justify="space-between" align="center" mb={4} direction={{ base: 'column', md: 'row' }} gap={2}>
             <Heading as="h2" size="md">
               Fluxo de Caixa
@@ -131,7 +117,7 @@ const DashboardPage = () => {
       </SimpleGrid>
       
       <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6} mt={8}>
-        <Box w="full" borderWidth={1} borderRadius="md" p={4} boxShadow="sm" transition="all 0.2s ease-in-out" _hover={cardHoverEffect} borderColor={useColorModeValue('blue.200', 'blue.600')}>
+        <Box w="full" borderWidth={1} borderRadius="md" p={4} boxShadow="sm" transition="all 0.2s ease-in-out" _hover={cardHoverEffect} borderColor={borderColor}>
           <Heading as="h2" size="md" mb={4}>Top 2 Produtos (Mês)</Heading>
           <GraficoRankingProdutos
             data={rankingProdutosData}
@@ -139,7 +125,7 @@ const DashboardPage = () => {
             isError={isErrorRankingProdutos}
           />
         </Box>
-        <Box w="full" borderWidth={1} borderRadius="md" p={4} boxShadow="sm" transition="all 0.2s ease-in-out" _hover={cardHoverEffect} borderColor={useColorModeValue('blue.200', 'blue.600')}>
+        <Box w="full" borderWidth={1} borderRadius="md" p={4} boxShadow="sm" transition="all 0.2s ease-in-out" _hover={cardHoverEffect} borderColor={borderColor}>
           <Heading as="h2" size="md" mb={4}>Top 5 Clientes (Mês)</Heading>
           <GraficoRankingClientes
             data={rankingClientesData}
