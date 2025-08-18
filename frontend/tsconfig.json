@@ -16,15 +16,16 @@
 
     /* Linting */
     "strict": true,
-    "noUnusedLocals": false, // <-- ADICIONE ESTA LINHA
+    "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
-    /* Path Aliases */
-    "baseUrl": "./src",
+    /* --- ADICIONAR ESTAS LINHAS --- */
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["*"]
+      "@/*": ["src/*"]
     }
+    /* ------------------------------ */
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]

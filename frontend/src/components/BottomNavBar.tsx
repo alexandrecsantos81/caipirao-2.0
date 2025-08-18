@@ -24,6 +24,7 @@ import {
   FiGrid,
   FiUserCheck,
   FiCreditCard,
+  FiBriefcase, // <-- 1. Ícone importado
 } from 'react-icons/fi';
 import { NavLink as RouterLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -37,15 +38,9 @@ interface NavItemProps {
 const NavItem = ({ icon, label, to }: NavItemProps) => {
   const location = useLocation();
   const isActive = location.pathname === to;
-
-  // --- INÍCIO DA ALTERAÇÃO 1: Cores dos Ícones ---
-  // A cor ativa agora é um branco mais forte para se destacar no fundo azul.
   const activeColor = 'white';
-  // A cor inativa é um branco com um pouco de transparência.
   const inactiveColor = useColorModeValue('whiteAlpha.700', 'whiteAlpha.600');
-  // A cor do hover será o mesmo branco forte da cor ativa.
   const hoverColor = 'white';
-  // --- FIM DA ALTERAÇÃO 1 ---
 
   return (
     <ChakraLink
@@ -73,15 +68,9 @@ const NavItem = ({ icon, label, to }: NavItemProps) => {
 export const BottomNavBar = () => {
   const { user, logout } = useAuth();
   const isAdmin = user?.perfil === 'ADMIN';
-
-  // --- INÍCIO DA ALTERAÇÃO 2: Cor de Fundo da Barra ---
-  // Define a nova cor de fundo de destaque.
   const bgColor = useColorModeValue('blue.500', 'blue.800');
-  // A borda superior pode ser um pouco mais escura para dar profundidade.
   const borderColor = useColorModeValue('blue.600', 'blue.900');
-  // Cor para o ícone de "Mais" (grid) e o ícone de "Sair".
   const iconColor = useColorModeValue('whiteAlpha.700', 'whiteAlpha.600');
-  // --- FIM DA ALTERAÇÃO 2 ---
 
   return (
     <Box
@@ -90,12 +79,12 @@ export const BottomNavBar = () => {
       bottom="0"
       left="0"
       right="0"
-      bg={bgColor} // Aplicando a nova cor de fundo
+      bg={bgColor}
       borderTopWidth="1px"
-      borderColor={borderColor} // Aplicando a nova cor de borda
+      borderColor={borderColor}
       zIndex="sticky"
       display={{ base: 'block', md: 'none' }}
-      boxShadow="0 -2px 10px rgba(0, 0, 0, 0.15)" // Adiciona uma sombra para mais destaque
+      boxShadow="0 -2px 10px rgba(0, 0, 0, 0.15)"
     >
       <Flex align="center" justify="space-around" h="60px">
         <NavItem icon={FiShoppingCart} label="Movim." to="/movimentacoes" />
@@ -110,8 +99,8 @@ export const BottomNavBar = () => {
               icon={<FiGrid />}
               variant="ghost"
               fontSize="2xl"
-              color={iconColor} // Aplicando a cor do ícone
-              _hover={{ bg: useColorModeValue('blue.600', 'blue.700') }} // Efeito hover no botão
+              color={iconColor}
+              _hover={{ bg: useColorModeValue('blue.600', 'blue.700') }}
               flex={1}
               h="full"
               py={2}
@@ -122,6 +111,7 @@ export const BottomNavBar = () => {
               <MenuItem as={RouterLink} to="/financas" icon={<FiCreditCard />}>Finanças</MenuItem>
               <MenuItem as={RouterLink} to="/fornecedores" icon={<FiTruck />}>Fornecedores</MenuItem>
               <MenuItem as={RouterLink} to="/utilizadores" icon={<FiUserCheck />}>Utilizadores</MenuItem>
+              <MenuItem as={RouterLink} to="/empresa" icon={<FiBriefcase />}>Minha Empresa</MenuItem> {/* <-- 2. Link adicionado */}
               <MenuItem icon={<FiLogOut />} onClick={logout}>Sair</MenuItem>
             </MenuList>
           </Menu>
@@ -134,7 +124,7 @@ export const BottomNavBar = () => {
             justifyContent="center"
             flex="1"
             py={2}
-            color={iconColor} // Aplicando a cor do ícone
+            color={iconColor}
           >
             <Icon as={FiLogOut} fontSize="2xl" />
             <Text fontSize="xs" mt={1}>Sair</Text>

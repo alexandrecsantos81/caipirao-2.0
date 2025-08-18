@@ -1,6 +1,6 @@
 -- =====================================================================
 --  SCRIPT COMPLETO DO BANCO DE DADOS - CAIPIRÃO 3.0
---  Versão: 2025-08-17
+--  Versão: 2025-08-18
 --  Este script apaga as tabelas existentes para garantir uma
 --  recriação limpa. Ideal para ambientes de desenvolvimento e
 --  para configurar o banco de dados pela primeira vez.
@@ -20,6 +20,7 @@ DROP TABLE IF EXISTS fornecedores;
 DROP TABLE IF EXISTS produtos;
 DROP TABLE IF EXISTS clientes;
 DROP TABLE IF EXISTS utilizadores;
+DROP TABLE IF EXISTS empresa_dados; -- ADICIONADO: Garante a remoção da nova tabela
 
 -- Tabela de Utilizadores: armazena os dados de login, perfis e status.
 CREATE TABLE utilizadores (
@@ -29,7 +30,7 @@ CREATE TABLE utilizadores (
     telefone VARCHAR(20) UNIQUE,
     nickname VARCHAR(50) UNIQUE,
     senha VARCHAR(255),
-    perfil VARCHAR(20) NOT NULL DEFAULT 'PENDENTE' 
+    perfil VARCHAR(20) NOT NULL DEFAULT 'PENDENTE'
         CHECK (perfil IN ('VENDEDOR', 'GERENTE', 'ADMINISTRATIVO', 'ADMIN', 'PENDENTE')),
     status VARCHAR(10) NOT NULL DEFAULT 'INATIVO'
         CHECK (status IN ('ATIVO', 'INATIVO')),
@@ -91,8 +92,8 @@ CREATE TABLE fornecedores (
 CREATE TABLE despesas (
     id SERIAL PRIMARY KEY,
     tipo_saida VARCHAR(50) NOT NULL CHECK (tipo_saida IN (
-        'Compra de Aves', 'Insumos de Produção', 'Mão de Obra', 'Materiais e Embalagens', 
-        'Despesas Operacionais', 'Encargos e Tributos', 'Despesas Administrativas', 
+        'Compra de Aves', 'Insumos de Produção', 'Mão de Obra', 'Materiais e Embalagens',
+        'Despesas Operacionais', 'Encargos e Tributos', 'Despesas Administrativas',
         'Financeiras', 'Remuneração de Sócios', 'Outros'
     )),
     valor NUMERIC(10, 2) NOT NULL,
@@ -102,7 +103,6 @@ CREATE TABLE despesas (
     data_pagamento DATE DEFAULT NULL,
     fornecedor_id INT REFERENCES fornecedores(id) ON DELETE SET NULL,
     responsavel_pagamento_id INT REFERENCES utilizadores(id) ON DELETE SET NULL,
-    -- LINHA ADICIONADA AQUI --
     despesa_pai_id INT REFERENCES despesas(id) ON DELETE SET NULL,
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -146,6 +146,38 @@ CREATE TABLE despesas_pessoais (
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- =================================================================
+-- NOVA TABELA: empresa_dados
+-- Adicionado em: 18/08/2025
+-- Descrição: Armazena os dados cadastrais da empresa para uso em relatórios.
+-- =================================================================
+CREATE TABLE IF NOT EXISTS empresa_dados (
+    id INT PRIMARY KEY DEFAULT 1,
+    nome_fantasia VARCHAR(255) NOT NULL,
+    razao_social VARCHAR(255),
+    cnpj VARCHAR(18) UNIQUE,
+    inscricao_estadual VARCHAR(20),
+    telefone VARCHAR(20),
+    email VARCHAR(255),
+    endereco_completo TEXT,
+    logo_url TEXT,
+    data_atualizacao TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_row CHECK (id = 1)
+);
+
+-- =================================================================
+-- DADOS INICIAIS E ÍNDICES
+-- =================================================================
+
+-- Inserir um utilizador ADMIN padrão
+INSERT INTO utilizadores (nome, email, nickname, telefone, senha, perfil, status) VALUES
+('Admin Principal', 'admin@caipirao.com', 'admin', '00000000000', '$2a$10$ExemploDeHashSeguroNaoUseIsso', 'ADMIN', 'ATIVO')
+ON CONFLICT (email) DO NOTHING; -- Evita erro se o admin já existir
+
+-- Inserir dados padrão para a empresa
+INSERT INTO empresa_dados (id, nome_fantasia)
+SELECT 1, 'NOME DA SUA EMPRESA'
+WHERE NOT EXISTS (SELECT 1 FROM empresa_dados WHERE id = 1);
 
 -- Índices para otimizar consultas
 CREATE INDEX IF NOT EXISTS idx_utilizadores_email ON utilizadores(email);
@@ -155,8 +187,3 @@ CREATE INDEX IF NOT EXISTS idx_despesas_vencimento ON despesas(data_vencimento);
 CREATE INDEX IF NOT EXISTS idx_receitas_externas_data ON receitas_externas(data_recebimento);
 CREATE INDEX IF NOT EXISTS idx_despesas_pessoais_vencimento ON despesas_pessoais(data_vencimento);
 CREATE INDEX IF NOT EXISTS idx_despesas_pessoais_parcela_id ON despesas_pessoais(parcela_id);
-
--- Inserir um utilizador ADMIN padrão
-INSERT INTO utilizadores (nome, email, nickname, telefone, senha, perfil, status) VALUES 
-('Admin Principal', 'admin@caipirao.com', 'admin', '00000000000', '$2a$10$ExemploDeHashSeguroNaoUseIsso', 'ADMIN', 'ATIVO')
-ON CONFLICT (email) DO NOTHING; -- Evita erro se o admin já existir

@@ -14,8 +14,8 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const reportRoutes = require('./routes/reports');
 const receitaExternaRoutes = require('./routes/receitaExternaRoutes');
 const financasRoutes = require('./routes/financasRoutes');
-// >>> IMPORTAÇÃO DA NOVA ROTA <<<
 const despesaPessoalRoutes = require('./routes/despesaPessoalRoutes');
+const empresaRoutes = require('./routes/empresa'); // <-- 1. NOVA ROTA IMPORTADA
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -27,7 +27,7 @@ const allowedOrigins = [
 ];
 
 const corsOptions = {
-  origin: (origin, callback ) => {
+  origin: (origin, callback  ) => {
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
@@ -60,8 +60,8 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/receitas-externas', receitaExternaRoutes);
 app.use('/api/financas', financasRoutes);
-// >>> REGISTRO DA NOVA ROTA <<<
 app.use('/api/despesas-pessoais', despesaPessoalRoutes);
+app.use('/api/empresa', empresaRoutes); // <-- 2. NOVA ROTA REGISTRADA
 
 // Iniciar o servidor
 app.listen(port, () => {

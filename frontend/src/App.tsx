@@ -1,3 +1,5 @@
+// frontend/src/App.tsx
+
 import { Box, useBreakpointValue, Flex } from '@chakra-ui/react';
 import { useState } from 'react';
 import { Routes, Route, Outlet } from 'react-router-dom';
@@ -17,8 +19,8 @@ import UtilizadoresPage from '@/pages/UtilizadoresPage';
 import RelatoriosPage from '@/pages/RelatoriosPage';
 import SolicitarAcessoPage from '@/pages/SolicitarAcessoPage';
 import NotFoundPage from '@/pages/NotFoundPage';
-// 1. Importe a nova página de Finanças
 import FinancasPage from '@/pages/FinancasPage';
+import EmpresaPage from '@/pages/EmpresaPage'; // <-- 1. Importação da nova página
 
 const MainLayout = () => {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
@@ -80,9 +82,10 @@ function App() {
             <Route path="/relatorios" element={<RelatoriosPage />} />
             <Route path="/fornecedores" element={<FornecedoresPage />} />
             <Route path="/utilizadores" element={<UtilizadoresPage />} />
-            
-            {/* 2. Adicione a rota para a nova página aqui */}
             <Route path="/financas" element={<FinancasPage />} />
+            
+            {/* 2. Adição da rota para a nova página */}
+            <Route path="/empresa" element={<EmpresaPage />} />
           </Route>
 
         </Route>
