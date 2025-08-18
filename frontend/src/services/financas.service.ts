@@ -25,7 +25,7 @@ export interface IFinancasConsolidadasKPIs {
   receitasCaipirao: number;
   despesasCaipirao: number;
   receitasExternas: number;
-  receitasPessoais: number; // NOVO
+  receitasPessoais: number;
   despesasPessoais: number;
   receitaTotalConsolidada: number;
   despesaTotalConsolidada: number;
@@ -47,9 +47,17 @@ export interface IBalancoMensal {
   despesas: number;
 }
 
+// ✅ INÍCIO DA MODIFICAÇÃO: Nova interface para o ranking de despesas
+export interface ITopDespesa {
+  descricao: string;
+  valor: number;
+}
+// ✅ FIM DA MODIFICAÇÃO
+
 export interface IAnaliseFinanceiraResponse {
   despesasPorCategoria: IDespesaPorCategoria[];
   balancoMensal: IBalancoMensal[];
+  top5Despesas: ITopDespesa[]; // ✅ Adicionando a nova propriedade
 }
 
 

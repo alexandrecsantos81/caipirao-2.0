@@ -10,14 +10,16 @@ import {
 import { useState } from 'react';
 import { startOfMonth, endOfMonth, subDays, format } from 'date-fns';
 import { FiDownload, FiSearch } from 'react-icons/fi';
-import { useMutation } from '@tanstack/react-query';
-
-// Importando os componentes de seus próprios arquivos
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { getDespesasPessoaisPdf, getReceitasPessoaisPdf, getAnaliseFinanceira } from '../services/financas.service';
 import { DashboardFinanceiro } from '../components/DashboardFinanceiro';
 import { TabelaReceitasExternas } from '../components/TabelaReceitasExternas';
 import { TabelaDespesasPessoais } from '../components/TabelaDespesasPessoais';
 import { useDebounce } from '../hooks/useDebounce';
-import { getDespesasPessoaisPdf, getReceitasPessoaisPdf } from '../services/financas.service';
+import { GraficoDespesasCategoria } from '../components/GraficoDespesasCategoria';
+import { GraficoBalancoMensal } from '../components/GraficoBalancoMensal';
+import { GraficoTopDespesas } from '../components/GraficoTopDespesas';
+import { CardDespesasPessoaisPendentes } from '../components/CardDespesasPessoaisPendentes';
 
 const FinancasPage = () => {
   const today = new Date();
@@ -32,6 +34,12 @@ const FinancasPage = () => {
     setStartDate(format(start, 'yyyy-MM-dd'));
     setEndDate(format(end, 'yyyy-MM-dd'));
   };
+
+  const { data: analiseData, isLoading: isAnaliseLoading, isError: isAnaliseError } = useQuery({
+    queryKey: ['analiseFinanceira', { startDate, endDate }],
+    queryFn: () => getAnaliseFinanceira({ startDate, endDate }),
+    enabled: !!startDate && !!endDate,
+  });
 
   const onPdfSuccess = (blob: Blob) => {
     const pdfUrl = URL.createObjectURL(blob);
@@ -48,9 +56,9 @@ const FinancasPage = () => {
   const handleGeneratePDF = () => {
     toast({ title: 'Gerando relatório...', status: 'info', duration: 1500 });
     const filters = { startDate, endDate };
-    if (activeTab === 1) { // Aba Receitas
+    if (activeTab === 1) {
       receitasPdfMutation.mutate(filters);
-    } else if (activeTab === 2) { // Aba Despesas
+    } else if (activeTab === 2) {
       despesasPdfMutation.mutate(filters);
     }
   };
@@ -95,14 +103,57 @@ const FinancasPage = () => {
 
       <Tabs variant="unstyled" align="center" onChange={(index) => setActiveTab(index)}>
         <TabList gap={3}>
-          <Tab {...baseTabStyles} _selected={{ color: 'white', bg: 'teal.400', boxShadow: 'md' }} _hover={{ bg: useColorModeValue('teal.50', 'gray.600') }}>Dashboard</Tab>
-          <Tab {...baseTabStyles} _selected={{ color: 'white', bg: 'green.400', boxShadow: 'md' }} _hover={{ bg: useColorModeValue('green.50', 'green.800') }}>Receitas Pessoais</Tab>
-          <Tab {...baseTabStyles} _selected={{ color: 'white', bg: 'red.400', boxShadow: 'md' }} _hover={{ bg: useColorModeValue('red.50', 'red.800') }}>Despesas Pessoais</Tab>
+          {/* ✅ INÍCIO DA MODIFICAÇÃO: Adicionando a cor do texto no hover */}
+          <Tab 
+            {...baseTabStyles} 
+            _selected={{ color: 'white', bg: 'teal.400', boxShadow: 'md' }} 
+            _hover={{ bg: useColorModeValue('teal.50', 'gray.600'), color: useColorModeValue('gray.800', 'white') }}
+          >
+            Dashboard
+          </Tab>
+          <Tab 
+            {...baseTabStyles} 
+            _selected={{ color: 'white', bg: 'green.400', boxShadow: 'md' }} 
+            _hover={{ bg: useColorModeValue('green.50', 'green.800'), color: useColorModeValue('gray.800', 'white') }}
+          >
+            Receitas Pessoais
+          </Tab>
+          <Tab 
+            {...baseTabStyles} 
+            _selected={{ color: 'white', bg: 'red.400', boxShadow: 'md' }} 
+            _hover={{ bg: useColorModeValue('red.50', 'red.800'), color: useColorModeValue('gray.800', 'white') }}
+          >
+            Despesas Pessoais
+          </Tab>
+          {/* ✅ FIM DA MODIFICAÇÃO */}
         </TabList>
 
         <TabPanels mt={5}>
           <TabPanel>
             <DashboardFinanceiro filters={{ startDate, endDate }} />
+            
+            <Box mt={8}>
+              <CardDespesasPessoaisPendentes />
+            </Box>
+
+            <SimpleGrid columns={{ base: 1, lg: 3 }} spacing={6} mt={8}>
+              <GraficoDespesasCategoria 
+                data={analiseData?.despesasPorCategoria}
+                isLoading={isAnaliseLoading}
+                isError={isAnaliseError}
+              />
+              <GraficoTopDespesas
+                data={analiseData?.top5Despesas}
+                isLoading={isAnaliseLoading}
+                isError={isAnaliseError}
+              />
+              <GraficoBalancoMensal 
+                data={analiseData?.balancoMensal}
+                isLoading={isAnaliseLoading}
+                isError={isAnaliseError}
+              />
+            </SimpleGrid>
+
           </TabPanel>
           <TabPanel>
             <Box mb={6}>
@@ -111,7 +162,6 @@ const FinancasPage = () => {
                 <Input placeholder="Buscar por descrição ou categoria..." value={termoBusca} onChange={(e) => setTermoBusca(e.target.value)} />
               </InputGroup>
             </Box>
-            {/* --- CORREÇÃO APLICADA AQUI --- */}
             <TabelaReceitasExternas />
           </TabPanel>
           <TabPanel>

@@ -4,26 +4,26 @@ const { verifyToken, checkAdmin } = require('../middleware/authMiddleware');
 const {
     getDespesasPessoais,
     createDespesaPessoal,
-    updateDespesa, // <-- Importa a nova função de edição
-    togglePagamentoDespesa, // <-- Importa a função de pagamento
+    updateDespesa,
+    togglePagamentoDespesa,
     deleteDespesaPessoal,
+    // ✅ INÍCIO DA MODIFICAÇÃO: Importando a nova função
+    getDespesasPessoaisPendentes,
 } = require('../controllers/despesaPessoalController');
 
 router.use(verifyToken, checkAdmin);
+
+// ✅ INÍCIO DA MODIFICAÇÃO: Adicionando a nova rota para pendências
+// Esta rota deve vir antes da rota com /:id para evitar que "pendentes" seja interpretado como um ID.
+router.get('/pendentes', getDespesasPessoaisPendentes);
+// ✅ FIM DA MODIFICAÇÃO
 
 router.route('/')
     .get(getDespesasPessoais)
     .post(createDespesaPessoal);
 
-// --- INÍCIO DA CORREÇÃO ---
-// Rota PUT principal para editar os detalhes da despesa
 router.put('/:id', updateDespesa); 
-
-// Rota PATCH específica para apenas alternar o status de pagamento
 router.patch('/:id/toggle-pago', togglePagamentoDespesa); 
-
-// Rota DELETE permanece a mesma
 router.delete('/:id', deleteDespesaPessoal);
-// --- FIM DA CORREÇÃO ---
 
 module.exports = router;

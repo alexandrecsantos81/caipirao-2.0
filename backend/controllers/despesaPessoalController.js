@@ -36,7 +36,7 @@ const createDespesaPessoal = async (req, res) => {
             const mesesParaSubtrair = numParcelaAtual - 1;
             const dataPrimeiraParcela = subMonths(dataVencimentoBase, mesesParaSubtrair);
 
-            for (let i = numParcelaAtual - 1; i < totalParcelas; i++) {
+            for (let i = 0; i < totalParcelas; i++) {
                 const dataVencimentoParcela = addMonths(dataPrimeiraParcela, i);
                 const descricaoParcela = `${descricao.trim().toUpperCase()} (${i + 1}/${totalParcelas})`;
 
@@ -91,7 +91,7 @@ const getDespesasPessoais = async (req, res) => {
         const query = `
             SELECT * FROM despesas_pessoais
             WHERE 
-                pago = FALSE 
+                (pago = FALSE AND data_vencimento BETWEEN $1 AND $2)
                 OR 
                 (pago = TRUE AND data_pagamento BETWEEN $1 AND $2)
             ORDER BY data_vencimento ASC, data_criacao ASC
@@ -104,9 +104,30 @@ const getDespesasPessoais = async (req, res) => {
     }
 };
 
-// --- INÍCIO DA CORREÇÃO ---
+// ✅ INÍCIO DA MODIFICAÇÃO: Nova função para buscar despesas pendentes
+const getDespesasPessoaisPendentes = async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                id,
+                descricao,
+                valor,
+                data_vencimento
+            FROM despesas_pessoais
+            WHERE pago = FALSE
+            ORDER BY data_vencimento ASC;
+        `;
+        
+        const resultado = await pool.query(query);
+        res.status(200).json(resultado.rows);
 
-// NOVA FUNÇÃO para editar os detalhes de uma despesa
+    } catch (error) {
+        console.error('Erro ao buscar despesas pessoais pendentes:', error);
+        res.status(500).json({ error: 'Erro interno do servidor.' });
+    }
+};
+// ✅ FIM DA MODIFICAÇÃO
+
 const updateDespesa = async (req, res) => {
     const { id } = req.params;
     const { descricao, valor, data_vencimento, categoria } = req.body;
@@ -168,7 +189,6 @@ const togglePagamentoDespesa = async (req, res) => {
     }
 };
 
-
 const deleteDespesaPessoal = async (req, res) => {
     const { id } = req.params;
     const client = await pool.connect();
@@ -206,5 +226,5 @@ module.exports = {
     updateDespesa,
     togglePagamentoDespesa,
     deleteDespesaPessoal,
+    getDespesasPessoaisPendentes, // ✅ Exportando a nova função
 };
-
