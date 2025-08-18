@@ -41,7 +41,7 @@ import { useDebounce } from '../hooks/useDebounce';
 const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
   isOpen: boolean; onClose: () => void; produto: IProduto | null; onSave: (data: IProdutoForm) => void; isLoading: boolean;
 }) => {
-  const { register, handleSubmit, setValue, reset, watch, formState: { errors } } = useForm<IProdutoForm & { outra_unidade_medida?: string }>();
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<IProdutoForm & { outra_unidade_medida?: string }>();
   const unidadeMedida = watch('unidade_medida');
   const drawerSize = useBreakpointValue({ base: 'full', md: 'md' });
 

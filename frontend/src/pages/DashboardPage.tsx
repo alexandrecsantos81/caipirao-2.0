@@ -1,7 +1,7 @@
 import {
   Box, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText, StatArrow,
-  Skeleton, useColorModeValue, Heading, Center, Text, Icon, HStack,
-  VStack, Input, Button, Flex, Spinner
+ useColorModeValue, Heading, Center, Text, HStack,
+Input, Button, Flex, Spinner
 } from '@chakra-ui/react';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';

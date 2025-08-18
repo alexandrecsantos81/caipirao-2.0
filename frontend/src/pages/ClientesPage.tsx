@@ -7,7 +7,6 @@ import {
   Text, useDisclosure, useToast, Checkbox,
   useBreakpointValue,
   Divider,
-  VStack,
   Icon,
   FormErrorMessage,
   AlertDialog,
@@ -31,7 +30,7 @@ import {
   useColorModeValue,
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { useEffect, useState, useRef, CSSProperties } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import { FiEdit, FiPhone, FiPlus, FiTrash2, FiSearch, FiClock } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
@@ -42,8 +41,6 @@ import {
   ICliente, IClienteForm, createCliente, deleteCliente, getClientes, updateCliente, getHistoricoVendas, IHistoricoVenda,
 } from '../services/cliente.service';
 import { useAuth } from '../hooks/useAuth';
-
-// ... (O resto do código permanece exatamente o mesmo da versão anterior) ...
 
 const useDebounce = (value: string, delay: number) => {
   const [debouncedValue, setDebouncedValue] = useState(value);

@@ -1,5 +1,5 @@
 import {
-  Table, Thead, Tbody, Tr, Th, Td, TableContainer, Skeleton, Text, Center, Avatar, HStack, Box
+  Table, Thead, Tbody, Tr, Th, Td, TableContainer, Skeleton, Text, Center, Avatar, HStack,
 } from '@chakra-ui/react';
 import { ISellerProductivityItem } from '@/services/report.service';
 

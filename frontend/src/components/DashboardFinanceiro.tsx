@@ -3,7 +3,7 @@ import {
   Skeleton, useColorModeValue, Heading, Center, Text, Icon, HStack
 } from '@chakra-ui/react';
 import { useQuery } from '@tanstack/react-query';
-import { FiArrowDown, FiArrowUp, FiTrendingUp, FiTrendingDown, FiDollarSign, FiMinusCircle, FiPlusCircle } from 'react-icons/fi';
+import { FiTrendingUp, FiTrendingDown, FiDollarSign, FiMinusCircle, FiPlusCircle } from 'react-icons/fi';
 import { getDashboardConsolidado, IDateFilter } from '../services/financas.service';
 
 interface DashboardFinanceiroProps {
