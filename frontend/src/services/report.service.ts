@@ -1,22 +1,8 @@
 // frontend/src/services/report.service.ts
 
-import axios from 'axios';
+import { api } from '@/services/api'; // Usando o alias que configuramos
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-const apiClient = axios.create({ baseURL: API_URL } );
-
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error),
-);
-
-// --- INTERFACES ---
+// --- INTERFACES (sem alterações) ---
 
 export interface IReportDateFilter {
   startDate: string;
@@ -89,42 +75,42 @@ export interface IStockEntryReportItem {
 }
 
 
-// --- FUNÇÕES DE SERVIÇO (DADOS JSON) ---
+// --- FUNÇÕES DE SERVIÇO (DADOS JSON) (sem alterações) ---
 
 export const getSalesSummary = async (filter: IReportDateFilter): Promise<ISalesSummaryResponse> => {
-  const response = await apiClient.get('/reports/sales-summary', { params: filter });
+  const response = await api.get('/reports/sales-summary', { params: filter });
   return response.data;
 };
 
 export const getProductRanking = async (filter: IProductRankingFilter): Promise<IProductRankingItem[]> => {
-  const response = await apiClient.get('/reports/product-ranking', { params: filter });
+  const response = await api.get('/reports/product-ranking', { params: filter });
   return response.data;
 };
 
 export const getClientRanking = async (filter: IReportDateFilter): Promise<IClientRankingItem[]> => {
-  const response = await apiClient.get('/reports/client-ranking', { params: filter });
+  const response = await api.get('/reports/client-ranking', { params: filter });
   return response.data;
 };
 
 export const getClientAnalysis = async (): Promise<IClientAnalysisResponse> => {
-  const response = await apiClient.get('/reports/client-analysis');
+  const response = await api.get('/reports/client-analysis');
   return response.data;
 };
 
 export const getSellerProductivity = async (filter: IReportDateFilter): Promise<ISellerProductivityItem[]> => {
-  const response = await apiClient.get('/reports/seller-productivity', { params: filter });
+  const response = await api.get('/reports/seller-productivity', { params: filter });
   return response.data;
 };
 
 export const getStockEntriesReport = async (filter: IReportDateFilter): Promise<IStockEntryReportItem[]> => {
-  const response = await apiClient.get('/reports/stock-entries', { params: filter });
+  const response = await api.get('/reports/stock-entries', { params: filter });
   return response.data;
 };
 
 // --- FUNÇÕES DE SERVIÇO (PDF) ---
 
 const getPdf = async (url: string, params: any): Promise<Blob> => {
-  const response = await apiClient.get(url, {
+  const response = await api.get(url, {
     params,
     responseType: 'blob',
   });
@@ -145,4 +131,20 @@ export const getSellerProductivityPdf = async (filter: IReportDateFilter): Promi
 
 export const getStockEntriesPdf = async (filter: IReportDateFilter): Promise<Blob> => {
   return getPdf('/reports/stock-entries/pdf', filter);
+};
+
+// =====================================================================
+// NOVA FUNÇÃO PARA GERAR O COMPROVANTE DE VENDA
+// =====================================================================
+/**
+ * @description Solicita a geração do PDF de um comprovante de venda.
+ * @param vendaId O ID da venda para a qual o comprovante será gerado.
+ * @returns Um Blob contendo o PDF.
+ */
+export const gerarComprovanteVendaPDF = async (vendaId: number): Promise<Blob> => {
+  // A rota foi definida como '/venda/:id/pdf' no backend
+  const response = await api.get(`/reports/venda/${vendaId}/pdf`, {
+    responseType: 'blob',
+  });
+  return new Blob([response.data], { type: 'application/pdf' });
 };

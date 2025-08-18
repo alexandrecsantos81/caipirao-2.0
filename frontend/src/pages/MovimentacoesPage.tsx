@@ -1,3 +1,5 @@
+// frontend/src/pages/MovimentacoesPage.tsx
+
 import {
   Box, Button, Flex, Heading, Input, Tab, TabList, TabPanel,
   TabPanels, Tabs, useDisclosure, useToast,
@@ -12,9 +14,11 @@ import { FiPlus, FiSearch } from 'react-icons/fi';
 import { useAuth } from '../hooks/useAuth';
 import { useDebounce } from '../hooks/useDebounce';
 import { IDespesa, deleteDespesa } from '../services/despesa.service';
-import { IVenda, deleteVenda, getVendaPdf } from '../services/venda.service';
+import { IVenda, deleteVenda } from '../services/venda.service';
+// NOVA IMPORTAÇÃO DO SERVIÇO DE RELATÓRIO
+import { gerarComprovanteVendaPDF } from '../services/report.service';
 
-// Importando os componentes recém-criados
+// Importando os componentes de UI
 import { FormularioNovaVenda } from '../components/FormularioNovaVenda';
 import { FormularioNovaDespesa } from '../components/FormularioNovaDespesa';
 import { TabelaVendas } from '../components/TabelaVendas';
@@ -26,26 +30,24 @@ const MovimentacoesPage = () => {
   const queryClient = useQueryClient();
   const toast = useToast();
   
-  // Hooks de controle dos Drawers (formulários) e do AlertDialog (confirmação)
   const { isOpen: isVendaDrawerOpen, onOpen: onVendaDrawerOpen, onClose: onVendaDrawerClose } = useDisclosure();
   const { isOpen: isDespesaDrawerOpen, onOpen: onDespesaDrawerOpen, onClose: onDespesaDrawerClose } = useDisclosure();
   const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure();
   
-  // Estados para gerenciar qual item está sendo editado ou deletado
   const [vendaParaEditar, setVendaParaEditar] = useState<IVenda | null>(null);
   const [despesaParaEditar, setDespesaParaEditar] = useState<IDespesa | null>(null);
   const [itemParaDeletar, setItemParaDeletar] = useState<{ id: number; tipo: 'venda' | 'despesa' } | null>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
 
-  // Estados e hooks para a funcionalidade de busca
   const [termoBuscaVendas, setTermoBuscaVendas] = useState('');
   const buscaVendasDebounced = useDebounce(termoBuscaVendas, 500);
   const [termoBuscaDespesas, setTermoBuscaDespesas] = useState('');
   const buscaDespesasDebounced = useDebounce(termoBuscaDespesas, 500);
 
-  // Mutations para as ações de PDF e exclusão
+  // --- MUTATIONS ATUALIZADAS ---
+
   const pdfMutation = useMutation({
-    mutationFn: getVendaPdf,
+    mutationFn: gerarComprovanteVendaPDF, // Usa a nova função do serviço
     onSuccess: (blob, vendaId) => {
       const pdfUrl = URL.createObjectURL(blob);
       window.open(pdfUrl, '_blank');
@@ -53,14 +55,12 @@ const MovimentacoesPage = () => {
         title: 'PDF Gerado',
         description: `O comprovante da venda #${vendaId} foi aberto em uma nova aba.`,
         status: 'success',
-        duration: 4000,
-        isClosable: true,
       });
     },
-    onError: (error: any) => {
+    onError: (error: any, vendaId) => {
       toast({
         title: 'Erro ao gerar PDF',
-        description: error.response?.data?.error || 'Não foi possível gerar o comprovante.',
+        description: error.response?.data?.error || `Não foi possível gerar o comprovante para a venda #${vendaId}.`,
         status: 'error',
       });
     },
@@ -95,7 +95,8 @@ const MovimentacoesPage = () => {
     }
   });
   
-  // Handlers para abrir os formulários e modais
+  // --- HANDLERS ---
+
   const handleEditVenda = (venda: IVenda) => { setVendaParaEditar(venda); onVendaDrawerOpen(); };
   const handleEditDespesa = (despesa: IDespesa) => { setDespesaParaEditar(despesa); onDespesaDrawerOpen(); };
   const handleAddNewVenda = () => { setVendaParaEditar(null); onVendaDrawerOpen(); };
@@ -105,9 +106,9 @@ const MovimentacoesPage = () => {
   const handleGeneratePdf = (vendaId: number) => {
     toast({
       title: 'Gerando PDF...',
-      description: 'Por favor, aguarde.',
+      description: 'Por favor, aguarde um momento.',
       status: 'info',
-      duration: 2000,
+      duration: 1500,
     });
     pdfMutation.mutate(vendaId);
   };

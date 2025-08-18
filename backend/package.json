@@ -14,6 +14,7 @@
     "dotenv": "latest",
     "express": "latest",
     "jsonwebtoken": "latest",
+    "multer": "^2.0.2",
     "pdfkit": "^0.17.1",
     "pdfkit-table": "^0.1.99",
     "pg": "latest",

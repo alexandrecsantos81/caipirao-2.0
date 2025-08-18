@@ -1,99 +1,77 @@
 // backend/controllers/empresaController.js
 
-const pool = require('../db'); // Certifique-se de que o caminho para seu pool de conexão está correto.
+const pool = require('../db');
 
-/**
- * @desc    Buscar os dados da empresa.
- * @route   GET /api/empresa
- * @access  Protegido (Admin)
- */
-const getEmpresaDados = async (req, res) => {
+const getEmpresaData = async (req, res) => {
     try {
-        // A tabela sempre terá a linha com id = 1, conforme definido no schema.
         const result = await pool.query('SELECT * FROM empresa_dados WHERE id = 1');
-
         if (result.rows.length === 0) {
-            // Este erro não deve ocorrer se o schema.sql for executado,
-            // mas é uma proteção importante caso a linha padrão não seja inserida.
-            return res.status(404).json({ error: 'Dados da empresa ainda não foram configurados.' });
+            return res.status(404).json({ error: 'Dados da empresa não encontrados.' });
         }
-
         res.status(200).json(result.rows[0]);
     } catch (error) {
         console.error('Erro ao buscar dados da empresa:', error);
-        res.status(500).json({ error: 'Erro interno do servidor ao buscar dados da empresa.' });
+        res.status(500).json({ error: 'Erro interno do servidor.' });
     }
 };
 
-/**
- * @desc    Salvar ou atualizar (Upsert) os dados da empresa.
- * @route   PUT /api/empresa
- * @access  Protegido (Admin)
- */
-const upsertEmpresaDados = async (req, res) => {
-    const {
-        nome_fantasia,
-        razao_social,
-        cnpj,
-        inscricao_estadual,
-        telefone,
-        email,
-        endereco_completo,
-        logo_url
-    } = req.body;
+const updateEmpresaData = async (req, res) => {
+    const { nome_fantasia, razao_social, cnpj, inscricao_estadual, telefone, endereco_completo } = req.body;
+    try {
+        const result = await pool.query(
+            `UPDATE empresa_dados SET 
+                nome_fantasia = $1, razao_social = $2, cnpj = $3, 
+                inscricao_estadual = $4, telefone = $5, endereco_completo = $6,
+                data_atualizacao = CURRENT_TIMESTAMP
+             WHERE id = 1 RETURNING *`,
+            [nome_fantasia, razao_social, cnpj, inscricao_estadual, telefone, endereco_completo]
+        );
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Registro da empresa não encontrado.' });
+        }
+        res.status(200).json(result.rows[0]);
+    } catch (error) {
+        console.error('Erro ao atualizar dados da empresa:', error);
+        res.status(500).json({ error: 'Erro interno do servidor.' });
+    }
+};
 
-    if (!nome_fantasia || nome_fantasia.trim() === '') {
-        return res.status(400).json({ error: 'O campo "Nome Fantasia" é obrigatório.' });
+// ✅ NOVA FUNÇÃO PARA UPLOAD DO LOGO
+const uploadLogo = async (req, res) => {
+    // O middleware 'multer' já salvou o arquivo e adicionou 'req.file'
+    if (!req.file) {
+        return res.status(400).json({ error: 'Nenhum arquivo de imagem foi enviado.' });
     }
 
     try {
-        // A cláusula ON CONFLICT (id) DO UPDATE é a chave para a operação "Upsert".
-        // Ela tenta inserir uma nova linha com id=1. Se já existir, ela atualiza os campos.
-        const query = `
-            INSERT INTO empresa_dados (
-                id, nome_fantasia, razao_social, cnpj, inscricao_estadual,
-                telefone, email, endereco_completo, logo_url, data_atualizacao
-            )
-            VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
-            ON CONFLICT (id) DO UPDATE SET
-                nome_fantasia = EXCLUDED.nome_fantasia,
-                razao_social = EXCLUDED.razao_social,
-                cnpj = EXCLUDED.cnpj,
-                inscricao_estadual = EXCLUDED.inscricao_estadual,
-                telefone = EXCLUDED.telefone,
-                email = EXCLUDED.email,
-                endereco_completo = EXCLUDED.endereco_completo,
-                logo_url = EXCLUDED.logo_url,
-                data_atualizacao = CURRENT_TIMESTAMP
-            RETURNING *;
-        `;
+        // Constrói a URL completa para acessar a imagem
+        // Ex: http://localhost:3001/public/uploads/logo-1678886400000.png
+        const logoUrl = `${req.protocol}://${req.get('host' )}/public/uploads/${req.file.filename}`;
 
-        const params = [
-            nome_fantasia,
-            razao_social || null,
-            cnpj || null,
-            inscricao_estadual || null,
-            telefone || null,
-            email || null,
-            endereco_completo || null,
-            logo_url || null
-        ];
+        // Atualiza a coluna 'logo_url' no banco de dados
+        const result = await pool.query(
+            'UPDATE empresa_dados SET logo_url = $1 WHERE id = 1 RETURNING logo_url',
+            [logoUrl]
+        );
 
-        const result = await pool.query(query, params);
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Registro da empresa não encontrado para atualizar o logo.' });
+        }
 
-        res.status(200).json(result.rows[0]);
+        // Retorna a URL da nova imagem para o frontend
+        res.status(200).json({
+            message: 'Logo atualizado com sucesso!',
+            logoUrl: result.rows[0].logo_url
+        });
 
     } catch (error) {
-        console.error('Erro ao salvar dados da empresa:', error);
-        // Trata o erro específico de violação de constraint única (ex: CNPJ duplicado)
-        if (error.code === '23505') {
-            return res.status(409).json({ error: 'O CNPJ informado já está em uso.' });
-        }
-        res.status(500).json({ error: 'Erro interno do servidor ao salvar os dados da empresa.' });
+        console.error('Erro ao salvar a URL do logo:', error);
+        res.status(500).json({ error: 'Erro interno do servidor ao processar o upload.' });
     }
 };
 
 module.exports = {
-    getEmpresaDados,
-    upsertEmpresaDados,
+    getEmpresaData,
+    updateEmpresaData,
+    uploadLogo // ✅ Exporta a nova função
 };

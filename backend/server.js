@@ -1,3 +1,5 @@
+// backend/server.js
+
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
@@ -15,7 +17,7 @@ const reportRoutes = require('./routes/reports');
 const receitaExternaRoutes = require('./routes/receitaExternaRoutes');
 const financasRoutes = require('./routes/financasRoutes');
 const despesaPessoalRoutes = require('./routes/despesaPessoalRoutes');
-const empresaRoutes = require('./routes/empresa'); // <-- 1. NOVA ROTA IMPORTADA
+const empresaRoutes = require('./routes/empresa'); // Rota da empresa
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -27,7 +29,7 @@ const allowedOrigins = [
 ];
 
 const corsOptions = {
-  origin: (origin, callback  ) => {
+  origin: (origin, callback ) => {
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
@@ -42,6 +44,10 @@ const corsOptions = {
 // Middlewares
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// ✅ NOVO: Servir arquivos estáticos da pasta 'public'
+// Isso torna a pasta de uploads acessível via URL (ex: http://localhost:3001/public/uploads/logo.png )
+app.use('/public', express.static('public'));
 
 // Rota Pública de Teste
 app.get('/', (req, res) => {
@@ -61,7 +67,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/receitas-externas', receitaExternaRoutes);
 app.use('/api/financas', financasRoutes);
 app.use('/api/despesas-pessoais', despesaPessoalRoutes);
-app.use('/api/empresa', empresaRoutes); // <-- 2. NOVA ROTA REGISTRADA
+app.use('/api/empresa', empresaRoutes); // Rota da empresa
 
 // Iniciar o servidor
 app.listen(port, () => {
