@@ -102,7 +102,8 @@ CREATE TABLE despesas (
     data_pagamento DATE DEFAULT NULL,
     fornecedor_id INT REFERENCES fornecedores(id) ON DELETE SET NULL,
     responsavel_pagamento_id INT REFERENCES utilizadores(id) ON DELETE SET NULL,
-    despesa_pai_id INT REFERENCES despesas(id) ON DELETE SET NULL, -- <<< COLUNA ADICIONADA AQUI
+    -- LINHA ADICIONADA AQUI --
+    despesa_pai_id INT REFERENCES despesas(id) ON DELETE SET NULL,
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

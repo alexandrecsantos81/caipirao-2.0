@@ -1,5 +1,6 @@
 const pool = require('../db');
 
+// ... (as funções registrarDespesa e getDespesas permanecem as mesmas)
 const registrarDespesa = async (req, res) => {
     const { tipo_saida, valor, discriminacao, data_vencimento, data_compra, fornecedor_id } = req.body;
 
@@ -76,6 +77,7 @@ const getDespesas = async (req, res) => {
     }
 };
 
+
 const quitarDespesa = async (req, res) => {
     const { id } = req.params;
     const { data_pagamento, responsavel_pagamento_id, valor_pago } = req.body;
@@ -103,20 +105,20 @@ const quitarDespesa = async (req, res) => {
         const despesaOriginal = despesaOriginalResult.rows[0];
         const valorPagoNumerico = parseFloat(valor_pago);
 
-        if (valorPagoNumerico > despesaOriginal.valor) {
+        if (valorPagoNumerico > despesaOriginal.valor + 0.001) {
             await client.query('ROLLBACK');
             return res.status(400).json({ error: `O valor a pagar (R$ ${valorPagoNumerico.toFixed(2)}) não pode ser maior que o saldo devedor (R$ ${despesaOriginal.valor.toFixed(2)}).` });
         }
 
         const valorRestante = despesaOriginal.valor - valorPagoNumerico;
 
-        if (valorRestante <= 0.009) { // Usar uma pequena margem para evitar problemas com ponto flutuante
+        if (valorRestante <= 0.009) { 
             const despesaQuitada = await client.query(
                 `UPDATE despesas 
-                 SET data_pagamento = $1, responsavel_pagamento_id = $2, valor = $3
-                 WHERE id = $4
+                 SET data_pagamento = $1, responsavel_pagamento_id = $2
+                 WHERE id = $3
                  RETURNING *`,
-                [data_pagamento, responsavelId, despesaOriginal.valor, id]
+                [data_pagamento, responsavelId, id]
             );
             await client.query('COMMIT');
             return res.status(200).json(despesaQuitada.rows[0]);
@@ -127,6 +129,8 @@ const quitarDespesa = async (req, res) => {
                 [valorRestante, id]
             );
 
+            // --- INÍCIO DA CORREÇÃO ---
+            // A query INSERT foi corrigida para incluir 9 colunas e usar 9 parâmetros ($1 a $9).
             const novaDespesaQuitada = await client.query(
                 `INSERT INTO despesas (tipo_saida, valor, discriminacao, data_compra, data_vencimento, data_pagamento, fornecedor_id, responsavel_pagamento_id, despesa_pai_id)
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -140,9 +144,10 @@ const quitarDespesa = async (req, res) => {
                     data_pagamento,
                     despesaOriginal.fornecedor_id,
                     responsavelId,
-                    id
+                    id // Este é o valor para a coluna despesa_pai_id, que agora é o parâmetro $9
                 ]
             );
+            // --- FIM DA CORREÇÃO ---
             
             await client.query('COMMIT');
             return res.status(200).json(novaDespesaQuitada.rows[0]);
@@ -194,12 +199,12 @@ const updateDespesa = async (req, res) => {
         const despesaAtualizada = await pool.query(
             `UPDATE despesas 
              SET tipo_saida = $1, valor = $2, discriminacao = $3, data_vencimento = $4, data_compra = $5, fornecedor_id = $6, data_pagamento = $7
-             WHERE id = $8 RETURNING *`,
+             WHERE id = $8 AND despesa_pai_id IS NULL RETURNING *`,
             [tipo_saida, valor, discriminacao.trim().toUpperCase(), data_vencimento, data_compra, fornecedor_id, data_pagamento, id]
         );
 
         if (despesaAtualizada.rowCount === 0) {
-            return res.status(404).json({ error: 'Despesa não encontrada.' });
+            return res.status(404).json({ error: 'Despesa não encontrada ou é um pagamento parcial que não pode ser editado.' });
         }
 
         res.status(200).json(despesaAtualizada.rows[0]);
@@ -241,7 +246,7 @@ const deleteDespesa = async (req, res) => {
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Erro ao deletar despesa:', error);
-        if (error.code === '23503') { // Checagem de chave estrangeira
+        if (error.code === '23503') {
             return res.status(400).json({ error: 'Não é possível excluir esta despesa, pois ela é referência para um pagamento parcial. Exclua o pagamento primeiro.' });
         }
         res.status(500).json({ error: error.message || 'Erro interno do servidor.' });
@@ -250,7 +255,6 @@ const deleteDespesa = async (req, res) => {
     }
 };
 
-
 module.exports = {
     registrarDespesa,
     getDespesas,
@@ -258,5 +262,4 @@ module.exports = {
     getDespesasAPagar,
     updateDespesa,
     deleteDespesa,
-    quitarDespesa,
 };

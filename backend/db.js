@@ -1,18 +1,15 @@
 const { Pool, types } = require('pg');
 
-// Só carrega as variáveis do .env se NÃO estivermos em produção
 if (process.env.NODE_ENV !== 'production') {
   require('dotenv').config();
 }
 
-// Converte os tipos NUMERIC (código 1700) do banco para float no JavaScript
 types.setTypeParser(1700, (val) => {
   return parseFloat(val);
 });
 
 let pool;
 
-// Lógica de conexão explícita para produção
 if (process.env.DATABASE_URL) {
   pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -21,7 +18,6 @@ if (process.env.DATABASE_URL) {
     }
   });
 } else {
-  // Lógica de conexão para desenvolvimento local
   pool = new Pool({
     user: process.env.DB_USER,
     host: process.env.DB_HOST,
@@ -31,8 +27,22 @@ if (process.env.DATABASE_URL) {
   });
 }
 
-pool.on('connect', () => {
-  console.log(`Conexão com o PostgreSQL bem-sucedida: ${new Date().toLocaleString()}`);
+// --- MODIFICAÇÃO PARA TESTE DE CONEXÃO ---
+// Vamos tentar conectar e verificar a versão imediatamente.
+// Se falhar, o processo do Node.js irá parar com um erro claro.
+pool.query('SELECT version()', (err, res) => {
+  if (err) {
+    console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+    console.error('!!! ERRO CRÍTICO AO CONECTAR COM O BANCO DE DADOS !!!');
+    console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+    console.error('Verifique se o serviço do PostgreSQL está rodando e se as credenciais no arquivo .env estão corretas.');
+    console.error('Erro original:', err);
+    // Encerra o processo se não conseguir conectar
+    process.exit(1); 
+  } else {
+    console.log('✅ Conexão com o PostgreSQL bem-sucedida.');
+    console.log('✅ Versão do Servidor:', res.rows[0].version);
+  }
 });
 
 module.exports = pool;
