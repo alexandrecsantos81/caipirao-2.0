@@ -1,6 +1,8 @@
+// frontend/src/pages/FornecedoresPage.tsx
+
 import {
-  Box, Button, Flex, Heading, IconButton, Spinner, Table, TableContainer, Tbody, Td, Text,
-  Th, Thead, Tr, useDisclosure, useToast, VStack, HStack,
+  Box, Button, Flex, Heading, IconButton, Spinner, Text,
+  useDisclosure, useToast, VStack, HStack,
   Drawer, DrawerBody, DrawerCloseButton, DrawerContent, DrawerFooter, DrawerHeader, DrawerOverlay,
   FormControl, FormLabel, Input, FormErrorMessage,
   Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay,
@@ -9,30 +11,23 @@ import {
   Center,
   InputGroup,
   InputLeftElement,
+  Tooltip,
+  useColorModeValue,
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { FiPlus, FiEdit, FiTrash2, FiSearch } from 'react-icons/fi';
 import { useForm, SubmitHandler, Controller } from 'react-hook-form';
 import { useState, useEffect, useRef } from 'react';
+import { FixedSizeList, ListChildComponentProps } from 'react-window';
+
 import {
   IFornecedor, IFornecedorForm, getFornecedores, createFornecedor, updateFornecedor, deleteFornecedor
 } from '../services/fornecedor.service';
 import { useAuth } from '../hooks/useAuth';
 import { Pagination } from '../components/Pagination';
+import { useDebounce } from '../hooks/useDebounce';
 
-// Hook customizado para debounce
-const useDebounce = (value: string, delay: number) => {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-  return debouncedValue;
-};
+// --- COMPONENTES E FUNÇÕES AUXILIARES ---
 
 const aplicarMascaraCnpjCpf = (value: string): string => {
   if (!value) return '';
@@ -158,6 +153,8 @@ export const FormularioFornecedor = ({ isOpen, onClose, fornecedor, onSave, isLo
   );
 };
 
+// --- COMPONENTE PRINCIPAL DA PÁGINA ---
+
 const FornecedoresPage = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -172,6 +169,8 @@ const FornecedoresPage = () => {
 
   const isMobile = useBreakpointValue({ base: true, md: false });
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<FixedSizeList>(null);
+  const isAdmin = user?.perfil === 'ADMIN';
 
   useEffect(() => {
     if (buscaDebounced) {
@@ -181,10 +180,15 @@ const FornecedoresPage = () => {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['fornecedores', pagina, buscaDebounced],
-    // ✅ Atualiza a chamada para usar o novo limite padrão de 50
     queryFn: () => getFornecedores(pagina, 50, buscaDebounced),
     placeholderData: keepPreviousData,
   });
+
+  useEffect(() => {
+    if (listRef.current) {
+      listRef.current.scrollTo(0);
+    }
+  }, [data]);
 
   const saveMutation = useMutation({
     mutationFn: ({ data, id }: { data: IFornecedorForm; id?: number }) => 
@@ -211,29 +215,52 @@ const FornecedoresPage = () => {
     }
   });
 
-  const handleAddClick = () => {
-    setSelectedFornecedor(null);
-    onDrawerOpen();
+  const handleAddClick = () => { setSelectedFornecedor(null); onDrawerOpen(); };
+  const handleEditClick = (fornecedor: IFornecedor) => { setSelectedFornecedor(fornecedor); onDrawerOpen(); };
+  const handleDeleteClick = (fornecedor: IFornecedor) => { setSelectedFornecedor(fornecedor); onConfirmModalOpen(); };
+  const handleConfirmDelete = () => { if (selectedFornecedor) { deleteMutation.mutate(selectedFornecedor.id); } };
+  const handleSave = (formData: IFornecedorForm, id?: number) => { saveMutation.mutate({ data: formData, id }); };
+
+  const headerBg = useColorModeValue('gray.50', 'gray.700');
+  const rowHoverBg = useColorModeValue('gray.100', 'gray.700');
+  const borderColor = useColorModeValue('gray.200', 'gray.600');
+
+  const RowDesktop = ({ index, style }: ListChildComponentProps) => {
+    const fornecedor = data!.dados[index];
+    return (
+      <Flex style={style} align="center" _hover={{ bg: rowHoverBg }} borderBottomWidth="1px" borderColor={borderColor}>
+        <Text width="30%" px={4} isTruncated title={fornecedor.nome}>{fornecedor.nome}</Text>
+        <Text width="20%" px={4} isTruncated>{aplicarMascaraCnpjCpf(fornecedor.cnpj_cpf || '')}</Text>
+        <Text width="25%" px={4} isTruncated>{fornecedor.telefone || '---'}</Text>
+        <Text width="25%" px={4} isTruncated>{fornecedor.email || '---'}</Text>
+        <Flex width="10%" px={4} justify="flex-start">
+          <HStack>
+            <Tooltip label="Editar Fornecedor" hasArrow><IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleEditClick(fornecedor)} /></Tooltip>
+            {isAdmin && (<Tooltip label="Excluir Fornecedor" hasArrow><IconButton aria-label="Deletar" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDeleteClick(fornecedor)} /></Tooltip>)}
+          </HStack>
+        </Flex>
+      </Flex>
+    );
   };
 
-  const handleEditClick = (fornecedor: IFornecedor) => {
-    setSelectedFornecedor(fornecedor);
-    onDrawerOpen();
-  };
-
-  const handleDeleteClick = (fornecedor: IFornecedor) => {
-    setSelectedFornecedor(fornecedor);
-    onConfirmModalOpen();
-  };
-
-  const handleConfirmDelete = () => {
-    if (selectedFornecedor) {
-      deleteMutation.mutate(selectedFornecedor.id);
-    }
-  };
-
-  const handleSave = (formData: IFornecedorForm, id?: number) => {
-    saveMutation.mutate({ data: formData, id });
+  const RowMobile = ({ index, style }: ListChildComponentProps) => {
+    const fornecedor = data!.dados[index];
+    return (
+      <Box style={style} px={2} py={2}>
+        <Box p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
+          <Flex justify="space-between" align="center">
+            <Heading size="sm" noOfLines={1}>{fornecedor.nome}</Heading>
+            <HStack spacing={1}>
+              <IconButton aria-label="Editar" icon={<FiEdit />} size="sm" onClick={() => handleEditClick(fornecedor)} />
+              {isAdmin && (<IconButton aria-label="Excluir" icon={<FiTrash2 />} colorScheme="red" size="sm" onClick={() => handleDeleteClick(fornecedor)} />)}
+            </HStack>
+          </Flex>
+          <Divider my={2} />
+          <HStack justify="space-between"><Text fontSize="sm" color="gray.500">CNPJ/CPF:</Text><Text>{aplicarMascaraCnpjCpf(fornecedor.cnpj_cpf || '') || 'Não informado'}</Text></HStack>
+          <HStack justify="space-between"><Text fontSize="sm" color="gray.500">Telefone:</Text><Text>{fornecedor.telefone || 'Não informado'}</Text></HStack>
+        </Box>
+      </Box>
+    );
   };
 
   return (
@@ -245,90 +272,38 @@ const FornecedoresPage = () => {
 
       <Box mb={6}>
         <InputGroup>
-          <InputLeftElement pointerEvents="none">
-            <FiSearch color="gray.300" />
-          </InputLeftElement>
-          <Input
-            placeholder="Buscar por nome, CNPJ/CPF, telefone ou email..."
-            value={termoBusca}
-            onChange={(e) => setTermoBusca(e.target.value)}
-          />
+          <InputLeftElement pointerEvents="none"><FiSearch color="gray.300" /></InputLeftElement>
+          <Input placeholder="Buscar por nome, CNPJ/CPF, telefone ou email..." value={termoBusca} onChange={(e) => setTermoBusca(e.target.value)} />
         </InputGroup>
       </Box>
 
-      {isLoading ? (
-        <Center p={8}><Spinner size="xl" /></Center>
-      ) : isError ? (
-        <Center p={8}><Text color="red.500">Erro ao carregar fornecedores.</Text></Center>
-      ) : (
+      {isLoading ? (<Center p={10}><Spinner size="xl" /></Center>) : 
+       isError ? (<Center p={10}><Text color="red.500">Não foi possível carregar os fornecedores.</Text></Center>) : 
+       !data?.dados || data.dados.length === 0 ? (<Center p={10}><Text>Nenhum fornecedor encontrado.</Text></Center>) :
+      (
         <>
           {isMobile ? (
-            <VStack spacing={4} align="stretch">
-              {data?.dados.map((fornecedor) => (
-                <Box key={fornecedor.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
-                  <Flex justify="space-between" align="center">
-                    <Heading size="sm" noOfLines={1}>{fornecedor.nome}</Heading>
-                    <HStack spacing={1}>
-                      <IconButton aria-label="Editar" icon={<FiEdit />} size="sm" onClick={() => handleEditClick(fornecedor)} />
-                      {user?.perfil === 'ADMIN' && (
-                        <IconButton aria-label="Excluir" icon={<FiTrash2 />} colorScheme="red" size="sm" onClick={() => handleDeleteClick(fornecedor)} />
-                      )}
-                    </HStack>
-                  </Flex>
-                  <Divider my={2} />
-                  <HStack justify="space-between">
-                    <Text fontSize="sm" color="gray.500">CNPJ/CPF:</Text>
-                    <Text>{aplicarMascaraCnpjCpf(fornecedor.cnpj_cpf || '') || 'Não informado'}</Text>
-                  </HStack>
-                  <HStack justify="space-between">
-                    <Text fontSize="sm" color="gray.500">Telefone:</Text>
-                    <Text>{fornecedor.telefone || 'Não informado'}</Text>
-                  </HStack>
-                </Box>
-              ))}
-            </VStack>
+            <FixedSizeList height={600} itemCount={data.dados.length} itemSize={145} width="100%" ref={listRef}>
+              {RowMobile}
+            </FixedSizeList>
           ) : (
-            <TableContainer>
-              <Table variant="striped">
-                <Thead>
-                  <Tr>
-                    <Th>Nome</Th>
-                    <Th>CNPJ/CPF</Th>
-                    <Th>Contato</Th>
-                    <Th>Ações</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {data?.dados.map((fornecedor) => (
-                    <Tr key={fornecedor.id}>
-                      <Td fontWeight="medium">{fornecedor.nome}</Td>
-                      <Td>{aplicarMascaraCnpjCpf(fornecedor.cnpj_cpf || '') || 'N/A'}</Td>
-                      <Td>
-                        <VStack align="start" spacing={0}>
-                          <Text>{fornecedor.email || '---'}</Text>
-                          <Text fontSize="sm" color="gray.500">{fornecedor.telefone || '---'}</Text>
-                        </VStack>
-                      </Td>
-                      <Td>
-                        <HStack>
-                          <IconButton aria-label="Editar" icon={<FiEdit />} onClick={() => handleEditClick(fornecedor)} />
-                          {user?.perfil === 'ADMIN' && (
-                            <IconButton aria-label="Excluir" icon={<FiTrash2 />} colorScheme="red" onClick={() => handleDeleteClick(fornecedor)} />
-                          )}
-                        </HStack>
-                      </Td>
-                    </Tr>
-                  ))}
-                </Tbody>
-              </Table>
-            </TableContainer>
+            <Box borderWidth="1px" borderRadius="lg" overflow="hidden">
+              <Flex bg={headerBg} borderBottomWidth="1px" fontWeight="bold" role="row" pr="15px">
+                <Text width="30%" p={4}>Nome</Text>
+                <Text width="20%" p={4}>CNPJ/CPF</Text>
+                <Text width="25%" p={4}>Telefone</Text>
+                <Text width="25%" p={4}>Email</Text>
+                <Text width="10%" p={4}>Ações</Text>
+              </Flex>
+              <FixedSizeList height={600} itemCount={data.dados.length} itemSize={62} width="100%" ref={listRef}>
+                {RowDesktop}
+              </FixedSizeList>
+            </Box>
           )}
 
-          <Pagination
-            paginaAtual={data?.pagina || 1}
-            totalPaginas={data?.totalPaginas || 1}
-            onPageChange={(page) => setPagina(page)}
-          />
+          {data && data.totalPaginas > 1 && (
+            <Pagination paginaAtual={data.pagina || 1} totalPaginas={data.totalPaginas || 1} onPageChange={setPagina} />
+          )}
         </>
       )}
 
@@ -343,9 +318,7 @@ const FornecedoresPage = () => {
           </ModalBody>
           <ModalFooter>
             <Button variant="ghost" mr={3} onClick={onConfirmModalClose} ref={cancelRef}>Cancelar</Button>
-            <Button colorScheme="red" onClick={handleConfirmDelete} isLoading={deleteMutation.isPending}>
-              Sim, Excluir
-            </Button>
+            <Button colorScheme="red" onClick={handleConfirmDelete} isLoading={deleteMutation.isPending}>Sim, Excluir</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
