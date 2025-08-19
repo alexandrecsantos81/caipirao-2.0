@@ -10,6 +10,7 @@ import {
   Heading,
   InputGroup,
   InputLeftElement,
+  useColorModeValue, // ✅ 1. Importar o hook useColorModeValue
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { FiEdit, FiPlus, FiTrash2, FiSearch } from 'react-icons/fi';
@@ -160,6 +161,9 @@ const UtilizadoresPage = () => {
 
   const cancelRef = useRef<HTMLButtonElement>(null);
   const isMobile = useBreakpointValue({ base: true, md: false });
+  
+  // ✅ 2. Definir a cor de fundo dinâmica
+  const mobileActionsBg = useColorModeValue('gray.100', 'gray.700');
 
   useEffect(() => {
     if (buscaDebounced) {
@@ -169,8 +173,7 @@ const UtilizadoresPage = () => {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['utilizadores', pagina, buscaDebounced],
-    // ✅ Atualiza a chamada para usar o novo limite padrão de 50
-    queryFn: () => getUtilizadores(pagina, 50, buscaDebounced),
+    queryFn: () => getUtilizadores(pagina, 10, buscaDebounced),
     placeholderData: keepPreviousData
   });
 
@@ -269,7 +272,8 @@ const UtilizadoresPage = () => {
                     <Text fontSize="sm" color="gray.500">Telefone:</Text>
                     <Text>{user.telefone}</Text>
                   </HStack>
-                  <HStack mt={4} justify="space-around" bg="gray.700" p={2} borderRadius="md">
+                  {/* ✅ 3. Aplicar a cor de fundo dinâmica aqui */}
+                  <HStack mt={4} justify="space-around" bg={mobileActionsBg} p={2} borderRadius="md">
                     <Tooltip label={user.status === 'ATIVO' ? 'Desativar' : 'Ativar'}><Box><Switch isChecked={user.status === 'ATIVO'} onChange={() => updateStatusMutation.mutate(user)} isDisabled={user.id === currentUser?.id} /></Box></Tooltip>
                     <Tooltip label="WhatsApp"><IconButton as={Link} href={`https://wa.me/55${user.telefone.replace(/\D/g, ''  )}`} target="_blank" aria-label="WhatsApp" icon={<FaWhatsapp />} variant="ghost" /></Tooltip>
                     <Tooltip label="Editar"><IconButton aria-label="Editar" icon={<FiEdit />} variant="ghost" onClick={() => handleEditClick(user)} /></Tooltip>

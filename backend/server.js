@@ -4,6 +4,17 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
+// Adicione este bloco para depurar as variáveis de ambiente
+// =============================================================
+console.log("--- VERIFICANDO VARIÁVEIS DE AMBIENTE (.env) ---");
+console.log("DB_HOST:", process.env.DB_HOST);
+console.log("DB_USER:", process.env.DB_USER);
+console.log("DB_DATABASE:", process.env.DB_DATABASE);
+console.log("DB_PASSWORD:", process.env.DB_PASSWORD ? "****** (Senha Encontrada)" : "!!! SENHA NÃO ENCONTRADA !!!");
+console.log("-------------------------------------------------");
+// =============================================================
+
+
 // Importação das rotas
 const authRoutes = require('./routes/auth');
 const clienteRoutes = require('./routes/clientes');
