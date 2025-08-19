@@ -1,8 +1,10 @@
+// frontend/src/services/venda.service.ts
+
 import axios from 'axios';
 import { IPaginatedResponse } from '@/types/common.types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-const apiClient = axios.create({ baseURL: API_URL }  );
+const apiClient = axios.create({ baseURL: API_URL }    );
 
 apiClient.interceptors.request.use(
   (config) => {
@@ -60,25 +62,23 @@ export interface IContaAReceber {
     cliente_telefone: string;
 }
 
+// ✅ NOVA INTERFACE PARA O FORMULÁRIO DE QUITAÇÃO
+export interface IQuitacaoVendaData {
+    data_pagamento: string;
+    valor_pago: number;
+    responsavel_quitacao_id?: number;
+}
+
+
 // --- FUNÇÕES DE SERVIÇO ---
 
-/**
- * @description Busca a lista paginada de vendas, com suporte a filtro de busca.
- * @param pagina - O número da página a ser buscada.
- * @param limite - O número de itens por página.
- * @param termoBusca - (Opcional) O termo para filtrar os resultados.
- */
 export const getVendas = async (
   pagina = 1,
   limite = 50,
   termoBusca?: string
 ): Promise<IPaginatedResponse<IVenda>> => {
   const response = await apiClient.get('/movimentacoes/vendas', {
-    params: {
-      pagina,
-      limite,
-      termoBusca,
-    },
+    params: { pagina, limite, termoBusca },
   });
   return response.data;
 };
@@ -102,19 +102,15 @@ export const getContasAReceber = async (): Promise<IContaAReceber[]> => {
     return response.data;
 };
 
-export const registrarPagamento = async (vendaId: number): Promise<IVenda> => {
-    const response = await apiClient.put(`/movimentacoes/vendas/${vendaId}/pagamento`);
+// ✅ FUNÇÃO ATUALIZADA PARA ENVIAR MAIS DADOS
+export const registrarPagamento = async ({ vendaId, quitacaoData }: { vendaId: number, quitacaoData: IQuitacaoVendaData }): Promise<IVenda> => {
+    const response = await apiClient.put(`/movimentacoes/vendas/${vendaId}/pagamento`, quitacaoData);
     return response.data;
 };
 
-/**
- * @description Busca o PDF de uma venda específica.
- * @param vendaId - O ID da venda.
- * @returns Um Blob contendo o PDF.
- */
 export const getVendaPdf = async (vendaId: number): Promise<Blob> => {
   const response = await apiClient.get(`/movimentacoes/vendas/${vendaId}/pdf`, {
-    responseType: 'blob', // Importante para receber o arquivo
+    responseType: 'blob',
   });
   return new Blob([response.data], { type: 'application/pdf' });
 };
