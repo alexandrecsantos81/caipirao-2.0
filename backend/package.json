@@ -8,6 +8,7 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "bcryptjs": "latest",
     "cors": "latest",
     "date-fns": "^4.1.0",
