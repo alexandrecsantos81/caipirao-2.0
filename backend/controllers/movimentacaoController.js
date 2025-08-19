@@ -179,6 +179,11 @@ const getContasAReceber = async (req, res) => {
  * @route   PUT /api/movimentacoes/vendas/:id/pagamento
  * @access  Restrito (Admin)
  */
+/**
+ * @desc    Registrar o pagamento (total ou parcial) de uma venda
+ * @route   PUT /api/movimentacoes/vendas/:id/pagamento
+ * @access  Restrito (Admin)
+ */
 const registrarPagamento = async (req, res) => {
     const { id } = req.params;
     const { data_pagamento, valor_pago, responsavel_quitacao_id } = req.body;
