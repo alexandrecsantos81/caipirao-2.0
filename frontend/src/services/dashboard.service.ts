@@ -4,7 +4,7 @@ import axios from 'axios';
 
 // Configuração do cliente Axios
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-const apiClient = axios.create({ baseURL: `${API_URL}/dashboard` } );
+const apiClient = axios.create({ baseURL: `${API_URL}/dashboard` }  );
 
 // Interceptor para adicionar o token de autenticação em todas as chamadas
 apiClient.interceptors.request.use(
@@ -27,6 +27,7 @@ export interface IKPIs {
   totalContasAReceber: number;
   totalContasAPagar: number;
   novosClientesMes: number;
+  receitaPrevistaMes: number; // <-- NOVO CAMPO ADICIONADO
 }
 
 export interface IVendasPorDia {
@@ -55,7 +56,6 @@ export interface IFluxoCaixaDiario {
   despesas: number;
 }
 
-// ✅ NOVA INTERFACE para os filtros
 export interface IDateFilter {
   startDate: string;
   endDate: string;
@@ -88,10 +88,9 @@ export const getRankingClientes = async (): Promise<IRankingCliente[]> => {
   return response.data;
 };
 
-// ✅ FUNÇÃO ATUALIZADA para aceitar filtros
 export const getFluxoCaixaDiario = async (filters: IDateFilter): Promise<IFluxoCaixaDiario[]> => {
   const response = await apiClient.get('/fluxo-caixa-diario', {
-    params: filters, // Envia os filtros como query params
+    params: filters,
   });
   return response.data;
 };

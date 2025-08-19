@@ -1,5 +1,7 @@
+// backend/controllers/movimentacaoController.js
+
 const pool = require('../db');
-const PDFDocument = require('pdfkit'); // <-- ADICIONADO
+const PDFDocument = require('pdfkit');
 
 /**
  * @desc    Registrar uma nova VENDA (ENTRADA) com lógica financeira e verificação de estoque
@@ -89,7 +91,6 @@ const createVenda = async (req, res) => {
  * @access  Privado (qualquer usuário logado)
  */
 const getVendas = async (req, res) => {
-    // ✅ Define o limite padrão como 50
     const { pagina = 1, limite = 50, termoBusca } = req.query;
     const offset = (pagina - 1) * limite;
 
@@ -140,12 +141,13 @@ const getVendas = async (req, res) => {
 };
 
 /**
- * @desc    Obter contas a receber com vencimento nos próximos 5 dias
+ * @desc    Obter todas as contas a receber pendentes para o card do dashboard
  * @route   GET /api/movimentacoes/contas-a-receber
  * @access  Restrito (Admin)
  */
 const getContasAReceber = async (req, res) => {
     try {
+        // ALTERAÇÃO: Removemos o filtro de data para buscar TODAS as contas pendentes.
         const query = `
             SELECT 
                 m.id,
@@ -161,7 +163,6 @@ const getContasAReceber = async (req, res) => {
                 m.tipo = 'ENTRADA' 
                 AND m.opcao_pagamento = 'A PRAZO'
                 AND m.data_pagamento IS NULL
-                AND m.data_vencimento BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '5 days'
             ORDER BY 
                 m.data_vencimento ASC;
         `;
@@ -174,30 +175,99 @@ const getContasAReceber = async (req, res) => {
 };
 
 /**
- * @desc    Registrar o pagamento de uma venda
+ * @desc    Registrar o pagamento (total ou parcial) de uma venda
  * @route   PUT /api/movimentacoes/vendas/:id/pagamento
  * @access  Restrito (Admin)
  */
 const registrarPagamento = async (req, res) => {
     const { id } = req.params;
-    const { data_pagamento } = req.body; 
+    const { data_pagamento, valor_pago, responsavel_quitacao_id } = req.body;
+    const userIdFromToken = req.user.id;
+
+    if (!data_pagamento || valor_pago === undefined || valor_pago <= 0) {
+        return res.status(400).json({ error: 'Data de pagamento e um valor pago válido são obrigatórios.' });
+    }
+    
+    const responsavelId = responsavel_quitacao_id || userIdFromToken;
+    const client = await pool.connect();
 
     try {
-        const result = await pool.query(
-            'UPDATE movimentacoes SET data_pagamento = $1 WHERE id = $2 AND tipo = \'ENTRADA\' RETURNING *',
-            [data_pagamento || new Date(), id]
+        await client.query('BEGIN');
+
+        // Busca a venda original e a bloqueia para atualização (FOR UPDATE)
+        const vendaOriginalResult = await client.query(
+            'SELECT * FROM movimentacoes WHERE id = $1 AND data_pagamento IS NULL FOR UPDATE', 
+            [id]
         );
 
-        if (result.rowCount === 0) {
-            return res.status(404).json({ error: 'Venda não encontrada ou já paga.' });
+        if (vendaOriginalResult.rowCount === 0) {
+            throw new Error('Venda não encontrada ou já quitada.');
         }
 
-        res.status(200).json({ message: 'Pagamento registrado com sucesso!', venda: result.rows[0] });
+        const vendaOriginal = vendaOriginalResult.rows[0];
+        const valorPagoNumerico = parseFloat(valor_pago);
+        const valorDevido = parseFloat(vendaOriginal.valor_total);
+
+        // Validação para não permitir pagamento maior que a dívida
+        if (valorPagoNumerico > valorDevido + 0.001) { // Adiciona uma pequena tolerância para erros de ponto flutuante
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: `O valor a pagar (R$ ${valorPagoNumerico.toFixed(2)}) não pode ser maior que o saldo devedor (R$ ${valorDevido.toFixed(2)}).` });
+        }
+
+        const valorRestante = valorDevido - valorPagoNumerico;
+
+        // Se o valor restante for zero (ou muito próximo de zero), quita a venda original
+        if (valorRestante <= 0.009) { 
+            const vendaQuitada = await client.query(
+                `UPDATE movimentacoes 
+                 SET data_pagamento = $1, valor_total = $2, responsavel_quitacao_id = $3
+                 WHERE id = $4
+                 RETURNING *`,
+                [data_pagamento, valorDevido, responsavelId, id]
+            );
+            await client.query('COMMIT');
+            return res.status(200).json(vendaQuitada.rows[0]);
+
+        } else { // Caso de pagamento parcial
+            // 1. Atualiza a venda original com o valor restante
+            await client.query(
+                'UPDATE movimentacoes SET valor_total = $1 WHERE id = $2',
+                [valorRestante, id]
+            );
+
+            // 2. Cria uma nova movimentação para registrar o pagamento parcial
+            const novaMovimentacaoPaga = await client.query(
+                `INSERT INTO movimentacoes (tipo, valor_total, cliente_id, utilizador_id, produtos, data_venda, opcao_pagamento, data_vencimento, data_pagamento, responsavel_quitacao_id, venda_pai_id)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                 RETURNING *`,
+                [
+                    vendaOriginal.tipo,
+                    valorPagoNumerico,
+                    vendaOriginal.cliente_id,
+                    vendaOriginal.utilizador_id,
+                    JSON.stringify([{ "descricao": `PAGAMENTO PARCIAL - REF. VENDA #${id}` }]), // Simplifica o JSON
+                    vendaOriginal.data_venda,
+                    vendaOriginal.opcao_pagamento,
+                    vendaOriginal.data_vencimento,
+                    data_pagamento,
+                    responsavelId,
+                    id // Link para a venda original
+                ]
+            );
+            
+            await client.query('COMMIT');
+            return res.status(200).json(novaMovimentacaoPaga.rows[0]);
+        }
+
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('Erro ao registrar pagamento:', error);
-        res.status(500).json({ error: 'Erro interno do servidor.' });
+        res.status(500).json({ error: error.message || 'Erro interno do servidor.' });
+    } finally {
+        client.release();
     }
 };
+
 
 /**
  * @desc    Atualizar uma VENDA (ENTRADA)
@@ -431,5 +501,5 @@ module.exports = {
   registrarPagamento,
   updateVenda,
   deleteVenda,
-  getVendaPDF, // <-- EXPORTADO
+  getVendaPDF,
 };
