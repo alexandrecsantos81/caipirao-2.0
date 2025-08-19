@@ -1,13 +1,15 @@
+// backend/routes/movimentacoes.js
+
 const express = require('express');
 const router = express.Router();
 const { 
     createVenda, 
     getVendas, 
-    getContasAReceber,
+    getContasAReceber, // <-- IMPORTAR NOVA FUNÇÃO
     registrarPagamento,
     updateVenda,
     deleteVenda,
-    getVendaPDF, // <-- IMPORTAR NOVA FUNÇÃO
+    getVendaPDF,
 } = require('../controllers/movimentacaoController');
 const { verifyToken, checkAdmin } = require('../middleware/authMiddleware');
 
@@ -15,16 +17,20 @@ const { verifyToken, checkAdmin } = require('../middleware/authMiddleware');
 router.post('/vendas', verifyToken, createVenda);
 router.get('/vendas', verifyToken, getVendas);
 
-// Novas rotas para editar e deletar vendas
 router.route('/vendas/:id')
     .put(verifyToken, updateVenda)
     .delete(verifyToken, deleteVenda);
 
-// Nova rota para gerar o PDF da venda
-router.get('/vendas/:id/pdf', verifyToken, getVendaPDF); // <-- NOVA ROTA
+router.get('/vendas/:id/pdf', verifyToken, getVendaPDF);
 
 // --- ROTAS FINANCEIRAS (Contas a Receber) ---
+
+// ROTA ANTIGA (será removida ou alterada, pois a nova é mais completa)
+// router.get('/contas-a-receber', verifyToken, checkAdmin, getContasAReceber);
+
+// ✅ NOVA ROTA PARA BUSCAR TODAS AS CONTAS A RECEBER PENDENTES
 router.get('/contas-a-receber', verifyToken, checkAdmin, getContasAReceber);
+
 router.put('/vendas/:id/pagamento', verifyToken, checkAdmin, registrarPagamento);
 
 module.exports = router;

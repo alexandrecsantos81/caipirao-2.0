@@ -1,39 +1,63 @@
+// backend/controllers/produtoController.js
+
 const pool = require('../db');
 
 /**
- * @desc    Obter todos os produtos com paginação
+ * @desc    Obter todos os produtos com paginação e filtro de busca
  * @route   GET /api/produtos
  * @access  Privado
  */
 const getProdutos = async (req, res) => {
-    // ✅ Define o limite padrão como 50
-    const pagina = parseInt(req.query.pagina, 10) || 1;
-    const limite = parseInt(req.query.limite, 10) || 50;
+    const { pagina = 1, limite = 50, termoBusca } = req.query; // ✅ Captura o termoBusca
     const offset = (pagina - 1) * limite;
 
+    // ✅ Construção da query dinâmica
+    let queryBase = 'FROM produtos';
+    let whereClause = '';
+    const params = [];
+    let paramIndex = 1;
+
+    if (termoBusca) {
+        // Filtra pelo nome do produto, ignorando maiúsculas/minúsculas
+        whereClause = `WHERE nome ILIKE $${paramIndex}`;
+        params.push(`%${termoBusca}%`);
+        paramIndex++;
+    }
+
     try {
-        const totalResult = await pool.query('SELECT COUNT(*) FROM produtos');
+        // Query para contagem total, agora considerando o filtro
+        const totalQuery = `SELECT COUNT(*) ${queryBase} ${whereClause}`;
+        const totalResult = await pool.query(totalQuery, termoBusca ? [params[0]] : []);
         const totalItens = parseInt(totalResult.rows[0].count, 10);
         const totalPaginas = Math.ceil(totalItens / limite);
 
-        // ✅ Altera a ordenação para 'data_criacao DESC'
-        const produtosResult = await pool.query(
-            'SELECT * FROM produtos ORDER BY data_criacao DESC LIMIT $1 OFFSET $2',
-            [limite, offset]
-        );
+        // Adiciona os parâmetros de paginação ao final do array de parâmetros
+        params.push(limite, offset);
+
+        // Query para buscar os dados com filtro e paginação
+        const produtosQuery = `
+            SELECT *
+            ${queryBase}
+            ${whereClause}
+            ORDER BY data_criacao DESC
+            LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+        `;
+        
+        const produtosResult = await pool.query(produtosQuery, params);
 
         res.json({
             dados: produtosResult.rows,
             total: totalItens,
-            pagina: pagina,
-            limite: limite,
+            pagina: parseInt(pagina, 10),
+            limite: parseInt(limite, 10),
             totalPaginas: totalPaginas,
         });
     } catch (err) {
-        console.error(err.message);
+        console.error('Erro ao buscar produtos:', err.message);
         res.status(500).send('Erro no servidor');
     }
 };
+
 
 /**
  * @desc    Criar um novo produto
@@ -133,11 +157,11 @@ const deleteProduto = async (req, res) => {
  */
 const registrarEntradaEstoque = async (req, res) => {
   const { id: produto_id } = req.params;
-  const { quantidade_adicionada, custo_total, observacao } = req.body;
+  const { quantidade_adicionada, custo_total, observacao, data_entrada } = req.body; // Adicionado data_entrada
   const utilizador_id = req.user.id;
 
-  if (!quantidade_adicionada || quantidade_adicionada <= 0 || custo_total === undefined || custo_total < 0) {
-    return res.status(400).json({ error: 'Quantidade adicionada e custo total são obrigatórios e devem ser valores positivos.' });
+  if (!quantidade_adicionada || quantidade_adicionada <= 0 || custo_total === undefined || custo_total < 0 || !data_entrada) {
+    return res.status(400).json({ error: 'Data da entrada, quantidade adicionada e custo total são obrigatórios e devem ser valores positivos.' });
   }
 
   const client = await pool.connect();
@@ -154,9 +178,9 @@ const registrarEntradaEstoque = async (req, res) => {
     }
 
     await client.query(
-      `INSERT INTO entradas_estoque (produto_id, utilizador_id, quantidade_adicionada, custo_total, observacao)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [produto_id, utilizador_id, quantidade_adicionada, custo_total, observacao ? observacao.toUpperCase() : null]
+      `INSERT INTO entradas_estoque (produto_id, utilizador_id, quantidade_adicionada, custo_total, observacao, data_entrada)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [produto_id, utilizador_id, quantidade_adicionada, custo_total, observacao ? observacao.toUpperCase() : null, data_entrada]
     );
 
     await client.query('COMMIT');

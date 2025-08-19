@@ -1,15 +1,14 @@
-// frontend/src/components/GraficoFluxoCaixa.tsx
-
 import {
   Box,
   Center,
   Spinner,
   Text,
   useColorModeValue,
+  useToken, // 1. Importar o hook useToken
 } from '@chakra-ui/react';
 import {
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -42,9 +41,17 @@ const formatCurrencyTooltip = (value: number) =>
   }).format(value);
 
 export const GraficoFluxoCaixa = ({ data, isLoading, isError }: GraficoFluxoCaixaProps) => {
-  // Cores para as linhas e elementos do gráfico
-  const receitaColor = useColorModeValue('green.500', 'green.300');
-  const despesaColor = useColorModeValue('red.500', 'red.300');
+  // Define os nomes das cores com base no modo (claro/escuro)
+  const receitaColorName = useColorModeValue('green.500', 'green.300');
+  const despesaColorName = useColorModeValue('red.500', 'red.300');
+
+  // 2. Usa o useToken para obter os valores de cor reais (ex: #38A169)
+  const [receitaColor, despesaColor] = useToken('colors', [
+    receitaColorName,
+    despesaColorName,
+  ]);
+
+  // Cores para os outros elementos do gráfico (não precisam de useToken se forem strings diretas)
   const textColor = useColorModeValue('gray.600', 'gray.400');
   const gridColor = useColorModeValue('gray.200', 'gray.700');
   const tooltipBg = useColorModeValue('white', 'gray.800');
@@ -65,7 +72,7 @@ export const GraficoFluxoCaixa = ({ data, isLoading, isError }: GraficoFluxoCaix
   return (
     <Box h="350px">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart
+        <BarChart
           data={data}
           margin={{
             top: 5,
@@ -94,25 +101,17 @@ export const GraficoFluxoCaixa = ({ data, isLoading, isError }: GraficoFluxoCaix
             }}
           />
           <Legend wrapperStyle={{ color: textColor }} />
-          <Line
-            type="monotone"
+          <Bar
             dataKey="receitas"
-            stroke={receitaColor}
-            strokeWidth={2}
-            dot={{ r: 4 }}
-            activeDot={{ r: 8 }}
+            fill={receitaColor} // 3. Agora 'receitaColor' contém o valor hexadecimal correto
             name="Receitas"
           />
-          <Line
-            type="monotone"
+          <Bar
             dataKey="despesas"
-            stroke={despesaColor}
-            strokeWidth={2}
-            dot={{ r: 4 }}
-            activeDot={{ r: 8 }}
+            fill={despesaColor} // 4. E 'despesaColor' também
             name="Despesas"
           />
-        </LineChart>
+        </BarChart>
       </ResponsiveContainer>
     </Box>
   );

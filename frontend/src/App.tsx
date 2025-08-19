@@ -19,6 +19,8 @@ import UtilizadoresPage from '@/pages/UtilizadoresPage';
 import RelatoriosPage from '@/pages/RelatoriosPage';
 import SolicitarAcessoPage from '@/pages/SolicitarAcessoPage';
 import NotFoundPage from '@/pages/NotFoundPage';
+import FinancasPage from '@/pages/FinancasPage';
+import EmpresaPage from '@/pages/EmpresaPage'; // <-- 1. Importação da nova página
 
 const MainLayout = () => {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
@@ -27,37 +29,32 @@ const MainLayout = () => {
 
   return (
     <Flex h="100vh" bg="gray.50" _dark={{ bg: 'gray.900' }}>
-      {/* A Sidebar é renderizada primeiro e posicionada de forma fixa */}
       {!isMobile && <Sidebar isCollapsed={!isSidebarOpen} />}
 
-      {/* Container principal para Header e Conteúdo */}
       <Flex
         direction="column"
         as="main"
-        flex="1" // Ocupa todo o espaço restante
-        ml={{ base: 0, md: sidebarWidth }} // Margem dinâmica para a sidebar
-        pb={{ base: '60px', md: 0 }} // Padding para o BottomNavBar em mobile
+        flex="1"
+        ml={{ base: 0, md: sidebarWidth }}
+        pb={{ base: '60px', md: 0 }}
         transition="margin-left 0.2s ease-in-out"
-        overflowY="auto" // ✅ A barra de rolagem agora pertence a este container
+        overflowY="auto"
       >
-        {/* O Header fica fixo no topo deste container */}
         <Box
           position="sticky"
           top="0"
-          zIndex="docked" // Garante que o header fique acima do conteúdo
-          bg="chakra-body-bg" // Usa a cor de fundo do tema
-          boxShadow="sm" // Adiciona uma sombra para destacar
+          zIndex="docked"
+          bg="chakra-body-bg"
+          boxShadow="sm"
         >
           <Header onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)} isSidebarOpen={isSidebarOpen} />
         </Box>
         
-        {/* O conteúdo da página (Outlet) vem logo abaixo e é a área que rola */}
         <Box p={{ base: 4, md: 8 }}>
           <Outlet />
         </Box>
       </Flex>
 
-      {/* O BottomNavBar continua fixo para mobile */}
       {isMobile && <BottomNavBar />}
     </Flex>
   );
@@ -73,21 +70,28 @@ function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
           
+          {/* Rotas acessíveis a todos os usuários logados */}
           <Route path="/movimentacoes" element={<MovimentacoesPage />} />
           <Route path="/clientes" element={<ClientesPage />} />
           <Route path="/produtos" element={<ProdutosPage />} />
           
+          {/* Rotas acessíveis apenas para ADMINs */}
           <Route element={<AdminRoute />}>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/relatorios" element={<RelatoriosPage />} />
             <Route path="/fornecedores" element={<FornecedoresPage />} />
             <Route path="/utilizadores" element={<UtilizadoresPage />} />
+            <Route path="/financas" element={<FinancasPage />} />
+            
+            {/* 2. Adição da rota para a nova página */}
+            <Route path="/empresa" element={<EmpresaPage />} />
           </Route>
 
         </Route>
       </Route>
 
+      {/* Rota para páginas não encontradas */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

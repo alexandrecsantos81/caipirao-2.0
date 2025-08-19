@@ -1,3 +1,5 @@
+// frontend/src/services/produto.service.ts
+
 import axios from 'axios';
 import { IPaginatedResponse } from '@/types/common.types';
 
@@ -21,7 +23,7 @@ export interface IProduto {
   price: number;
   quantidade_em_estoque: number;
   custo_medio?: number;
-  data_criacao?: string; // ✅ Renomeado de 'criado_em' para 'data_criacao' para consistência
+  data_criacao?: string;
 }
 
 // Interface para o formulário de criação/edição de produto
@@ -37,8 +39,24 @@ export interface IEntradaEstoqueForm {
 
 // --- FUNÇÕES DO SERVIÇO ---
 
-export const getProdutos = async (pagina = 1, limite = 50): Promise<IPaginatedResponse<IProduto>> => { // ✅ Limite padrão atualizado para 50
-  const response = await apiClient.get('/produtos', { params: { pagina, limite } });
+/**
+ * @description Busca a lista paginada de produtos, com suporte a filtro de busca.
+ * @param pagina - O número da página a ser buscada.
+ * @param limite - O número de itens por página.
+ * @param termoBusca - (Opcional) O termo para filtrar os resultados.
+ */
+export const getProdutos = async (
+  pagina = 1,
+  limite = 50,
+  termoBusca?: string // ✅ PARÂMETRO ADICIONADO
+): Promise<IPaginatedResponse<IProduto>> => {
+  const response = await apiClient.get('/produtos', {
+    params: {
+      pagina,
+      limite,
+      termoBusca, // ✅ PARÂMETRO ENVIADO PARA A API
+    },
+  });
   return response.data;
 };
 

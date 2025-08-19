@@ -8,7 +8,7 @@ const toNull = (value) => (value === '' || value === null ? null : value);
  * @access  Protegido
  */
 const getClientes = async (req, res) => {
-    // Extrai os parâmetros da query, com valores padrão
+    // ✅ INÍCIO DA MODIFICAÇÃO: Extraindo o novo parâmetro 'termoBusca'
     const { pagina = 1, limite = 10, termoBusca } = req.query;
     const offset = (pagina - 1) * limite;
 
@@ -29,6 +29,7 @@ const getClientes = async (req, res) => {
         params.push(`%${termoBusca}%`);
         paramIndex++;
     }
+    // ✅ FIM DA MODIFICAÇÃO
 
     try {
         // Consulta para obter o número total de itens (considerando o filtro)
@@ -76,7 +77,6 @@ const createCliente = async (req, res) => {
     const { nome, telefone, responsavel, tem_whatsapp, endereco } = req.body;
     const email = toNull(req.body.email);
 
-    // Validação atualizada com os novos campos obrigatórios
     if (!nome || nome.trim() === '' || 
         !telefone || telefone.trim() === '' ||
         !responsavel || responsavel.trim() === '' ||
@@ -118,7 +118,6 @@ const updateCliente = async (req, res) => {
     const { nome, telefone, responsavel, tem_whatsapp, endereco } = req.body;
     const email = toNull(req.body.email);
 
-    // Validação atualizada com os novos campos obrigatórios
     if (!nome || nome.trim() === '' || 
         !telefone || telefone.trim() === '' ||
         !responsavel || responsavel.trim() === '' ||
@@ -196,7 +195,7 @@ const getHistoricoVendasCliente = async (req, res) => {
                 m.valor_total, 
                 m.opcao_pagamento, 
                 m.data_pagamento,
-                m.produtos -- A coluna de produtos já contém os detalhes que precisamos
+                m.produtos
             FROM movimentacoes m
             WHERE m.cliente_id = $1 AND m.tipo = 'ENTRADA'
             ORDER BY m.data_venda DESC, m.id DESC;
@@ -218,5 +217,5 @@ module.exports = {
     createCliente,
     updateCliente,
     deleteCliente,
-    getHistoricoVendasCliente // <-- Exportando a nova função
+    getHistoricoVendasCliente
 };

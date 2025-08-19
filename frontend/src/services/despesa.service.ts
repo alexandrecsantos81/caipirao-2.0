@@ -61,6 +61,12 @@ export interface IQuitacaoData {
     responsavel_pagamento_id?: number;
 }
 
+export interface IQuitacaoData {
+    data_pagamento: string;
+    responsavel_pagamento_id?: number;
+    valor_pago: number; // Campo adicionado
+}
+
 // --- FUNÇÕES DO SERVIÇO ---
 
 /**
@@ -107,3 +113,4 @@ export const quitarDespesa = async ({ id, quitacaoData }: { id: number, quitacao
     const response = await apiClient.put(`/${id}/quitar`, quitacaoData);
     return response.data;
 };
+

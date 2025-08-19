@@ -4,7 +4,6 @@ import {
   Flex,
   IconButton,
   useColorMode,
-  useColorModeValue,
   Heading,
   Spacer,
   useBreakpointValue,

@@ -11,11 +11,15 @@
     "bcrypt": "^6.0.0",
     "bcryptjs": "latest",
     "cors": "latest",
+    "date-fns": "^4.1.0",
     "dotenv": "latest",
     "express": "latest",
     "jsonwebtoken": "latest",
+    "multer": "^2.0.2",
     "pdfkit": "^0.17.1",
-    "pg": "latest"
+    "pdfkit-table": "^0.1.99",
+    "pg": "latest",
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
     "nodemon": "latest"

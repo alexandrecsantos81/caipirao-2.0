@@ -1,43 +1,39 @@
 -- =====================================================================
 --  SCRIPT COMPLETO DO BANCO DE DADOS - CAIPIRÃO 3.0
+--  Versão: 2025-08-18
 --  Este script apaga as tabelas existentes para garantir uma
 --  recriação limpa. Ideal para ambientes de desenvolvimento e
 --  para configurar o banco de dados pela primeira vez.
---  NÃO EXECUTE EM PRODUÇÃO SE QUISER MANTER OS DADOS EXISTENTES.
+--
+--  ATENÇÃO: NÃO EXECUTE EM UM BANCO DE DADOS DE PRODUÇÃO COM DADOS!
 -- =====================================================================
 
-
--- =====================================================================
---  FASE 1: GESTÃO DE UTILIZADORES, CLIENTES, PRODUTOS E MOVIMENTAÇÕES
--- =====================================================================
 
 -- Exclui as tabelas se elas já existirem, para garantir um começo limpo.
 -- A ordem é importante por causa das chaves estrangeiras.
 DROP TABLE IF EXISTS movimentacoes;
-DROP TABLE IF EXISTS entradas_estoque; -- Adicionado para garantir a ordem correta de exclusão
-DROP TABLE IF EXISTS despesas; -- Adicionado para garantir a ordem correta de exclusão
-DROP TABLE IF EXISTS fornecedores; -- Adicionado para garantir a ordem correta de exclusão
+DROP TABLE IF EXISTS entradas_estoque;
+DROP TABLE IF EXISTS despesas;
+DROP TABLE IF EXISTS despesas_pessoais;
+DROP TABLE IF EXISTS receitas_externas;
+DROP TABLE IF EXISTS fornecedores;
 DROP TABLE IF EXISTS produtos;
 DROP TABLE IF EXISTS clientes;
 DROP TABLE IF EXISTS utilizadores;
+DROP TABLE IF EXISTS empresa_dados; -- ADICIONADO: Garante a remoção da nova tabela
 
 -- Tabela de Utilizadores: armazena os dados de login, perfis e status.
 CREATE TABLE utilizadores (
     id SERIAL PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
-    telefone VARCHAR(20) UNIQUE, -- Adicionado para login e contato
-    nickname VARCHAR(50) UNIQUE, -- Adicionado para login
-    senha VARCHAR(255), -- Senha pode ser nula para solicitações pendentes
-    
-    -- Perfil agora é um ENUM para garantir a consistência dos dados
-    perfil VARCHAR(20) NOT NULL DEFAULT 'PENDENTE' 
+    telefone VARCHAR(20) UNIQUE,
+    nickname VARCHAR(50) UNIQUE,
+    senha VARCHAR(255),
+    perfil VARCHAR(20) NOT NULL DEFAULT 'PENDENTE'
         CHECK (perfil IN ('VENDEDOR', 'GERENTE', 'ADMINISTRATIVO', 'ADMIN', 'PENDENTE')),
-        
-    -- Status para controlar o fluxo de ativação do utilizador
     status VARCHAR(10) NOT NULL DEFAULT 'INATIVO'
         CHECK (status IN ('ATIVO', 'INATIVO')),
-
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -66,7 +62,7 @@ CREATE TABLE produtos (
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabela de Movimentações (Vendas/Entradas)
+-- Tabela de Movimentações (Vendas/Entradas do Frigorífico)
 CREATE TABLE movimentacoes (
     id SERIAL PRIMARY KEY,
     tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('ENTRADA', 'SAIDA')),
@@ -81,11 +77,6 @@ CREATE TABLE movimentacoes (
     data_pagamento DATE
 );
 
-
--- =====================================================================
---  FASE 2: GESTÃO DE DESPESAS, FORNECEDORES E ESTOQUE
--- =====================================================================
-
 -- Tabela para Fornecedores/Credores
 CREATE TABLE fornecedores (
     id SERIAL PRIMARY KEY,
@@ -97,29 +88,22 @@ CREATE TABLE fornecedores (
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabela de Despesas (Saídas detalhadas)
+-- Tabela de Despesas (Saídas detalhadas do Frigorífico)
 CREATE TABLE despesas (
     id SERIAL PRIMARY KEY,
-    
-    -- Detalhes da Despesa
-    -- ===== NOVO TIPO "Compra de Aves" ADICIONADO À LISTA =====
     tipo_saida VARCHAR(50) NOT NULL CHECK (tipo_saida IN (
-        'Compra de Aves', 'Insumos de Produção', 'Mão de Obra', 'Materiais e Embalagens', 
-        'Despesas Operacionais', 'Encargos e Tributos', 'Despesas Administrativas', 
+        'Compra de Aves', 'Insumos de Produção', 'Mão de Obra', 'Materiais e Embalagens',
+        'Despesas Operacionais', 'Encargos e Tributos', 'Despesas Administrativas',
         'Financeiras', 'Remuneração de Sócios', 'Outros'
     )),
     valor NUMERIC(10, 2) NOT NULL,
     discriminacao TEXT NOT NULL,
-    
-    -- Datas e Status
     data_compra DATE NOT NULL DEFAULT CURRENT_DATE,
     data_vencimento DATE NOT NULL,
     data_pagamento DATE DEFAULT NULL,
-    
-    -- Chaves Estrangeiras
     fornecedor_id INT REFERENCES fornecedores(id) ON DELETE SET NULL,
     responsavel_pagamento_id INT REFERENCES utilizadores(id) ON DELETE SET NULL,
-    
+    despesa_pai_id INT REFERENCES despesas(id) ON DELETE SET NULL,
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -134,31 +118,72 @@ CREATE TABLE entradas_estoque (
     data_entrada TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Tabela de Receitas Externas (Finanças Pessoais)
+CREATE TABLE receitas_externas (
+    id SERIAL PRIMARY KEY,
+    descricao VARCHAR(255) NOT NULL,
+    valor NUMERIC(10, 2) NOT NULL,
+    data_recebimento DATE NOT NULL,
+    utilizador_id INT REFERENCES utilizadores(id) ON DELETE SET NULL,
+    categoria VARCHAR(100),
+    data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
--- =====================================================================
---  ÍNDICES E DADOS INICIAIS
--- =====================================================================
+-- Tabela de Despesas Pessoais (com lógica de recorrência)
+CREATE TABLE despesas_pessoais (
+    id SERIAL PRIMARY KEY,
+    descricao VARCHAR(255) NOT NULL,
+    valor NUMERIC(10, 2) NOT NULL,
+    data_vencimento DATE NOT NULL,
+    categoria VARCHAR(100),
+    pago BOOLEAN NOT NULL DEFAULT FALSE,
+    data_pagamento DATE,
+    utilizador_id INT NOT NULL REFERENCES utilizadores(id) ON DELETE CASCADE,
+    recorrente BOOLEAN NOT NULL DEFAULT FALSE,
+    parcela_id UUID,
+    numero_parcela INT,
+    total_parcelas INT,
+    data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =================================================================
+-- NOVA TABELA: empresa_dados
+-- Adicionado em: 18/08/2025
+-- Descrição: Armazena os dados cadastrais da empresa para uso em relatórios.
+-- =================================================================
+CREATE TABLE IF NOT EXISTS empresa_dados (
+    id INT PRIMARY KEY DEFAULT 1,
+    nome_fantasia VARCHAR(255) NOT NULL,
+    razao_social VARCHAR(255),
+    cnpj VARCHAR(18) UNIQUE,
+    inscricao_estadual VARCHAR(20),
+    telefone VARCHAR(20),
+    email VARCHAR(255),
+    endereco_completo TEXT,
+    logo_url TEXT,
+    data_atualizacao TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_row CHECK (id = 1)
+);
+
+-- =================================================================
+-- DADOS INICIAIS E ÍNDICES
+-- =================================================================
+
+-- Inserir um utilizador ADMIN padrão
+INSERT INTO utilizadores (nome, email, nickname, telefone, senha, perfil, status) VALUES
+('Admin Principal', 'admin@caipirao.com', 'admin', '00000000000', '$2a$10$ExemploDeHashSeguroNaoUseIsso', 'ADMIN', 'ATIVO')
+ON CONFLICT (email) DO NOTHING; -- Evita erro se o admin já existir
+
+-- Inserir dados padrão para a empresa
+INSERT INTO empresa_dados (id, nome_fantasia)
+SELECT 1, 'NOME DA SUA EMPRESA'
+WHERE NOT EXISTS (SELECT 1 FROM empresa_dados WHERE id = 1);
 
 -- Índices para otimizar consultas
-CREATE INDEX idx_utilizadores_email ON utilizadores(email);
-CREATE INDEX idx_utilizadores_telefone ON utilizadores(telefone);
-CREATE INDEX idx_utilizadores_nickname ON utilizadores(nickname);
-CREATE INDEX idx_utilizadores_status ON utilizadores(status);
-CREATE INDEX idx_clientes_nome ON clientes(nome);
-CREATE INDEX idx_produtos_nome ON produtos(nome);
-CREATE INDEX idx_movimentacoes_tipo ON movimentacoes(tipo);
-CREATE INDEX idx_movimentacoes_data_venda ON movimentacoes(data_venda);
-CREATE INDEX idx_movimentacoes_data_vencimento ON movimentacoes(data_vencimento);
-CREATE INDEX idx_fornecedores_nome ON fornecedores(nome);
-CREATE INDEX idx_despesas_vencimento ON despesas(data_vencimento);
-CREATE INDEX idx_despesas_compra ON despesas(data_compra);
-CREATE INDEX idx_despesas_pagamento ON despesas(data_pagamento);
-CREATE INDEX idx_despesas_fornecedor_id ON despesas(fornecedor_id);
-CREATE INDEX idx_entradas_estoque_produto_id ON entradas_estoque(produto_id);
-CREATE INDEX idx_entradas_estoque_data_entrada ON entradas_estoque(data_entrada);
-
--- Inserir um utilizador ADMIN padrão para o primeiro login
--- A senha 'admin' deve ser registrada pela API para ser criptografada corretamente.
--- Este hash é apenas um exemplo e não corresponde a uma senha real.
-INSERT INTO utilizadores (nome, email, nickname, telefone, senha, perfil, status) VALUES 
-('Admin Principal', 'admin@caipirao.com', 'admin', '00000000000', '$2a$10$ExemploDeHashSeguroNaoUseIsso', 'ADMIN', 'ATIVO');
+CREATE INDEX IF NOT EXISTS idx_utilizadores_email ON utilizadores(email);
+CREATE INDEX IF NOT EXISTS idx_clientes_nome ON clientes(nome);
+CREATE INDEX IF NOT EXISTS idx_movimentacoes_data_venda ON movimentacoes(data_venda);
+CREATE INDEX IF NOT EXISTS idx_despesas_vencimento ON despesas(data_vencimento);
+CREATE INDEX IF NOT EXISTS idx_receitas_externas_data ON receitas_externas(data_recebimento);
+CREATE INDEX IF NOT EXISTS idx_despesas_pessoais_vencimento ON despesas_pessoais(data_vencimento);
+CREATE INDEX IF NOT EXISTS idx_despesas_pessoais_parcela_id ON despesas_pessoais(parcela_id);

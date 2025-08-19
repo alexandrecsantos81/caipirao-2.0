@@ -1,143 +1,163 @@
-// src/components/Sidebar.tsx
+// frontend/src/components/Sidebar.tsx
 
 import {
-  Box, VStack, Heading, Link as ChakraLink, Text, Divider, Avatar, HStack, Tag, Icon, Tooltip, useColorModeValue, Flex,
+  Avatar,
+  Badge,
+  Box,
+  Divider,
+  Flex,
+  Heading,
+  Icon,
+  Link as ChakraLink,
+  Stack,
+  Text, // Re-adicionado para o nome do usuário
+  useColorModeValue,
 } from '@chakra-ui/react';
-import { Link, NavLink as RouterLink, useLocation } from 'react-router-dom';
+import { NavLink as RouterLink, useLocation } from 'react-router-dom';
 import {
-  FiHome, FiShoppingCart, FiUsers, FiBox, FiDollarSign, FiLogOut, FiTruck, FiBarChart2, FiClipboard,
+  FiHome,
+  FiUsers,
+  FiBox,
+  FiShoppingCart,
+  FiBarChart2,
+  FiTruck,
+  FiUserCheck,
+  FiCreditCard,
+  FiBriefcase,
+  FiLogOut,
+  FiClipboard, // 1. Ícone do cabeçalho re-adicionado
 } from 'react-icons/fi';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 
-interface NavItemProps {
-  icon: React.ElementType;
-  label: string;
-  to: string;
-  isCollapsed: boolean;
-}
-
-const NavItem = ({ icon, label, to, isCollapsed }: NavItemProps) => {
+// Componente NavItem com os estilos originais restaurados
+const NavItem = ({ icon, to, children }: { icon: React.ElementType; to: string; children: React.ReactNode }) => {
   const location = useLocation();
   const isActive = location.pathname === to;
-  const activeBg = useColorModeValue('teal.400', 'teal.500');
-  const inactiveColor = useColorModeValue('gray.600', 'gray.400');
-  const hoverBg = useColorModeValue('teal.300', 'teal.600');
+  const activeBg = useColorModeValue('teal.400', 'teal.600');
+  const activeColor = 'white';
+  const inactiveColor = useColorModeValue('gray.600', 'gray.300');
+  const hoverBg = useColorModeValue('gray.100', 'gray.700');
 
   return (
-    <Tooltip label={isCollapsed ? label : ''} placement="right">
-      <ChakraLink
-        as={RouterLink}
-        to={to}
-        display="flex"
-        alignItems="center"
-        p={3}
-        mx={3}
-        borderRadius="lg"
-        role="group"
-        cursor="pointer"
-        bg={isActive ? activeBg : 'transparent'}
-        color={isActive ? 'white' : inactiveColor}
-        _hover={{ bg: hoverBg, color: 'white', transform: 'translateX(2px)' }}
-        fontWeight="medium"
-        transition="all 0.2s ease"
-      >
-        <Icon as={icon} mr={isCollapsed ? 0 : 4} fontSize="20" />
-        {!isCollapsed && label}
-      </ChakraLink>
-    </Tooltip>
+    <ChakraLink
+      as={RouterLink}
+      to={to}
+      p={3}
+      display="flex"
+      alignItems="center"
+      borderRadius="md"
+      bg={isActive ? activeBg : 'transparent'}
+      color={isActive ? activeColor : inactiveColor}
+      fontWeight={isActive ? 'bold' : 'normal'}
+      _hover={{
+        textDecoration: 'none',
+        bg: isActive ? activeBg : hoverBg, // 4. Efeito hover restaurado
+      }}
+      role="group"
+    >
+      <Icon as={icon} fontSize="xl" mr={3} />
+      {children}
+    </ChakraLink>
   );
 };
 
-interface SidebarProps {
-  isCollapsed: boolean;
-}
-
-export const Sidebar = ({ isCollapsed }: SidebarProps) => {
+// Componente principal da Sidebar
+export const Sidebar = ({ isCollapsed }: { isCollapsed: boolean }) => {
   const { user, logout } = useAuth();
   const isAdmin = user?.perfil === 'ADMIN';
-  
-  const homeLink = isAdmin ? '/dashboard' : '/movimentacoes';
-
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
-  const textColor = useColorModeValue('gray.800', 'whiteAlpha.900');
-  const linkColor = useColorModeValue('gray.600', 'gray.300');
-  const logoutHoverBg = useColorModeValue('red.400', 'red.500');
 
   return (
     <Box
       as="nav"
       pos="fixed"
+      top="0"
+      left="0"
+      zIndex="sticky"
       h="full"
       w={isCollapsed ? '72px' : '240px'}
       bg={bgColor}
       borderRight="1px"
       borderColor={borderColor}
       transition="width 0.2s ease-in-out"
+      overflowY="auto"
+      display={{ base: 'none', md: 'block' }}
     >
-      <VStack h="full" justify="space-between">
-        <VStack align="stretch" w="full">
-          <Link to={homeLink}>
-            <Flex
-              h="14"
-              align="center"
-              justifyContent={isCollapsed ? 'center' : 'flex-start'}
-              px={isCollapsed ? 0 : 4}
-              borderBottomWidth="1px"
-              borderColor={borderColor}
-              _hover={{ bg: useColorModeValue('gray.100', 'gray.700') }}
-              transition="background-color 0.2s ease"
-            >
-              <Icon as={FiClipboard} mr={isCollapsed ? 0 : 2} fontSize="24" color="teal.400" />
-              {!isCollapsed && (
-                <Heading size="md" color={textColor}>
-                  Caipirão 3.0
-                </Heading>
-              )}
-            </Flex>
-          </Link>
-          
-          <VStack align="stretch" w="full" mt={4}>
-            {isAdmin && <NavItem icon={FiHome} label="Dashboard" to="/dashboard" isCollapsed={isCollapsed} />}
-            <NavItem icon={FiShoppingCart} label="Movimentações" to="/movimentacoes" isCollapsed={isCollapsed} />
-            {isAdmin && <NavItem icon={FiBarChart2} label="Relatórios" to="/relatorios" isCollapsed={isCollapsed} />}
-            <NavItem icon={FiDollarSign} label="Clientes" to="/clientes" isCollapsed={isCollapsed} />
-            <NavItem icon={FiBox} label="Produtos" to="/produtos" isCollapsed={isCollapsed} />
-            {isAdmin && <NavItem icon={FiTruck} label="Fornecedores" to="/fornecedores" isCollapsed={isCollapsed} />}
-            {isAdmin && <NavItem icon={FiUsers} label="Utilizadores" to="/utilizadores" isCollapsed={isCollapsed} />}
-          </VStack>
-        </VStack>
+      <Flex direction="column" p={isCollapsed ? 2 : 4} h="full">
+        {/* 1. Cabeçalho com Ícone e Título */}
+        <Flex align="center" mb={4} pl={isCollapsed ? 0 : 1} justify={isCollapsed ? 'center' : 'flex-start'}>
+          <Icon as={FiClipboard} fontSize="2xl" color="teal.500" />
+          {!isCollapsed && (
+            <Heading size="md" ml={3}>
+              Caipirão 3.0
+            </Heading>
+          )}
+        </Flex>
+        <Divider mb={4} />
 
-        <VStack align="stretch" w="full" spacing={4} mb={4}>
-          <Divider borderColor={borderColor} />
-          <Box px={3}>
-            <HStack justify={isCollapsed ? 'center' : 'flex-start'}>
-              <Avatar size="sm" name={user?.nome} />
-              {!isCollapsed && (
-                <VStack align="start" spacing={0}>
-                  <Text fontWeight="bold" fontSize="sm" color={textColor}>{user?.nome}</Text>
-                  <Tag size="sm" colorScheme="red" variant="solid">{user?.perfil}</Tag>
-                </VStack>
-              )}
-            </HStack>
-          </Box>
-          <Tooltip label={isCollapsed ? 'Sair' : ''} placement="right">
-            <ChakraLink
-              onClick={logout}
-              display="flex"
-              alignItems="center"
-              justifyContent={isCollapsed ? 'center' : 'flex-start'}
-              p={3} mx={3} borderRadius="lg" role="group" cursor="pointer"
-              _hover={{ bg: logoutHoverBg, color: 'white' }}
-              fontWeight="medium" color={linkColor}
-              transition="all 0.2s ease"
-            >
-              <Icon as={FiLogOut} mr={isCollapsed ? 0 : 4} fontSize="20" />
-              {!isCollapsed && 'Sair'}
-            </ChakraLink>
-          </Tooltip>
-        </VStack>
-      </VStack>
+        {/* Links Principais (Vendas) */}
+        <Stack spacing={2}>
+          <NavItem icon={FiShoppingCart} to="/movimentacoes">Movimentações</NavItem>
+          <NavItem icon={FiUsers} to="/clientes">Clientes</NavItem>
+          <NavItem icon={FiBox} to="/produtos">Produtos</NavItem>
+        </Stack>
+
+        {/* Seção de Administração */}
+        {isAdmin && (
+          <Stack spacing={2} mt={8}>
+            <Heading size="xs" textTransform="uppercase" color="gray.500" pl={3}>
+              Admin
+            </Heading>
+            <NavItem icon={FiHome} to="/dashboard">Dashboard</NavItem>
+            <NavItem icon={FiBarChart2} to="/relatorios">Relatórios</NavItem>
+            <NavItem icon={FiTruck} to="/fornecedores">Fornecedores</NavItem>
+            <NavItem icon={FiUserCheck} to="/utilizadores">Utilizadores</NavItem>
+            <NavItem icon={FiBriefcase} to="/empresa">Minha Empresa</NavItem>
+          </Stack>
+        )}
+
+        {/* 3. Seção de Gestão Pessoal (separada) */}
+        {isAdmin && (
+            <Stack spacing={2} mt={8}>
+                <Heading size="xs" textTransform="uppercase" color="gray.500" pl={3}>
+                    Gestão Pessoal
+                </Heading>
+                <NavItem icon={FiCreditCard} to="/financas">Finanças</NavItem>
+            </Stack>
+        )}
+
+        {/* Espaçador para empurrar o perfil do usuário para baixo */}
+        <Box flex="1" />
+
+        {/* 2. Perfil do Usuário Logado */}
+        <Box mt={8}>
+          <Divider mb={4} />
+          <Flex align="center" p={2}>
+            <Avatar size="sm" name={user?.nome} />
+            {!isCollapsed && (
+              <Box ml={3}>
+                <Text fontWeight="bold" fontSize="sm" noOfLines={1}>{user?.nome}</Text>
+                <Badge colorScheme={user?.perfil === 'ADMIN' ? 'red' : 'green'} fontSize="2xs">
+                  {user?.perfil}
+                </Badge>
+              </Box>
+            )}
+          </Flex>
+          <ChakraLink
+            onClick={logout}
+            p={3}
+            mt={2}
+            display="flex"
+            alignItems="center"
+            borderRadius="md"
+            _hover={{ bg: useColorModeValue('red.50', 'red.900'), color: useColorModeValue('red.600', 'red.200') }}
+          >
+            <Icon as={FiLogOut} fontSize="xl" mr={3} />
+            {!isCollapsed && 'Sair'}
+          </ChakraLink>
+        </Box>
+      </Flex>
     </Box>
   );
 };
