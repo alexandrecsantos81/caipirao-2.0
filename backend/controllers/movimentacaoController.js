@@ -175,7 +175,7 @@ const getContasAReceber = async (req, res) => {
 };
 
 /**
- * @desc    Registrar o pagamento de uma venda
+ * @desc    Registrar o pagamento (total ou parcial) de uma venda
  * @route   PUT /api/movimentacoes/vendas/:id/pagamento
  * @access  Restrito (Admin)
  */

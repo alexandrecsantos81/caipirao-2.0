@@ -81,6 +81,7 @@ const getKPIs = async (req, res) => {
     }
 };
 
+
 // A função getVendasPorDia permanece a mesma
 const getVendasPorDia = async (req, res) => { /* ...código original... */ };
 
@@ -89,6 +90,7 @@ const getDespesasPorCategoria = async (req, res) => { /* ...código original... 
 
 
 /**
+<<<<<<< HEAD
  * @desc    Busca o ranking de produtos mais vendidos no mês.
  * @route   GET /api/dashboard/ranking-produtos
  * @access  Protegido
@@ -165,6 +167,8 @@ const getRankingClientes = async (req, res) => {
 };
 
 /**
+=======
+>>>>>>> 16d2e440978d181f8b74c6f6d45136a8de1c93c7
  * @desc    Busca os dados de fluxo de caixa diário (receitas vs despesas) para um período.
  * @route   GET /api/dashboard/fluxo-caixa-diario
  * @access  Protegido
