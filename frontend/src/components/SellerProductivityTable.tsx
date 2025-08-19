@@ -1,5 +1,7 @@
+// frontend/src/components/SellerProductivityTable.tsx
+
 import {
-  Table, Thead, Tbody, Tr, Th, Td, TableContainer, Skeleton, Text, Center, Avatar, HStack,
+  Table, Thead, Tbody, Tr, Th, Td, TableContainer, Skeleton, Text, Center, Avatar, HStack
 } from '@chakra-ui/react';
 import { ISellerProductivityItem } from '@/services/report.service';
 
@@ -13,6 +15,7 @@ const formatCurrency = (value: number) => {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
+// O nome do componente aqui deve ser SellerProductivityTable
 export const SellerProductivityTable = ({ data, isLoading, isError }: SellerProductivityTableProps) => {
   if (isLoading) {
     return (
@@ -78,3 +81,6 @@ export const SellerProductivityTable = ({ data, isLoading, isError }: SellerProd
     </TableContainer>
   );
 };
+
+// Remova a exportação default se houver
+// export default SellerProductivityTable;

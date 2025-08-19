@@ -31,12 +31,14 @@ import {
   useSellerProductivity,
   useStockEntriesReport,
 } from '@/hooks/useReports';
+
 import { ReportKPIs } from '@/components/ReportKPIs';
-import { SalesEvolutionChart } from '@/components/SalesEvolutionChart';
+import SalesEvolutionChart from '@/components/SalesEvolutionChart';
 import { ProductRankingTable } from '@/components/ProductRankingTable';
 import { ClientRankingTable } from '@/components/ClientRankingTable';
 import { ClientAnalysis } from '@/components/ClientAnalysis';
 import { SellerProductivityTable } from '@/components/SellerProductivityTable';
+import SellerProductivityChart from '@/components/SellerProductivityChart';
 import { StockEntriesTable } from '@/components/StockEntriesTable';
 
 const formatDateForAPI = (date: Date): string => format(date, 'yyyy-MM-dd');
@@ -57,7 +59,6 @@ const RelatoriosPage = () => {
   const filters = { startDate, endDate };
   const productFilters = { ...filters, orderBy: productOrderBy };
 
-  // Hooks para buscar os dados de cada relatório
   const { data: salesSummaryData, isLoading: isLoadingSalesSummary, isError: isErrorSalesSummary } = useSalesSummary(filters, activeTab === 0);
   const { data: productRankingData, isLoading: isLoadingProductRanking } = useProductRanking(productFilters, activeTab === 1);
   const { data: clientRankingData, isLoading: isLoadingClientRanking } = useClientRanking(filters, activeTab === 2);
@@ -65,7 +66,6 @@ const RelatoriosPage = () => {
   const { data: sellerProductivityData, isLoading: isLoadingSellerProductivity, isError: isErrorSellerProductivity } = useSellerProductivity(filters, activeTab === 4);
   const { data: stockEntriesData, isLoading: isLoadingStockEntries, isError: isErrorStockEntries } = useStockEntriesReport(filters, activeTab === 5);
 
-  // Função genérica para lidar com o resultado da mutation
   const onPdfSuccess = (blob: Blob) => {
     const pdfUrl = URL.createObjectURL(blob);
     window.open(pdfUrl, '_blank');
@@ -75,7 +75,6 @@ const RelatoriosPage = () => {
     toast({ title: 'Erro ao gerar PDF', description: error.response?.data?.error || 'Não foi possível gerar o relatório.', status: 'error' });
   };
 
-  // Mutations para cada tipo de PDF
   const productPdfMutation = useMutation<Blob, Error, IProductRankingFilter>({ mutationFn: getProductRankingPdf, onSuccess: onPdfSuccess, onError: onPdfError });
   const clientPdfMutation = useMutation<Blob, Error, IReportDateFilter>({ mutationFn: getClientRankingPdf, onSuccess: onPdfSuccess, onError: onPdfError });
   const sellerPdfMutation = useMutation<Blob, Error, IReportDateFilter>({ mutationFn: getSellerProductivityPdf, onSuccess: onPdfSuccess, onError: onPdfError });
@@ -84,20 +83,11 @@ const RelatoriosPage = () => {
   const handleGeneratePDF = () => {
     toast({ title: 'Gerando relatório...', status: 'info', duration: 1500 });
     switch (activeTab) {
-      case 1: // Produtos
-        productPdfMutation.mutate(productFilters);
-        break;
-      case 2: // Clientes
-        clientPdfMutation.mutate(filters);
-        break;
-      case 4: // Produtividade
-        sellerPdfMutation.mutate(filters);
-        break;
-      case 5: // Estoque
-        stockPdfMutation.mutate(filters);
-        break;
-      default:
-        toast({ title: 'Aviso', description: 'Este relatório não possui uma exportação para PDF.', status: 'warning' });
+      case 1: productPdfMutation.mutate(productFilters); break;
+      case 2: clientPdfMutation.mutate(filters); break;
+      case 4: sellerPdfMutation.mutate(filters); break;
+      case 5: stockPdfMutation.mutate(filters); break;
+      default: toast({ title: 'Aviso', description: 'Este relatório não possui uma exportação para PDF.', status: 'warning' });
     }
   };
   
@@ -148,7 +138,10 @@ const RelatoriosPage = () => {
           <Tab>Estoque</Tab>
         </TabList>
         <TabPanels>
-          <TabPanel><ReportKPIs kpis={salesSummaryData?.kpis} isLoading={isLoadingSalesSummary} /><SalesEvolutionChart data={salesSummaryData?.evolucaoVendas} isLoading={isLoadingSalesSummary} isError={isErrorSalesSummary} /></TabPanel>
+          <TabPanel>
+            <ReportKPIs kpis={salesSummaryData?.kpis} isLoading={isLoadingSalesSummary} />
+            <SalesEvolutionChart data={salesSummaryData?.evolucaoVendas} isLoading={isLoadingSalesSummary} isError={isErrorSalesSummary} />
+          </TabPanel>
           <TabPanel>
             <Flex justify="flex-end" mb={4}>
               <Flex align="center" gap={2}>
@@ -161,10 +154,21 @@ const RelatoriosPage = () => {
             </Flex>
             <ProductRankingTable data={productRankingData} isLoading={isLoadingProductRanking} />
           </TabPanel>
-          <TabPanel><ClientRankingTable data={clientRankingData} isLoading={isLoadingClientRanking} /></TabPanel>
-          <TabPanel><ClientAnalysis data={clientAnalysisData} isLoading={isLoadingClientAnalysis} isError={isErrorClientAnalysis} /></TabPanel>
-          <TabPanel><SellerProductivityTable data={sellerProductivityData} isLoading={isLoadingSellerProductivity} isError={isErrorSellerProductivity} /></TabPanel>
-          <TabPanel><StockEntriesTable data={stockEntriesData} isLoading={isLoadingStockEntries} isError={isErrorStockEntries} /></TabPanel>
+          <TabPanel>
+            <ClientRankingTable data={clientRankingData} isLoading={isLoadingClientRanking} />
+          </TabPanel>
+          <TabPanel>
+            <ClientAnalysis data={clientAnalysisData} isLoading={isLoadingClientAnalysis} isError={isErrorClientAnalysis} />
+          </TabPanel>
+          
+          <TabPanel>
+            <SellerProductivityTable data={sellerProductivityData} isLoading={isLoadingSellerProductivity} isError={isErrorSellerProductivity} />
+            <SellerProductivityChart data={sellerProductivityData} isLoading={isLoadingSellerProductivity} />
+          </TabPanel>
+
+          <TabPanel>
+            <StockEntriesTable data={stockEntriesData} isLoading={isLoadingStockEntries} isError={isErrorStockEntries} />
+          </TabPanel>
         </TabPanels>
       </Tabs>
     </Box>

@@ -24,7 +24,8 @@ import {
   FiGrid,
   FiUserCheck,
   FiCreditCard,
-  FiBriefcase, // <-- 1. Ícone importado
+  FiBriefcase,
+  FiTrendingUp, // 1. Importar o novo ícone
 } from 'react-icons/fi';
 import { NavLink as RouterLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -87,7 +88,9 @@ export const BottomNavBar = () => {
       boxShadow="0 -2px 10px rgba(0, 0, 0, 0.15)"
     >
       <Flex align="center" justify="space-around" h="60px">
-        <NavItem icon={FiShoppingCart} label="Movim." to="/movimentacoes" />
+        {/* 2. Renderização condicional dos itens da barra */}
+        {!isAdmin && <NavItem icon={FiTrendingUp} label="Desempenho" to="/meu-dashboard" />}
+        <NavItem icon={FiShoppingCart} label="Vendas" to="/movimentacoes" />
         <NavItem icon={FiUsers} label="Clientes" to="/clientes" />
         <NavItem icon={FiBox} label="Produtos" to="/produtos" />
 
@@ -111,7 +114,7 @@ export const BottomNavBar = () => {
               <MenuItem as={RouterLink} to="/financas" icon={<FiCreditCard />}>Finanças</MenuItem>
               <MenuItem as={RouterLink} to="/fornecedores" icon={<FiTruck />}>Fornecedores</MenuItem>
               <MenuItem as={RouterLink} to="/utilizadores" icon={<FiUserCheck />}>Utilizadores</MenuItem>
-              <MenuItem as={RouterLink} to="/empresa" icon={<FiBriefcase />}>Minha Empresa</MenuItem> {/* <-- 2. Link adicionado */}
+              <MenuItem as={RouterLink} to="/empresa" icon={<FiBriefcase />}>Minha Empresa</MenuItem>
               <MenuItem icon={<FiLogOut />} onClick={logout}>Sair</MenuItem>
             </MenuList>
           </Menu>
