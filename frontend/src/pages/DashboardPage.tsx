@@ -97,7 +97,7 @@ const DashboardPage = () => {
           <StatHelpText>Valores pagos no mês atual.</StatHelpText>
         </Stat>
         <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm" transition="all 0.2s ease-in-out" _hover={cardHoverEffect} borderColor={borderColor}>
-          <StatLabel>Contas a Pagar</StatLabel>
+          <StatLabel>Valores a Pagar</StatLabel>
           <StatNumber>{formatCurrency(kpis?.totalContasAPagar)}</StatNumber>
           <StatHelpText>Total de despesas pendentes.</StatHelpText>
         </Stat>

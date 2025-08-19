@@ -12,11 +12,7 @@ import {
   Heading,
   InputGroup,
   InputLeftElement,
-<<<<<<< HEAD
-  useColorModeValue, // ✅ 1. Importar o hook useColorModeValue
-=======
   useColorModeValue,
->>>>>>> 16d2e440978d181f8b74c6f6d45136a8de1c93c7
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { FiEdit, FiPlus, FiTrash2, FiSearch } from 'react-icons/fi';
@@ -160,12 +156,7 @@ const UtilizadoresPage = () => {
 
   const cancelRef = useRef<HTMLButtonElement>(null);
   const isMobile = useBreakpointValue({ base: true, md: false });
-<<<<<<< HEAD
-  
-  // ✅ 2. Definir a cor de fundo dinâmica
-=======
   const listRef = useRef<FixedSizeList>(null);
->>>>>>> 16d2e440978d181f8b74c6f6d45136a8de1c93c7
   const mobileActionsBg = useColorModeValue('gray.100', 'gray.700');
 
   useEffect(() => {
@@ -308,39 +299,9 @@ const UtilizadoresPage = () => {
       (
         <>
           {isMobile ? (
-<<<<<<< HEAD
-            <VStack spacing={4} align="stretch">
-              {data?.dados.map((user) => (
-                <Box key={user.id} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
-                  <Flex justify="space-between" align="center">
-                    <Heading size="sm" noOfLines={1}>{user.nome}</Heading>
-                    {getStatusTag(user.status, user.perfil)}
-                  </Flex>
-                  <Text fontSize="sm" color="gray.400">{user.perfil}</Text>
-                  <Divider my={2} />
-                  <HStack justify="space-between">
-                    <Text fontSize="sm" color="gray.500">Email:</Text>
-                    <Text noOfLines={1}>{user.email}</Text>
-                  </HStack>
-                  <HStack justify="space-between">
-                    <Text fontSize="sm" color="gray.500">Telefone:</Text>
-                    <Text>{user.telefone}</Text>
-                  </HStack>
-                  {/* ✅ 3. Aplicar a cor de fundo dinâmica aqui */}
-                  <HStack mt={4} justify="space-around" bg={mobileActionsBg} p={2} borderRadius="md">
-                    <Tooltip label={user.status === 'ATIVO' ? 'Desativar' : 'Ativar'}><Box><Switch isChecked={user.status === 'ATIVO'} onChange={() => updateStatusMutation.mutate(user)} isDisabled={user.id === currentUser?.id} /></Box></Tooltip>
-                    <Tooltip label="WhatsApp"><IconButton as={Link} href={`https://wa.me/55${user.telefone.replace(/\D/g, ''  )}`} target="_blank" aria-label="WhatsApp" icon={<FaWhatsapp />} variant="ghost" /></Tooltip>
-                    <Tooltip label="Editar"><IconButton aria-label="Editar" icon={<FiEdit />} variant="ghost" onClick={() => handleEditClick(user)} /></Tooltip>
-                    <Tooltip label="Excluir"><IconButton aria-label="Excluir" icon={<FiTrash2 />} variant="ghost" colorScheme="red" onClick={() => handleDeleteClick(user)} isDisabled={user.id === currentUser?.id} /></Tooltip>
-                  </HStack>
-                </Box>
-              ))}
-            </VStack>
-=======
             <FixedSizeList height={600} itemCount={data.dados.length} itemSize={190} width="100%" ref={listRef}>
               {RowMobile}
             </FixedSizeList>
->>>>>>> 16d2e440978d181f8b74c6f6d45136a8de1c93c7
           ) : (
             <Box borderWidth="1px" borderRadius="lg" overflow="hidden">
               <Flex bg={headerBg} borderBottomWidth="1px" fontWeight="bold" role="row" pr="15px">
