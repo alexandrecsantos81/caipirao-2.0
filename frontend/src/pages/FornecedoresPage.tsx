@@ -1,5 +1,3 @@
-// frontend/src/pages/FornecedoresPage.tsx
-
 import {
   Box, Button, Flex, Heading, IconButton, Spinner, Text,
   useDisclosure, useToast, VStack, HStack,
@@ -18,7 +16,7 @@ import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tansta
 import { FiPlus, FiEdit, FiTrash2, FiSearch } from 'react-icons/fi';
 import { useForm, SubmitHandler, Controller } from 'react-hook-form';
 import { useState, useEffect, useRef } from 'react';
-import { FixedSizeList, ListChildComponentProps } from 'react-window';
+import { FixedSizeList, ListChildComponentProps } from 'react-window'; // 1. Importar de react-window
 
 import {
   IFornecedor, IFornecedorForm, getFornecedores, createFornecedor, updateFornecedor, deleteFornecedor
@@ -169,7 +167,7 @@ const FornecedoresPage = () => {
 
   const isMobile = useBreakpointValue({ base: true, md: false });
   const cancelRef = useRef<HTMLButtonElement>(null);
-  const listRef = useRef<FixedSizeList>(null);
+  const listRef = useRef<FixedSizeList>(null); // 2. Ref para a lista virtualizada
   const isAdmin = user?.perfil === 'ADMIN';
 
   useEffect(() => {
@@ -184,6 +182,7 @@ const FornecedoresPage = () => {
     placeholderData: keepPreviousData,
   });
 
+  // 3. Efeito para rolar a lista para o topo quando os dados mudam
   useEffect(() => {
     if (listRef.current) {
       listRef.current.scrollTo(0);
@@ -225,6 +224,7 @@ const FornecedoresPage = () => {
   const rowHoverBg = useColorModeValue('gray.100', 'gray.700');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
 
+  // 4. Componente para renderizar uma linha da tabela no Desktop
   const RowDesktop = ({ index, style }: ListChildComponentProps) => {
     const fornecedor = data!.dados[index];
     return (
@@ -243,6 +243,7 @@ const FornecedoresPage = () => {
     );
   };
 
+  // 5. Componente para renderizar um card no Mobile
   const RowMobile = ({ index, style }: ListChildComponentProps) => {
     const fornecedor = data!.dados[index];
     return (
@@ -282,6 +283,7 @@ const FornecedoresPage = () => {
        !data?.dados || data.dados.length === 0 ? (<Center p={10}><Text>Nenhum fornecedor encontrado.</Text></Center>) :
       (
         <>
+          {/* 6. Substituição do .map pela lista virtualizada */}
           {isMobile ? (
             <FixedSizeList height={600} itemCount={data.dados.length} itemSize={145} width="100%" ref={listRef}>
               {RowMobile}

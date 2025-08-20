@@ -1,5 +1,3 @@
-// frontend/src/pages/ProdutosPage.tsx
-
 import {
   Box, Button, Center, Drawer, DrawerBody, DrawerCloseButton, DrawerContent,
   DrawerFooter, DrawerHeader, DrawerOverlay, Flex, FormControl, FormErrorMessage, FormLabel,
@@ -35,12 +33,10 @@ import { ModalEntradaEstoque } from '../components/ModalEntradaEstoque';
 import { IPaginatedResponse } from '@/types/common.types';
 import { useDebounce } from '../hooks/useDebounce';
 
-// --- COMPONENTES INTERNOS ---
-
-// Formulário para Criar/Editar Produto
 const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
   isOpen: boolean; onClose: () => void; produto: IProduto | null; onSave: (data: IProdutoForm) => void; isLoading: boolean;
 }) => {
+  // REMOVIDO 'setValue' pois não era usado
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<IProdutoForm & { outra_unidade_medida?: string }>();
   const unidadeMedida = watch('unidade_medida');
   const drawerSize = useBreakpointValue({ base: 'full', md: 'md' });
@@ -90,8 +86,6 @@ const FormularioProduto = ({ isOpen, onClose, produto, onSave, isLoading }: {
     </Drawer>
   );
 };
-
-// --- COMPONENTE PRINCIPAL ---
 
 const ProdutosPage = () => {
   const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
@@ -154,7 +148,6 @@ const ProdutosPage = () => {
   const rowHoverBg = useColorModeValue('gray.100', 'gray.700');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
 
-  // Componente para renderizar uma linha da tabela no Desktop
   const RowDesktop = ({ index, style }: ListChildComponentProps) => {
     const produto = data!.dados[index];
     return (
@@ -176,7 +169,6 @@ const ProdutosPage = () => {
     );
   };
 
-  // Componente para renderizar um card no Mobile
   const RowMobile = ({ index, style }: ListChildComponentProps) => {
     const produto = data!.dados[index];
     return (
@@ -188,7 +180,7 @@ const ProdutosPage = () => {
           </Flex>
           <Divider my={2} />
           <HStack justify="space-between"><Text fontSize="sm" color="gray.500">Unidade:</Text><Text fontWeight="bold">{produto.unidade_medida.toUpperCase()}</Text></HStack>
-          <HStack justify="space-between" mt={1}><Text fontSize="sm" color="gray.500">Estoque:</Text><Text fontWeight="bold">{produto.quantidade_em_estoque.toFixed(2)} {produto.unidade_medida}</Text></HStack>
+                    <HStack justify="space-between" mt={1}><Text fontSize="sm" color="gray.500">Estoque:</Text><Text fontWeight="bold">{produto.quantidade_em_estoque.toFixed(2)} {produto.unidade_medida}</Text></HStack>
           {isAdmin && (
             <HStack mt={4} justify="space-around" bg={useColorModeValue('gray.100', 'gray.700')} p={2} borderRadius="md">
               <Button flex="1" size="sm" leftIcon={<FiPlusSquare />} colorScheme="blue" onClick={() => handleOpenForEstoque(produto)}>Estoque</Button>

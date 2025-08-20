@@ -2,13 +2,14 @@
 
 import { Box, Center, Heading, Skeleton, Text } from '@chakra-ui/react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+// CORREÇÃO: A interface importada deve ser ISalesEvolution
 import { ISalesEvolution } from '@/services/report.service';
 
-// ✅ CORREÇÃO: A interface de props agora inclui 'isError'
+// CORREÇÃO: A interface de props deve usar ISalesEvolution
 interface SalesEvolutionChartProps {
   data: ISalesEvolution[] | undefined;
   isLoading: boolean;
-  isError: boolean; // Esta linha foi adicionada
+  isError: boolean;
 }
 
 const formatCurrency = (value: number) => {
@@ -23,17 +24,17 @@ const formatCurrency = (value: number) => {
 
 const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    date.setDate(date.getDate() + 1); 
+    // Ajuste para garantir que a data seja exibida corretamente, independentemente do fuso horário
+    date.setMinutes(date.getMinutes() + date.getTimezoneOffset());
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 };
 
-// ✅ CORREÇÃO: O componente agora aceita 'isError' como prop
+// CORREÇÃO: O nome do componente e suas props estão corretos agora
 export const SalesEvolutionChart = ({ data, isLoading, isError }: SalesEvolutionChartProps) => {
   return (
     <Box as={Skeleton} isLoaded={!isLoading} p={5} borderWidth={1} borderRadius={8} boxShadow="sm" h="400px">
       <Heading size="md" mb={4}>Evolução das Vendas</Heading>
       
-      {/* ✅ CORREÇÃO: A lógica de erro agora usa a prop 'isError' */}
       {isError ? (
         <Center h="90%">
           <Text color="red.500">Erro ao carregar dados do gráfico.</Text>
@@ -57,3 +58,5 @@ export const SalesEvolutionChart = ({ data, isLoading, isError }: SalesEvolution
     </Box>
   );
 };
+
+export default SalesEvolutionChart;

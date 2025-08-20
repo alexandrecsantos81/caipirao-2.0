@@ -1,5 +1,3 @@
-// backend/routes/dashboardRoutes.js
-
 const express = require('express');
 const router = express.Router();
 const { verifyToken, checkAdmin } = require('../middleware/authMiddleware');
@@ -10,12 +8,18 @@ const {
     getRankingProdutos,
     getRankingClientes,
     getFluxoCaixaDiario,
-} = require('../controllers/dashboardController'); // ✅ CORREÇÃO APLICADA AQUI
+    // 1. Importar a nova função do controller
+    getDashboardVendedor,
+} = require('../controllers/dashboardController');
 
-// Todas as rotas aqui são protegidas e exigem login de Admin
+// 2. Nova rota para o dashboard do vendedor
+// Acessível por qualquer usuário logado (apenas `verifyToken`)
+router.get('/vendedor/:id', verifyToken, getDashboardVendedor);
+
+
+// As rotas abaixo continuam restritas apenas para ADMINs
 router.use(verifyToken, checkAdmin);
 
-// Rotas existentes
 router.get('/kpis', getKPIs);
 router.get('/vendas-por-dia', getVendasPorDia);
 router.get('/despesas-por-categoria', getDespesasPorCategoria);

@@ -1,14 +1,13 @@
 // frontend/src/components/ProtectedRoute.tsx
 
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Center, Spinner } from '@chakra-ui/react';
 
 const ProtectedRoute = () => {
-  const { isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
+  const location = useLocation();
 
-  // Enquanto o estado de autenticação está sendo verificado, exibe um spinner.
-  // Isso centraliza a lógica de carregamento e evita renderizações parciais.
   if (loading) {
     return (
       <Center h="100vh">
@@ -17,12 +16,16 @@ const ProtectedRoute = () => {
     );
   }
 
-  // Após o carregamento, se o usuário NÃO estiver autenticado, redireciona para o login.
   if (!isAuthenticated) {
+    // Mantém o redirecionamento para o login se não estiver autenticado
     return <Navigate to="/login" replace />;
   }
 
-  // Se estiver autenticado, permite o acesso às rotas aninhadas.
+  // Se um usuário não-admin tentar acessar a raiz, redireciona para seu dashboard
+  if (user?.perfil !== 'ADMIN' && location.pathname === '/') {
+    return <Navigate to="/meu-dashboard" replace />;
+  }
+
   return <Outlet />;
 };
 

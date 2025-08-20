@@ -20,7 +20,9 @@ import RelatoriosPage from '@/pages/RelatoriosPage';
 import SolicitarAcessoPage from '@/pages/SolicitarAcessoPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 import FinancasPage from '@/pages/FinancasPage';
-import EmpresaPage from '@/pages/EmpresaPage'; // <-- 1. Importação da nova página
+import EmpresaPage from '@/pages/EmpresaPage';
+// 1. Importar a nova página de dashboard do vendedor
+import DashboardVendedorPage from '@/pages/DashboardVendedorPage';
 
 const MainLayout = () => {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
@@ -74,6 +76,8 @@ function App() {
           <Route path="/movimentacoes" element={<MovimentacoesPage />} />
           <Route path="/clientes" element={<ClientesPage />} />
           <Route path="/produtos" element={<ProdutosPage />} />
+          {/* 2. Adicionar a nova rota para o dashboard do vendedor */}
+          <Route path="/meu-dashboard" element={<DashboardVendedorPage />} />
           
           {/* Rotas acessíveis apenas para ADMINs */}
           <Route element={<AdminRoute />}>
@@ -83,8 +87,6 @@ function App() {
             <Route path="/fornecedores" element={<FornecedoresPage />} />
             <Route path="/utilizadores" element={<UtilizadoresPage />} />
             <Route path="/financas" element={<FinancasPage />} />
-            
-            {/* 2. Adição da rota para a nova página */}
             <Route path="/empresa" element={<EmpresaPage />} />
           </Route>
 

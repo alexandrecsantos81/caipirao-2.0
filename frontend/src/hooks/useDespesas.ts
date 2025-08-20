@@ -1,61 +1,79 @@
-// frontend/src/hooks/useDespesas.ts
-
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { getDespesas, registrarDespesa, updateDespesa, deleteDespesa, IDespesa, IDespesaForm } from '../services/despesa.service';
 import { IPaginatedResponse } from '@/types/common.types';
+import { useToast } from '@chakra-ui/react';
 
+// Chave principal para as queries de despesas, para fácil invalidação.
 const DESPESAS_QUERY_KEY = 'despesas';
 
 /**
  * Hook customizado para buscar a lista paginada de despesas.
- * Ele gerencia o fetching, caching, loading e estados de erro.
- * @param pagina O número da página a ser buscada.
+ * @param pagina O número da página atual.
+ * @param termoBusca O termo de busca (debounced).
  */
-export const useDespesas = (pagina: number) => {
+export const useGetDespesas = (pagina: number, termoBusca: string) => {
   return useQuery<IPaginatedResponse<IDespesa>, Error>({
-    // A chave da query agora inclui a página para que cada página tenha seu próprio cache
-    queryKey: [DESPESAS_QUERY_KEY, pagina],
-    queryFn: () => getDespesas(pagina, 10), // Busca 10 itens por página
-    placeholderData: keepPreviousData, // Mantém os dados antigos visíveis enquanto busca os novos
+    queryKey: [DESPESAS_QUERY_KEY, pagina, termoBusca],
+    queryFn: () => getDespesas(pagina, 50, termoBusca),
+    placeholderData: keepPreviousData,
   });
 };
 
 /**
- * Hook customizado para criar uma nova despesa.
+ * Hook customizado para criar ou atualizar uma despesa.
+ * Centraliza a lógica de mutação e feedback ao usuário.
  */
-export const useCreateDespesa = () => {
+export const useSaveDespesa = () => {
   const queryClient = useQueryClient();
-  return useMutation<IDespesa, Error, IDespesaForm>({
-    mutationFn: registrarDespesa,
-    onSuccess: () => {
-      // Invalida todas as queries de despesas para forçar a atualização
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: (params: { despesaData: IDespesaForm, id?: number }) =>
+      params.id 
+        ? updateDespesa({ id: params.id, data: params.despesaData }) 
+        : registrarDespesa(params.despesaData),
+    onSuccess: (_, variables) => {
+      // Invalida todas as queries relacionadas para forçar a atualização dos dados.
       queryClient.invalidateQueries({ queryKey: [DESPESAS_QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: ['contasAPagar'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardKPIs'] });
+      
+      toast({
+        title: `Despesa ${variables.id ? 'atualizada' : 'registrada'}!`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao salvar despesa",
+        description: error.response?.data?.error || error.message,
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
     },
   });
-};
-
-/**
- * Hook customizado para atualizar uma despesa.
- */
-export const useUpdateDespesa = () => {
-    const queryClient = useQueryClient();
-    return useMutation<IDespesa, Error, { id: number; data: IDespesaForm }>({
-        mutationFn: (params) => updateDespesa(params),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: [DESPESAS_QUERY_KEY] });
-        }
-    });
 };
 
 /**
  * Hook customizado para deletar uma despesa.
  */
 export const useDeleteDespesa = () => {
-    const queryClient = useQueryClient();
-    return useMutation<void, Error, number>({
-        mutationFn: deleteDespesa,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: [DESPESAS_QUERY_KEY] });
-        }
-    });
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation<void, Error, number>({
+    mutationFn: deleteDespesa,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [DESPESAS_QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: ['contasAPagar'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardKPIs'] });
+      toast({ title: 'Despesa excluída!', status: 'success' });
+    },
+    onError: (error: any) => {
+      toast({ title: "Erro ao excluir despesa", description: error.response?.data?.error || error.message, status: "error" });
+    }
+  });
 };

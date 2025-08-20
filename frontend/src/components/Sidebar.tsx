@@ -10,7 +10,7 @@ import {
   Icon,
   Link as ChakraLink,
   Stack,
-  Text, // Re-adicionado para o nome do usuário
+  Text,
   useColorModeValue,
 } from '@chakra-ui/react';
 import { NavLink as RouterLink, useLocation } from 'react-router-dom';
@@ -25,11 +25,11 @@ import {
   FiCreditCard,
   FiBriefcase,
   FiLogOut,
-  FiClipboard, // 1. Ícone do cabeçalho re-adicionado
+  FiClipboard,
+  FiTrendingUp, // 1. Ícone para o novo dashboard
 } from 'react-icons/fi';
 import { useAuth } from '@/hooks/useAuth';
 
-// Componente NavItem com os estilos originais restaurados
 const NavItem = ({ icon, to, children }: { icon: React.ElementType; to: string; children: React.ReactNode }) => {
   const location = useLocation();
   const isActive = location.pathname === to;
@@ -51,7 +51,7 @@ const NavItem = ({ icon, to, children }: { icon: React.ElementType; to: string; 
       fontWeight={isActive ? 'bold' : 'normal'}
       _hover={{
         textDecoration: 'none',
-        bg: isActive ? activeBg : hoverBg, // 4. Efeito hover restaurado
+        bg: isActive ? activeBg : hoverBg,
       }}
       role="group"
     >
@@ -61,7 +61,6 @@ const NavItem = ({ icon, to, children }: { icon: React.ElementType; to: string; 
   );
 };
 
-// Componente principal da Sidebar
 export const Sidebar = ({ isCollapsed }: { isCollapsed: boolean }) => {
   const { user, logout } = useAuth();
   const isAdmin = user?.perfil === 'ADMIN';
@@ -85,7 +84,6 @@ export const Sidebar = ({ isCollapsed }: { isCollapsed: boolean }) => {
       display={{ base: 'none', md: 'block' }}
     >
       <Flex direction="column" p={isCollapsed ? 2 : 4} h="full">
-        {/* 1. Cabeçalho com Ícone e Título */}
         <Flex align="center" mb={4} pl={isCollapsed ? 0 : 1} justify={isCollapsed ? 'center' : 'flex-start'}>
           <Icon as={FiClipboard} fontSize="2xl" color="teal.500" />
           {!isCollapsed && (
@@ -96,41 +94,47 @@ export const Sidebar = ({ isCollapsed }: { isCollapsed: boolean }) => {
         </Flex>
         <Divider mb={4} />
 
-        {/* Links Principais (Vendas) */}
-        <Stack spacing={2}>
-          <NavItem icon={FiShoppingCart} to="/movimentacoes">Movimentações</NavItem>
-          <NavItem icon={FiUsers} to="/clientes">Clientes</NavItem>
-          <NavItem icon={FiBox} to="/produtos">Produtos</NavItem>
-        </Stack>
-
-        {/* Seção de Administração */}
-        {isAdmin && (
-          <Stack spacing={2} mt={8}>
-            <Heading size="xs" textTransform="uppercase" color="gray.500" pl={3}>
-              Admin
-            </Heading>
+        {/* 2. Lógica de links condicional */}
+        {isAdmin ? (
+          // Links para ADMIN
+          <Stack spacing={2}>
             <NavItem icon={FiHome} to="/dashboard">Dashboard</NavItem>
-            <NavItem icon={FiBarChart2} to="/relatorios">Relatórios</NavItem>
-            <NavItem icon={FiTruck} to="/fornecedores">Fornecedores</NavItem>
-            <NavItem icon={FiUserCheck} to="/utilizadores">Utilizadores</NavItem>
-            <NavItem icon={FiBriefcase} to="/empresa">Minha Empresa</NavItem>
+            <NavItem icon={FiShoppingCart} to="/movimentacoes">Movimentações</NavItem>
+            <NavItem icon={FiUsers} to="/clientes">Clientes</NavItem>
+            <NavItem icon={FiBox} to="/produtos">Produtos</NavItem>
+          </Stack>
+        ) : (
+          // Links para VENDEDOR
+          <Stack spacing={2}>
+            <NavItem icon={FiTrendingUp} to="/meu-dashboard">Meu Desempenho</NavItem>
+            <NavItem icon={FiShoppingCart} to="/movimentacoes">Vendas</NavItem>
+            <NavItem icon={FiUsers} to="/clientes">Clientes</NavItem>
+            <NavItem icon={FiBox} to="/produtos">Produtos</NavItem>
           </Stack>
         )}
 
-        {/* 3. Seção de Gestão Pessoal (separada) */}
         {isAdmin && (
+          <>
+            <Stack spacing={2} mt={8}>
+              <Heading size="xs" textTransform="uppercase" color="gray.500" pl={3}>
+                Admin
+              </Heading>
+              <NavItem icon={FiBarChart2} to="/relatorios">Relatórios</NavItem>
+              <NavItem icon={FiTruck} to="/fornecedores">Fornecedores</NavItem>
+              <NavItem icon={FiUserCheck} to="/utilizadores">Utilizadores</NavItem>
+              <NavItem icon={FiBriefcase} to="/empresa">Minha Empresa</NavItem>
+            </Stack>
             <Stack spacing={2} mt={8}>
                 <Heading size="xs" textTransform="uppercase" color="gray.500" pl={3}>
                     Gestão Pessoal
                 </Heading>
                 <NavItem icon={FiCreditCard} to="/financas">Finanças</NavItem>
             </Stack>
+          </>
         )}
 
-        {/* Espaçador para empurrar o perfil do usuário para baixo */}
         <Box flex="1" />
 
-        {/* 2. Perfil do Usuário Logado */}
         <Box mt={8}>
           <Divider mb={4} />
           <Flex align="center" p={2}>

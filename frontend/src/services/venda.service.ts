@@ -1,10 +1,8 @@
-// frontend/src/services/venda.service.ts
-
 import axios from 'axios';
 import { IPaginatedResponse } from '@/types/common.types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-const apiClient = axios.create({ baseURL: API_URL }    );
+const apiClient = axios.create({ baseURL: API_URL }     );
 
 apiClient.interceptors.request.use(
   (config) => {
@@ -40,6 +38,7 @@ export interface IVenda {
   data_vencimento: string;
   data_pagamento: string | null;
   produtos: IProdutoVenda[];
+  peso_total: number; // Adicionado para corresponder ao backend
 }
 
 export interface INovaVenda {
@@ -62,7 +61,6 @@ export interface IContaAReceber {
     cliente_telefone: string;
 }
 
-// ✅ NOVA INTERFACE PARA O FORMULÁRIO DE QUITAÇÃO
 export interface IQuitacaoVendaData {
     data_pagamento: string;
     valor_pago: number;
@@ -102,7 +100,6 @@ export const getContasAReceber = async (): Promise<IContaAReceber[]> => {
     return response.data;
 };
 
-// ✅ FUNÇÃO ATUALIZADA PARA ENVIAR MAIS DADOS
 export const registrarPagamento = async ({ vendaId, quitacaoData }: { vendaId: number, quitacaoData: IQuitacaoVendaData }): Promise<IVenda> => {
     const response = await apiClient.put(`/movimentacoes/vendas/${vendaId}/pagamento`, quitacaoData);
     return response.data;
@@ -113,4 +110,9 @@ export const getVendaPdf = async (vendaId: number): Promise<Blob> => {
     responseType: 'blob',
   });
   return new Blob([response.data], { type: 'application/pdf' });
+};
+
+export const reprogramarVencimentoVenda = async ({ id, novaDataVencimento }: { id: number, novaDataVencimento: string }): Promise<IVenda> => {
+  const response = await apiClient.patch(`/movimentacoes/vendas/${id}/reprogramar`, { novaDataVencimento });
+  return response.data;
 };
