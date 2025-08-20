@@ -1,3 +1,5 @@
+// frontend/src/components/TabelaDespesasPessoais.tsx
+
 import {
   Box, Button, Flex, Heading, IconButton, Spinner, Table, TableContainer, Tbody, Td, Text,
   Th, Thead, Tr, useDisclosure, useToast, HStack,
@@ -9,18 +11,19 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FiPlus, FiEdit, FiTrash2, FiCheckSquare } from 'react-icons/fi';
 import { useState, useRef, useMemo } from 'react';
-import { 
-  IDespesaPessoal, 
-  IDespesaPessoalForm, 
-  getDespesasPessoais, 
-  createDespesaPessoal, 
+import {
+  IDespesaPessoal,
+  IDespesaPessoalForm,
+  getDespesasPessoais,
+  createDespesaPessoal,
   updateDespesaPessoal,
   togglePagamentoDespesa,
-  deleteDespesaPessoal 
+  deleteDespesaPessoal
 } from '../services/despesaPessoal.service';
 import { FormularioDespesaPessoal } from './FormularioDespesaPessoal';
 import { isValid, parseISO, format } from 'date-fns';
 
+// Interfaces locais para agrupar dados na tabela
 interface IFinanciamentoAgrupado {
   parcela_id: string;
   descricaoBase: string;
@@ -35,15 +38,17 @@ interface TabelaDespesasPessoaisProps {
   termoBusca: string;
 }
 
+// Função auxiliar para formatar datas de forma segura
 const formatarDataSegura = (dateString: string | null | undefined): string => {
   if (!dateString) return 'Data Inválida';
-  const data = parseISO(dateString); 
+  const data = parseISO(dateString);
   if (!isValid(data)) {
     return 'Data Inválida';
   }
   return data.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
 };
 
+// Componente do Modal para confirmar a data de pagamento
 const ModalConfirmarPagamento = ({ isOpen, onClose, onConfirm, isLoading }: {
   isOpen: boolean;
   onClose: () => void;
@@ -65,8 +70,8 @@ const ModalConfirmarPagamento = ({ isOpen, onClose, onConfirm, isLoading }: {
         <ModalBody>
           <FormControl>
             <FormLabel>Data em que o pagamento foi realizado</FormLabel>
-            <Input 
-              type="date" 
+            <Input
+              type="date"
               value={dataPagamento}
               onChange={(e) => setDataPagamento(e.target.value)}
             />
@@ -83,13 +88,14 @@ const ModalConfirmarPagamento = ({ isOpen, onClose, onConfirm, isLoading }: {
   );
 };
 
+// Componente principal da Tabela
 export const TabelaDespesasPessoais = ({ filters, termoBusca }: TabelaDespesasPessoaisProps) => {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { isOpen: isDrawerOpen, onOpen: onDrawerOpen, onClose: onDrawerClose } = useDisclosure();
   const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure();
   const { isOpen: isPagamentoOpen, onOpen: onPagamentoOpen, onClose: onPagamentoClose } = useDisclosure();
-  
+
   const [selectedDespesa, setSelectedDespesa] = useState<IDespesaPessoal | null>(null);
   const [itemParaDeletar, setItemParaDeletar] = useState<IDespesaPessoal | IFinanciamentoAgrupado | null>(null);
   const [despesaParaPagar, setDespesaParaPagar] = useState<IDespesaPessoal | null>(null);
@@ -133,7 +139,7 @@ export const TabelaDespesasPessoais = ({ filters, termoBusca }: TabelaDespesasPe
   });
 
   const togglePagoMutation = useMutation({
-    mutationFn: (params: { despesa: IDespesaPessoal, dataPagamento?: string }) => 
+    mutationFn: (params: { despesa: IDespesaPessoal, dataPagamento?: string }) =>
       togglePagamentoDespesa(params.despesa.id, !params.despesa.pago, params.dataPagamento),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['despesasPessoais'] });
@@ -150,20 +156,27 @@ export const TabelaDespesasPessoais = ({ filters, termoBusca }: TabelaDespesasPe
     if (!data) return [];
 
     const termo = termoBusca.toLowerCase();
-    const dadosFiltradosPorTexto = !termoBusca ? data : data.filter(d => 
+    const dadosFiltradosPorTexto = !termoBusca ? data : data.filter(d =>
       d.descricao.toLowerCase().includes(termo) ||
       (d.categoria && d.categoria.toLowerCase().includes(termo))
     );
 
+    // ✅ ================== INÍCIO DA CORREÇÃO LÓGICA ================== ✅
+    // A lógica de filtragem por data foi ajustada.
+    // Agora, despesas pendentes (pago = false) são sempre consideradas,
+    // mas despesas pagas só aparecem se a data de pagamento estiver no período.
     const despesasVisiveis = dadosFiltradosPorTexto.filter(d => {
-        if (d.pago) {
-            if (!d.data_pagamento) return false;
-            const dataPagamento = parseISO(d.data_pagamento);
-            if (!isValid(dataPagamento)) return false;
-            return dataPagamento >= parseISO(filters.startDate) && dataPagamento <= parseISO(filters.endDate);
-        }
-        return true;
+      if (d.pago) {
+        if (!d.data_pagamento) return false; // Segurança
+        const dataPagamento = parseISO(d.data_pagamento);
+        if (!isValid(dataPagamento)) return false;
+        // Só mostra despesas pagas se a data do pagamento estiver no filtro
+        return dataPagamento >= parseISO(filters.startDate) && dataPagamento <= parseISO(filters.endDate);
+      }
+      // Se a despesa não está paga (pago = false), ela SEMPRE será exibida.
+      return true;
     });
+    // ✅ =================== FIM DA CORREÇÃO LÓGICA =================== ✅
 
     const despesasUnicas = despesasVisiveis.filter(d => !d.parcela_id && !d.recorrente);
     const assinaturas = despesasVisiveis.filter(d => d.recorrente && !d.parcela_id);
@@ -185,7 +198,7 @@ export const TabelaDespesasPessoais = ({ filters, termoBusca }: TabelaDespesasPe
       if (!proximaParcela) return;
 
       const saldoRestante = parcelasDoGrupo.reduce((acc, p) => !p.pago ? acc + p.valor : acc, 0);
-      
+
       financiamentos.push({
         parcela_id: proximaParcela.parcela_id!,
         descricaoBase: proximaParcela.descricao.replace(/\s*\(\d+\/\d+\)$/, ''),
@@ -197,17 +210,16 @@ export const TabelaDespesasPessoais = ({ filters, termoBusca }: TabelaDespesasPe
     });
 
     return [...despesasUnicas, ...assinaturas, ...financiamentos].sort((a, b) => {
-        const dateA = parseISO('proximaParcela' in a ? a.proximaParcela.data_vencimento : a.data_vencimento);
-        const dateB = parseISO('proximaParcela' in b ? b.proximaParcela.data_vencimento : b.data_vencimento);
-        return dateA.getTime() - dateB.getTime();
+      const dateA = parseISO('proximaParcela' in a ? a.proximaParcela.data_vencimento : a.data_vencimento);
+      const dateB = parseISO('proximaParcela' in b ? b.proximaParcela.data_vencimento : b.data_vencimento);
+      return dateA.getTime() - dateB.getTime();
     });
   }, [data, termoBusca, filters.startDate, filters.endDate]);
 
   const handleAddClick = () => { setSelectedDespesa(null); onDrawerOpen(); };
   const handleEditClick = (despesa: IDespesaPessoal) => { setSelectedDespesa(despesa); onDrawerOpen(); };
   const handleDeleteClick = (item: IDespesaPessoal | IFinanciamentoAgrupado) => { setItemParaDeletar(item); onConfirmOpen(); };
-  
-  // CORREÇÃO APLICADA AQUI
+
   const handleSave = (formData: IDespesaPessoalForm, id?: number) => {
     saveMutation.mutate({ data: formData, id });
   };
@@ -271,9 +283,9 @@ export const TabelaDespesasPessoais = ({ filters, termoBusca }: TabelaDespesasPe
                       <Td isNumeric>{financiamento.saldoRestante.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Td>
                       <Td>
                         <Tooltip label={financiamento.proximaParcela.pago ? 'Pago' : 'Pendente'}>
-                            <Badge colorScheme={financiamento.proximaParcela.pago ? 'green' : 'orange'}>
-                                {financiamento.proximaParcela.pago ? 'Pago' : 'Pendente'}
-                            </Badge>
+                          <Badge colorScheme={financiamento.proximaParcela.pago ? 'green' : 'orange'}>
+                            {financiamento.proximaParcela.pago ? 'Pago' : 'Pendente'}
+                          </Badge>
                         </Tooltip>
                       </Td>
                       <Td>
@@ -285,7 +297,7 @@ export const TabelaDespesasPessoais = ({ filters, termoBusca }: TabelaDespesasPe
                       </Td>
                     </Tr>
                   );
-                } 
+                }
                 else {
                   const despesa = item as IDespesaPessoal;
                   return (
@@ -298,9 +310,9 @@ export const TabelaDespesasPessoais = ({ filters, termoBusca }: TabelaDespesasPe
                       <Td isNumeric>{despesa.recorrente ? 'N/A' : '---'}</Td>
                       <Td>
                         <Tooltip label={despesa.pago ? `Pago em ${formatarDataSegura(despesa.data_pagamento)}` : 'Pendente'}>
-                           <Badge colorScheme={despesa.pago ? 'green' : 'orange'}>
-                                {despesa.pago ? 'Pago' : 'Pendente'}
-                            </Badge>
+                          <Badge colorScheme={despesa.pago ? 'green' : 'orange'}>
+                            {despesa.pago ? 'Pago' : 'Pendente'}
+                          </Badge>
                         </Tooltip>
                       </Td>
                       <Td>
@@ -318,11 +330,11 @@ export const TabelaDespesasPessoais = ({ filters, termoBusca }: TabelaDespesasPe
           </Table>
         </TableContainer>
       )}
-      <FormularioDespesaPessoal 
-        isOpen={isDrawerOpen} onClose={onDrawerClose} despesa={selectedDespesa} 
+      <FormularioDespesaPessoal
+        isOpen={isDrawerOpen} onClose={onDrawerClose} despesa={selectedDespesa}
         onSave={handleSave} isLoading={saveMutation.isPending} portalContainerRef={portalContainerRef}
       />
-      <ModalConfirmarPagamento 
+      <ModalConfirmarPagamento
         isOpen={isPagamentoOpen}
         onClose={onPagamentoClose}
         onConfirm={handleConfirmarPagamento}
@@ -333,7 +345,7 @@ export const TabelaDespesasPessoais = ({ filters, termoBusca }: TabelaDespesasPe
         <AlertDialogContent>
           <AlertDialogHeader fontSize="lg" fontWeight="bold">Confirmar Exclusão</AlertDialogHeader>
           <AlertDialogBody>
-            Tem certeza que deseja excluir {'proximaParcela' in (itemParaDeletar || {}) 
+            Tem certeza que deseja excluir {'proximaParcela' in (itemParaDeletar || {})
               ? `a despesa "${(itemParaDeletar as IFinanciamentoAgrupado).descricaoBase}" e todas as suas parcelas futuras`
               : `a despesa "${(itemParaDeletar as IDespesaPessoal)?.descricao}"`
             }? Esta ação não pode ser desfeita.
