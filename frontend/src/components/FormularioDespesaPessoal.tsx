@@ -67,9 +67,10 @@ export const FormularioDespesaPessoal = ({ isOpen, onClose, despesa, onSave, isL
         <DrawerContent>
           <DrawerHeader borderBottomWidth="1px">{despesa ? 'Editar Despesa' : 'Adicionar Nova Despesa'}</DrawerHeader>
           <DrawerCloseButton />
-          <DrawerBody>
+          
+          {/* ✅ CORREÇÃO APLICADA AQUI */}
+          <DrawerBody overflowY="auto">
             <VStack spacing={4}>
-              {/* --- VALIDAÇÃO APLICADA --- */}
               <FormControl isRequired isInvalid={!!errors.descricao}>
                 <FormLabel>Descrição</FormLabel>
                 <Input 
@@ -96,7 +97,6 @@ export const FormularioDespesaPessoal = ({ isOpen, onClose, despesa, onSave, isL
                 />
                 <FormErrorMessage>{errors.valor?.message}</FormErrorMessage>
               </FormControl>
-              {/* --- FIM DA VALIDAÇÃO --- */}
               
               <FormControl>
                 <FormLabel>Categoria (Opcional)</FormLabel>
