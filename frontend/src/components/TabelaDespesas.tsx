@@ -1,5 +1,3 @@
-// frontend/src/components/TabelaDespesas.tsx
-
 import {
   Box,
   Center,
@@ -20,6 +18,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useEffect, useState, useRef } from 'react';
 import { FixedSizeList, ListChildComponentProps } from 'react-window';
 import { FiEdit, FiTrash2 } from 'react-icons/fi';
+import { addDays, isBefore, startOfDay, parseISO } from 'date-fns';
 
 import { Pagination } from './Pagination';
 import { IDespesa, getDespesas } from '../services/despesa.service';
@@ -30,6 +29,22 @@ interface TabelaDespesasProps {
   onDelete: (id: number) => void;
   buscaDebounced: string;
 }
+
+const getDespesaRowStyle = (despesa: IDespesa) => {
+  if (despesa.data_pagamento) {
+    return {};
+  }
+  const hoje = startOfDay(new Date());
+  const dataVencimento = parseISO(despesa.data_vencimento);
+  if (isBefore(dataVencimento, hoje)) {
+    return { bg: useColorModeValue('red.100', 'red.800') };
+  }
+  const dataLimite = addDays(hoje, 5);
+  if (isBefore(dataVencimento, dataLimite)) {
+    return { bg: useColorModeValue('yellow.100', 'yellow.800') };
+  }
+  return {};
+};
 
 export const TabelaDespesas = ({ onEdit, onDelete, buscaDebounced }: TabelaDespesasProps) => {
   const [pagina, setPagina] = useState(1);
@@ -56,7 +71,6 @@ export const TabelaDespesas = ({ onEdit, onDelete, buscaDebounced }: TabelaDespe
     }
   }, [data]);
 
-  const headerBg = useColorModeValue('gray.50', 'gray.700');
   const rowHoverBg = useColorModeValue('gray.100', 'gray.700');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
 
@@ -66,9 +80,11 @@ export const TabelaDespesas = ({ onEdit, onDelete, buscaDebounced }: TabelaDespe
 
   const RowMobile = ({ index, style }: ListChildComponentProps) => {
     const despesa = data!.dados[index];
+    const rowStyle = getDespesaRowStyle(despesa);
+
     return (
       <Box style={style} px={2} py={2}>
-        <Box p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
+        <Box p={4} borderWidth={1} borderRadius="md" boxShadow="sm" {...rowStyle}>
           <Flex justify="space-between" align="center">
             <Heading size="sm" noOfLines={1}>{despesa.discriminacao}</Heading>
             {isAdmin && (
@@ -83,7 +99,7 @@ export const TabelaDespesas = ({ onEdit, onDelete, buscaDebounced }: TabelaDespe
           <Text fontSize="sm" color="gray.400" mt={1}>{despesa.tipo_saida}</Text>
           <Divider my={2} />
           <HStack justify="space-between"><Text fontSize="sm" color="gray.500">Data da Compra:</Text><Text>{new Date(despesa.data_compra).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Text></HStack>
-          <HStack justify="space-between"><Text fontSize="sm" color="gray.500">Vencimento:</Text><Text>{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Text></HStack>
+          <HStack justify="space-between"><Text fontSize="sm" color="gray.500">Vencimento:</Text><Text fontWeight="bold">{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Text></HStack>
           <HStack justify="space-between"><Text fontSize="sm" color="gray.500">Status:</Text><Badge colorScheme={despesa.data_pagamento ? 'green' : 'orange'}>{despesa.data_pagamento ? 'Pago' : 'Pendente'}</Badge></HStack>
           <HStack justify="space-between" mt={2}><Text fontWeight="bold">Valor:</Text><Text fontWeight="bold" color="red.500">{despesa.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Text></HStack>
         </Box>
@@ -93,10 +109,12 @@ export const TabelaDespesas = ({ onEdit, onDelete, buscaDebounced }: TabelaDespe
 
   const RowDesktop = ({ index, style }: ListChildComponentProps) => {
     const despesa = data!.dados[index];
+    const rowStyle = getDespesaRowStyle(despesa);
+
     return (
-      <Flex style={style} align="center" _hover={{ bg: rowHoverBg }} borderBottomWidth="1px" borderColor={borderColor}>
+      <Flex style={style} align="center" _hover={{ bg: rowHoverBg }} borderBottomWidth="1px" borderColor={borderColor} {...rowStyle}>
         <Text width="12%" px={4} isTruncated>{new Date(despesa.data_compra).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Text>
-        <Text width="12%" px={4} isTruncated>{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Text>
+        <Text width="12%" px={4} isTruncated fontWeight="bold">{new Date(despesa.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Text>
         <Text width="31%" px={4} isTruncated title={despesa.discriminacao}>{despesa.discriminacao}</Text>
         <Text width="15%" px={4} isTruncated>{despesa.tipo_saida}</Text>
         <Box width="10%" px={4}><Badge colorScheme={despesa.data_pagamento ? 'green' : 'orange'}>{despesa.data_pagamento ? 'Pago' : 'Pendente'}</Badge></Box>
@@ -123,7 +141,8 @@ export const TabelaDespesas = ({ onEdit, onDelete, buscaDebounced }: TabelaDespe
         </FixedSizeList>
       ) : (
         <Box borderWidth="1px" borderRadius="lg" overflow="hidden">
-          <Flex bg={headerBg} borderBottomWidth="1px" fontWeight="bold" role="row" pr="15px">
+          {/* MODIFICAÇÃO APLICADA AQUI */}
+          <Flex bg={useColorModeValue('gray.100', 'gray.700')} borderBottomWidth="1px" fontWeight="bold" role="row" pr="15px">
             <Text width="12%" p={4}>Data da Compra</Text>
             <Text width="12%" p={4}>Vencimento</Text>
             <Text width="31%" p={4}>Discriminação</Text>
@@ -138,7 +157,6 @@ export const TabelaDespesas = ({ onEdit, onDelete, buscaDebounced }: TabelaDespe
         </Box>
       )}
 
-      {/* 🔹 Paginação sempre visível */}
       <Pagination
         paginaAtual={data?.pagina || 1}
         totalPaginas={data?.totalPaginas || 1}

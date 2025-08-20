@@ -125,7 +125,6 @@ const getVendas = async (req, res) => {
         
         const vendasResult = await pool.query(query, [...params, limite, offset]);
         
-        // ✅ NOVO: Calcular o peso total para cada venda
         const vendasComPeso = vendasResult.rows.map(venda => {
             let peso_total = 0;
             if (venda.produtos && Array.isArray(venda.produtos)) {
@@ -138,7 +137,7 @@ const getVendas = async (req, res) => {
         });
 
         res.status(200).json({
-            dados: vendasComPeso, // Envia os dados com o novo campo
+            dados: vendasComPeso,
             total: totalVendas,
             pagina: parseInt(pagina, 10),
             limite: parseInt(limite, 10),
@@ -482,6 +481,39 @@ const getVendaPDF = async (req, res) => {
     }
 };
 
+/**
+ * @desc    Reprograma a data de vencimento de uma venda pendente
+ * @route   PATCH /api/movimentacoes/vendas/:id/reprogramar
+ * @access  Privado (qualquer usuário logado)
+ */
+const reprogramarVencimentoVenda = async (req, res) => {
+    const { id } = req.params;
+    const { novaDataVencimento } = req.body;
+
+    if (!novaDataVencimento) {
+        return res.status(400).json({ error: 'A nova data de vencimento é obrigatória.' });
+    }
+
+    try {
+        const result = await pool.query(
+            `UPDATE movimentacoes 
+             SET data_vencimento = $1 
+             WHERE id = $2 AND data_pagamento IS NULL
+             RETURNING *`,
+            [novaDataVencimento, id]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Venda não encontrada ou já foi paga.' });
+        }
+
+        res.status(200).json(result.rows[0]);
+    } catch (error) {
+        console.error('Erro ao reprogramar vencimento da venda:', error);
+        res.status(500).json({ error: 'Erro interno do servidor.' });
+    }
+};
+
 
 module.exports = {
   createVenda,
@@ -491,4 +523,5 @@ module.exports = {
   updateVenda,
   deleteVenda,
   getVendaPDF,
+  reprogramarVencimentoVenda,
 };

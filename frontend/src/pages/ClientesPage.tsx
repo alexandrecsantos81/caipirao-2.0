@@ -1,5 +1,4 @@
 import {
-  // ✅ CORREÇÃO: Reintroduzindo os componentes de Tabela necessários para o Modal
   Table, TableContainer, Tbody, Td, Th, Thead, Tr,
   Box, Button, Center, Drawer, DrawerBody, DrawerContent, DrawerFooter,
   DrawerHeader, DrawerOverlay, Flex, FormControl, FormLabel, HStack, Heading,
@@ -7,6 +6,7 @@ import {
   Text, useDisclosure, useToast, Checkbox,
   useBreakpointValue,
   Divider,
+  // VStack, // REMOVIDO - Esta era a causa do aviso
   Icon,
   FormErrorMessage,
   AlertDialog,
@@ -41,15 +41,9 @@ import {
   ICliente, IClienteForm, createCliente, deleteCliente, getClientes, updateCliente, getHistoricoVendas, IHistoricoVenda,
 } from '../services/cliente.service';
 import { useAuth } from '../hooks/useAuth';
+import { useDebounce } from '../hooks/useDebounce';
 
-const useDebounce = (value: string, delay: number) => {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const handler = setTimeout(() => { setDebouncedValue(value); }, delay);
-    return () => { clearTimeout(handler); };
-  }, [value, delay]);
-  return debouncedValue;
-};
+// ... (O restante do arquivo permanece o mesmo, pois já estava funcional)
 
 const formatarTelefone = (telefone: string): string => {
   if (!telefone) return '';
@@ -61,7 +55,7 @@ const formatarTelefone = (telefone: string): string => {
 
 const openWhatsApp = (phone: string) => {
   const cleanPhone = phone.replace(/\D/g, '');
-  window.open(`https://wa.me/55${cleanPhone}`, '_blank' );
+  window.open(`https://wa.me/55${cleanPhone}`, '_blank'  );
 };
 
 const ModalHistoricoVendas = ({ isOpen, onClose, cliente }: { isOpen: boolean; onClose: () => void; cliente: ICliente | null }) => {

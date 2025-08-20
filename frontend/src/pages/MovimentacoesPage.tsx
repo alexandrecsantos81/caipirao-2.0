@@ -1,26 +1,63 @@
-// frontend/src/pages/MovimentacoesPage.tsx
-
 import {
   Box, Button, Flex, Heading, Input, Tab, TabList, TabPanel,
-  TabPanels, Tabs, useDisclosure, useToast,
+  TabPanels, Tabs, useDisclosure,
   AlertDialog, AlertDialogBody, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogOverlay,
   InputGroup,
   InputLeftElement,
+  SimpleGrid,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  Skeleton,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalCloseButton,
+  ModalBody,
+  ModalFooter,
+  FormControl,
+  FormLabel,
+  VStack,
+  Text,
+  useToast,
 } from '@chakra-ui/react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useRef } from 'react';
-import { FiPlus, FiSearch } from 'react-icons/fi';
+import { FiPlus, FiSearch, FiClock } from 'react-icons/fi';
 
 import { useAuth } from '../hooks/useAuth';
 import { useDebounce } from '../hooks/useDebounce';
-import { IDespesa, deleteDespesa } from '../services/despesa.service';
-import { IVenda, deleteVenda } from '../services/venda.service';
+import { IVenda, deleteVenda, reprogramarVencimentoVenda } from '../services/venda.service';
+import { IDespesa, IDespesaForm } from '../services/despesa.service';
 import { gerarComprovanteVendaPDF } from '../services/report.service';
+
+// 1. Importar os novos hooks de despesa
+import { useSaveDespesa, useDeleteDespesa } from '../hooks/useDespesas';
 
 import { FormularioNovaVenda } from '../components/FormularioNovaVenda';
 import { FormularioNovaDespesa } from '../components/FormularioNovaDespesa';
 import { TabelaVendas } from '../components/TabelaVendas';
 import { TabelaDespesas } from '../components/TabelaDespesas';
+
+import { useDashboardData } from '../hooks/useDashboard';
+
+const formatCurrency = (value: number | undefined | null): string => {
+  if (typeof value !== 'number' || isNaN(value)) {
+    return 'R$ 0,00';
+  }
+  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
+const StatCard = ({ title, value, helpText, colorScheme }: { title: string; value: string; helpText: string; colorScheme?: string }) => (
+  <Stat as={Skeleton} isLoaded={!!value} p={5} borderWidth={1} borderRadius={8} boxShadow="sm">
+    <StatLabel>{title}</StatLabel>
+    <StatNumber color={colorScheme ? `${colorScheme}.500` : 'inherit'}>{value}</StatNumber>
+    <StatHelpText>{helpText}</StatHelpText>
+  </Stat>
+);
+
 
 const MovimentacoesPage = () => {
   const { user } = useAuth();
@@ -31,10 +68,13 @@ const MovimentacoesPage = () => {
   const { isOpen: isVendaDrawerOpen, onOpen: onVendaDrawerOpen, onClose: onVendaDrawerClose } = useDisclosure();
   const { isOpen: isDespesaDrawerOpen, onOpen: onDespesaDrawerOpen, onClose: onDespesaDrawerClose } = useDisclosure();
   const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure();
+  const { isOpen: isReprogramarOpen, onOpen: onReprogramarOpen, onClose: onReprogramarClose } = useDisclosure();
   
   const [vendaParaEditar, setVendaParaEditar] = useState<IVenda | null>(null);
   const [despesaParaEditar, setDespesaParaEditar] = useState<IDespesa | null>(null);
   const [itemParaDeletar, setItemParaDeletar] = useState<{ id: number; tipo: 'venda' | 'despesa' } | null>(null);
+  const [itemParaReprogramar, setItemParaReprogramar] = useState<IVenda | null>(null);
+  const [novaData, setNovaData] = useState('');
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   const [termoBuscaVendas, setTermoBuscaVendas] = useState('');
@@ -42,23 +82,24 @@ const MovimentacoesPage = () => {
   const [termoBuscaDespesas, setTermoBuscaDespesas] = useState('');
   const buscaDespesasDebounced = useDebounce(termoBuscaDespesas, 500);
 
+  const [tabIndex, setTabIndex] = useState(0);
+
+  const { kpisQuery } = useDashboardData();
+  const { data: kpis } = kpisQuery;
+
+  // 2. Instanciar os hooks de despesa
+  const saveDespesaMutation = useSaveDespesa();
+  const deleteDespesaMutation = useDeleteDespesa();
+
   const pdfMutation = useMutation({
     mutationFn: gerarComprovanteVendaPDF,
     onSuccess: (blob, vendaId) => {
       const pdfUrl = URL.createObjectURL(blob);
       window.open(pdfUrl, '_blank');
-      toast({
-        title: 'PDF Gerado',
-        description: `O comprovante da venda #${vendaId} foi aberto em uma nova aba.`,
-        status: 'success',
-      });
+      toast({ title: 'PDF Gerado', description: `O comprovante da venda #${vendaId} foi aberto.`, status: 'success' });
     },
-    onError: (error: any, vendaId) => {
-      toast({
-        title: 'Erro ao gerar PDF',
-        description: error.response?.data?.error || `Não foi possível gerar o comprovante para a venda #${vendaId}.`,
-        status: 'error',
-      });
+    onError: (error: any) => {
+      toast({ title: 'Erro ao gerar PDF', description: error.response?.data?.error, status: 'error' });
     },
   });
 
@@ -67,27 +108,25 @@ const MovimentacoesPage = () => {
     onSuccess: () => { 
       queryClient.invalidateQueries({ queryKey: ['vendas'] }); 
       queryClient.invalidateQueries({ queryKey: ['produtos'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardKPIs'] });
       toast({ title: 'Venda excluída!', status: 'success' }); 
       onConfirmClose(); 
     },
     onError: (error: any) => {
-      toast({ title: "Erro ao excluir venda", description: error.response?.data?.error || error.message, status: "error" });
+      toast({ title: "Erro ao excluir venda", description: error.response?.data?.error, status: "error" });
       onConfirmClose();
     }
   });
 
-  const deleteDespesaMutation = useMutation({ 
-    mutationFn: deleteDespesa, 
-    onSuccess: () => { 
-      queryClient.invalidateQueries({ queryKey: ['despesas'] });
-      queryClient.invalidateQueries({ queryKey: ['contasAPagar'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboardKPIs'] });
-      toast({ title: 'Despesa excluída!', status: 'success' }); 
-      onConfirmClose(); 
+  const reprogramarMutation = useMutation({
+    mutationFn: reprogramarVencimentoVenda,
+    onSuccess: () => {
+      toast({ title: 'Vencimento reprogramado!', status: 'success' });
+      queryClient.invalidateQueries({ queryKey: ['vendas'] });
+      onReprogramarClose();
     },
     onError: (error: any) => {
-      toast({ title: "Erro ao excluir despesa", description: error.response?.data?.error || error.message, status: "error" });
-      onConfirmClose();
+      toast({ title: 'Erro ao reprogramar', description: error.response?.data?.error, status: 'error' });
     }
   });
   
@@ -98,12 +137,7 @@ const MovimentacoesPage = () => {
   const handleDeleteClick = (id: number, tipo: 'venda' | 'despesa') => { setItemParaDeletar({ id, tipo }); onConfirmOpen(); };
   
   const handleGeneratePdf = (vendaId: number) => {
-    toast({
-      title: 'Gerando PDF...',
-      description: 'Por favor, aguarde um momento.',
-      status: 'info',
-      duration: 1500,
-    });
+    toast({ title: 'Gerando PDF...', status: 'info', duration: 1500 });
     pdfMutation.mutate(vendaId);
   };
 
@@ -116,9 +150,64 @@ const MovimentacoesPage = () => {
     }
   };
 
+  const handleOpenReprogramar = (venda: IVenda) => {
+    setItemParaReprogramar(venda);
+    setNovaData(venda.data_vencimento.split('T')[0]);
+    onReprogramarOpen();
+  };
+
+  const handleConfirmReprogramar = () => {
+    if (itemParaReprogramar && novaData) {
+      reprogramarMutation.mutate({ id: itemParaReprogramar.id, novaDataVencimento: novaData });
+    }
+  };
+
+  // 3. Criar a função de callback para salvar despesa
+  const handleSaveDespesa = (despesaData: IDespesaForm, id?: number) => {
+    saveDespesaMutation.mutate({ despesaData, id });
+    if (!id) { // Se for criação, fecha o drawer
+        onDespesaDrawerClose();
+    }
+  };
+
   return (
     <Box>
-      <Tabs isFitted variant="enclosed-colored">
+      <Box mb={6}>
+        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+          {tabIndex === 0 && (
+            <>
+              <StatCard 
+                title="Receitas Pagas (Mês)" 
+                value={formatCurrency(kpis?.totalVendasMes)} 
+                helpText="Valores recebidos no mês atual."
+                colorScheme="green"
+              />
+              <StatCard 
+                title="Receita a Receber" 
+                value={formatCurrency(kpis?.totalContasAReceber)} 
+                helpText="Total de vendas a prazo pendentes."
+              />
+            </>
+          )}
+          {tabIndex === 1 && isAdmin && (
+            <>
+              <StatCard 
+                title="Despesas Pagas (Mês)" 
+                value={formatCurrency(kpis?.totalDespesasMes)} 
+                helpText="Valores pagos no mês atual."
+                colorScheme="red"
+              />
+              <StatCard 
+                title="Contas a Pagar" 
+                value={formatCurrency(kpis?.totalContasAPagar)} 
+                helpText="Total de despesas pendentes."
+              />
+            </>
+          )}
+        </SimpleGrid>
+      </Box>
+
+      <Tabs isFitted variant="enclosed-colored" onChange={(index) => setTabIndex(index)}>
         <TabList mb="1em">
           <Tab>Vendas (Entradas)</Tab>
           {isAdmin && <Tab>Despesas (Saídas)</Tab>}
@@ -140,6 +229,7 @@ const MovimentacoesPage = () => {
               onEdit={handleEditVenda} 
               onDelete={(id) => handleDeleteClick(id, 'venda')} 
               onGeneratePdf={handleGeneratePdf}
+              onReprogramar={handleOpenReprogramar}
             />
           </TabPanel>
           
@@ -166,7 +256,18 @@ const MovimentacoesPage = () => {
       </Tabs>
       
       <FormularioNovaVenda isOpen={isVendaDrawerOpen} onClose={onVendaDrawerClose} vendaParaEditar={vendaParaEditar} />
-      {isAdmin && <FormularioNovaDespesa isOpen={isDespesaDrawerOpen} onClose={onDespesaDrawerClose} despesaParaEditar={despesaParaEditar} />}
+      
+      {/* 4. Passar as props corretas para o formulário */}
+      {isAdmin && 
+        <FormularioNovaDespesa 
+          isOpen={isDespesaDrawerOpen} 
+          onClose={onDespesaDrawerClose} 
+          despesaParaEditar={despesaParaEditar}
+          onSave={handleSaveDespesa}
+          isLoading={saveDespesaMutation.isPending}
+        />
+      }
+      
       <AlertDialog isOpen={isConfirmOpen} leastDestructiveRef={cancelRef} onClose={onConfirmClose}>
          <AlertDialogOverlay><AlertDialogContent>
           <AlertDialogHeader fontSize="lg" fontWeight="bold">Confirmar Exclusão</AlertDialogHeader>
@@ -179,6 +280,42 @@ const MovimentacoesPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent></AlertDialogOverlay>
       </AlertDialog>
+
+      <Modal isOpen={isReprogramarOpen} onClose={onReprogramarClose} isCentered>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Reprogramar Vencimento</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={4}>
+              <Text>
+                A venda para o cliente <strong>{itemParaReprogramar?.cliente_nome}</strong> está vencida.
+              </Text>
+              <FormControl isRequired>
+                <FormLabel>Selecione a nova data de vencimento:</FormLabel>
+                <Input 
+                  type="date" 
+                  value={novaData}
+                  onChange={(e) => setNovaData(e.target.value)}
+                />
+              </FormControl>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={onReprogramarClose}>
+              Cancelar
+            </Button>
+            <Button 
+              colorScheme="orange" 
+              leftIcon={<FiClock />}
+              onClick={handleConfirmReprogramar}
+              isLoading={reprogramarMutation.isPending}
+            >
+              Reprogramar
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Box>
   );
 };

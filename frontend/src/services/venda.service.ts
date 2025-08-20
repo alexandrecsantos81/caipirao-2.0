@@ -2,7 +2,7 @@ import axios from 'axios';
 import { IPaginatedResponse } from '@/types/common.types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-const apiClient = axios.create({ baseURL: API_URL } );
+const apiClient = axios.create({ baseURL: API_URL }     );
 
 apiClient.interceptors.request.use(
   (config) => {
@@ -38,7 +38,7 @@ export interface IVenda {
   data_vencimento: string;
   data_pagamento: string | null;
   produtos: IProdutoVenda[];
-  peso_total: number; // ✅ NOVO CAMPO ADICIONADO
+  peso_total: number; // Adicionado para corresponder ao backend
 }
 
 export interface INovaVenda {
@@ -110,4 +110,9 @@ export const getVendaPdf = async (vendaId: number): Promise<Blob> => {
     responseType: 'blob',
   });
   return new Blob([response.data], { type: 'application/pdf' });
+};
+
+export const reprogramarVencimentoVenda = async ({ id, novaDataVencimento }: { id: number, novaDataVencimento: string }): Promise<IVenda> => {
+  const response = await apiClient.patch(`/movimentacoes/vendas/${id}/reprogramar`, { novaDataVencimento });
+  return response.data;
 };

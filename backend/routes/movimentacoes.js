@@ -1,15 +1,14 @@
-// backend/routes/movimentacoes.js
-
 const express = require('express');
 const router = express.Router();
 const { 
     createVenda, 
     getVendas, 
-    getContasAReceber, // <-- IMPORTAR NOVA FUNÇÃO
+    getContasAReceber,
     registrarPagamento,
     updateVenda,
     deleteVenda,
     getVendaPDF,
+    reprogramarVencimentoVenda,
 } = require('../controllers/movimentacaoController');
 const { verifyToken, checkAdmin } = require('../middleware/authMiddleware');
 
@@ -23,14 +22,12 @@ router.route('/vendas/:id')
 
 router.get('/vendas/:id/pdf', verifyToken, getVendaPDF);
 
+// Rota para reprogramar vencimento
+router.patch('/vendas/:id/reprogramar', verifyToken, reprogramarVencimentoVenda);
+
+
 // --- ROTAS FINANCEIRAS (Contas a Receber) ---
-
-// ROTA ANTIGA (será removida ou alterada, pois a nova é mais completa)
-// router.get('/contas-a-receber', verifyToken, checkAdmin, getContasAReceber);
-
-// ✅ NOVA ROTA PARA BUSCAR TODAS AS CONTAS A RECEBER PENDENTES
 router.get('/contas-a-receber', verifyToken, checkAdmin, getContasAReceber);
-
 router.put('/vendas/:id/pagamento', verifyToken, checkAdmin, registrarPagamento);
 
 module.exports = router;

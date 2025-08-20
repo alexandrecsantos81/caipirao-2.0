@@ -2,41 +2,31 @@ import {
   Button,
   Drawer, DrawerBody, DrawerCloseButton, DrawerContent, DrawerFooter, DrawerHeader, DrawerOverlay,
   FormControl, FormErrorMessage, FormLabel, Input, Select, Textarea, VStack,
-  useToast,
   useBreakpointValue,
 } from '@chakra-ui/react';
 import { useForm, SubmitHandler } from 'react-hook-form';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
-import { IDespesa, IDespesaForm, registrarDespesa, updateDespesa } from '../services/despesa.service';
+import { IDespesa, IDespesaForm } from '../services/despesa.service';
 import { getFornecedores, IFornecedor } from '../services/fornecedor.service';
 import { IPaginatedResponse } from '@/types/common.types';
 
-// --- LISTA DE OPÇÕES PARA O FORMULÁRIO DE DESPESA ---
 const tiposDeSaida = [
-    "Compra de Aves",
-    "Insumos de Produção", 
-    "Mão de Obra", 
-    "Materiais e Embalagens",
-    "Despesas Operacionais", 
-    "Encargos e Tributos", 
-    "Despesas Administrativas",
-    "Financeiras", 
-    "Remuneração de Sócios", 
-    "Outros"
+    "Compra de Aves", "Insumos de Produção", "Mão de Obra", "Materiais e Embalagens",
+    "Despesas Operacionais", "Encargos e Tributos", "Despesas Administrativas",
+    "Financeiras", "Remuneração de Sócios", "Outros"
 ] as const;
 
 interface FormularioNovaDespesaProps {
   isOpen: boolean;
   onClose: () => void;
   despesaParaEditar: IDespesa | null;
+  onSave: (data: IDespesaForm, id?: number) => void; // Recebe a função de salvar
+  isLoading: boolean; // Recebe o estado de carregamento
 }
 
-export const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: FormularioNovaDespesaProps) => {
-  const queryClient = useQueryClient();
-  const toast = useToast();
-  
+export const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar, onSave, isLoading }: FormularioNovaDespesaProps) => {
   const drawerSize = useBreakpointValue({ base: 'full', md: 'md' });
   const { register, handleSubmit, reset, formState: { errors } } = useForm<IDespesaForm>();
   
@@ -47,21 +37,6 @@ export const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: Fo
     select: data => data.dados 
   });
   
-  const mutation = useMutation({
-    mutationFn: (data: { despesaData: IDespesaForm, id?: number }) =>
-      data.id ? updateDespesa({ id: data.id, data: data.despesaData }) : registrarDespesa(data.despesaData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['despesas'] });
-      queryClient.invalidateQueries({ queryKey: ['contasAPagar'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboardKPIs'] });
-      toast({ title: `Despesa ${despesaParaEditar ? 'atualizada' : 'registrada'}!`, status: "success", duration: 3000, isClosable: true });
-      onClose();
-    },
-    onError: (error: any) => {
-      toast({ title: "Erro ao salvar despesa", description: error.response?.data?.error || error.message, status: "error", duration: 5000, isClosable: true });
-    }
-  });
-
   useEffect(() => {
     if (isOpen) {
       if (despesaParaEditar) {
@@ -83,7 +58,7 @@ export const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: Fo
 
   const onSubmit: SubmitHandler<IDespesaForm> = (data) => {
     const finalData = { ...data, valor: Number(data.valor), fornecedor_id: data.fornecedor_id ? Number(data.fornecedor_id) : null };
-    mutation.mutate({ despesaData: finalData, id: despesaParaEditar?.id });
+    onSave(finalData, despesaParaEditar?.id); // Chama a função recebida por props
   };
 
   return (
@@ -133,7 +108,10 @@ export const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: Fo
               <FormControl><FormLabel>Fornecedor/Credor (Opcional)</FormLabel><Select placeholder="Selecione um fornecedor" {...register('fornecedor_id')}>{fornecedores?.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}</Select></FormControl>
             </VStack>
           </DrawerBody>
-          <DrawerFooter borderBottomWidth="1px"><Button variant="outline" mr={3} onClick={onClose}>Cancelar</Button><Button colorScheme="red" type="submit" isLoading={mutation.isPending}>Salvar Despesa</Button></DrawerFooter>
+          <DrawerFooter borderBottomWidth="1px">
+            <Button variant="outline" mr={3} onClick={onClose}>Cancelar</Button>
+            <Button colorScheme="red" type="submit" isLoading={isLoading}>Salvar Despesa</Button>
+          </DrawerFooter>
         </form>
       </DrawerContent>
     </Drawer>
