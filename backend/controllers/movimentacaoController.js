@@ -1,5 +1,3 @@
-// backend/controllers/movimentacaoController.js
-
 const pool = require('../db');
 const PDFDocument = require('pdfkit');
 
@@ -127,8 +125,20 @@ const getVendas = async (req, res) => {
         
         const vendasResult = await pool.query(query, [...params, limite, offset]);
         
+        // ✅ NOVO: Calcular o peso total para cada venda
+        const vendasComPeso = vendasResult.rows.map(venda => {
+            let peso_total = 0;
+            if (venda.produtos && Array.isArray(venda.produtos)) {
+                peso_total = venda.produtos.reduce((acc, item) => acc + (Number(item.quantidade) || 0), 0);
+            }
+            return {
+                ...venda,
+                peso_total: peso_total
+            };
+        });
+
         res.status(200).json({
-            dados: vendasResult.rows,
+            dados: vendasComPeso, // Envia os dados com o novo campo
             total: totalVendas,
             pagina: parseInt(pagina, 10),
             limite: parseInt(limite, 10),
@@ -147,7 +157,6 @@ const getVendas = async (req, res) => {
  */
 const getContasAReceber = async (req, res) => {
     try {
-        // ALTERAÇÃO: Removemos o filtro de data para buscar TODAS as contas pendentes.
         const query = `
             SELECT 
                 m.id,
@@ -179,11 +188,6 @@ const getContasAReceber = async (req, res) => {
  * @route   PUT /api/movimentacoes/vendas/:id/pagamento
  * @access  Restrito (Admin)
  */
-/**
- * @desc    Registrar o pagamento (total ou parcial) de uma venda
- * @route   PUT /api/movimentacoes/vendas/:id/pagamento
- * @access  Restrito (Admin)
- */
 const registrarPagamento = async (req, res) => {
     const { id } = req.params;
     const { data_pagamento, valor_pago, responsavel_quitacao_id } = req.body;
@@ -199,7 +203,6 @@ const registrarPagamento = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // Busca a venda original e a bloqueia para atualização (FOR UPDATE)
         const vendaOriginalResult = await client.query(
             'SELECT * FROM movimentacoes WHERE id = $1 AND data_pagamento IS NULL FOR UPDATE', 
             [id]
@@ -213,15 +216,13 @@ const registrarPagamento = async (req, res) => {
         const valorPagoNumerico = parseFloat(valor_pago);
         const valorDevido = parseFloat(vendaOriginal.valor_total);
 
-        // Validação para não permitir pagamento maior que a dívida
-        if (valorPagoNumerico > valorDevido + 0.001) { // Adiciona uma pequena tolerância para erros de ponto flutuante
+        if (valorPagoNumerico > valorDevido + 0.001) {
             await client.query('ROLLBACK');
             return res.status(400).json({ error: `O valor a pagar (R$ ${valorPagoNumerico.toFixed(2)}) não pode ser maior que o saldo devedor (R$ ${valorDevido.toFixed(2)}).` });
         }
 
         const valorRestante = valorDevido - valorPagoNumerico;
 
-        // Se o valor restante for zero (ou muito próximo de zero), quita a venda original
         if (valorRestante <= 0.009) { 
             const vendaQuitada = await client.query(
                 `UPDATE movimentacoes 
@@ -233,14 +234,12 @@ const registrarPagamento = async (req, res) => {
             await client.query('COMMIT');
             return res.status(200).json(vendaQuitada.rows[0]);
 
-        } else { // Caso de pagamento parcial
-            // 1. Atualiza a venda original com o valor restante
+        } else {
             await client.query(
                 'UPDATE movimentacoes SET valor_total = $1 WHERE id = $2',
                 [valorRestante, id]
             );
 
-            // 2. Cria uma nova movimentação para registrar o pagamento parcial
             const novaMovimentacaoPaga = await client.query(
                 `INSERT INTO movimentacoes (tipo, valor_total, cliente_id, utilizador_id, produtos, data_venda, opcao_pagamento, data_vencimento, data_pagamento, responsavel_quitacao_id, venda_pai_id)
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
@@ -250,13 +249,13 @@ const registrarPagamento = async (req, res) => {
                     valorPagoNumerico,
                     vendaOriginal.cliente_id,
                     vendaOriginal.utilizador_id,
-                    JSON.stringify([{ "descricao": `PAGAMENTO PARCIAL - REF. VENDA #${id}` }]), // Simplifica o JSON
+                    JSON.stringify([{ "descricao": `PAGAMENTO PARCIAL - REF. VENDA #${id}` }]),
                     vendaOriginal.data_venda,
                     vendaOriginal.opcao_pagamento,
                     vendaOriginal.data_vencimento,
                     data_pagamento,
                     responsavelId,
-                    id // Link para a venda original
+                    id
                 ]
             );
             
@@ -391,7 +390,6 @@ const getVendaPDF = async (req, res) => {
     const { id } = req.params;
 
     try {
-        // 1. Buscar os dados da venda, cliente e vendedor
         const query = `
             SELECT 
                 m.id, m.data_venda, m.valor_total, m.opcao_pagamento, m.data_vencimento, m.data_pagamento, m.produtos,
@@ -409,35 +407,27 @@ const getVendaPDF = async (req, res) => {
         }
         const venda = vendaResult.rows[0];
 
-        // 2. Configurar o documento PDF
         const doc = new PDFDocument({ size: 'A4', margin: 50 });
 
-        // Define o cabeçalho da resposta para indicar que é um PDF
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `inline; filename=comprovante_venda_${id}.pdf`);
 
-        // Conecta o documento PDF à resposta da requisição
         doc.pipe(res);
 
-        // 3. Construir o conteúdo do PDF
-        // Cabeçalho
         doc.fontSize(20).text('Comprovante de Venda', { align: 'center' });
         doc.fontSize(12).text('Caipirão 3.0', { align: 'center' });
         doc.moveDown(2);
 
-        // Informações da Venda
         doc.fontSize(14).text(`Venda #${venda.id}`, { continued: true });
         doc.fontSize(12).text(`Data: ${new Date(venda.data_venda).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}`, { align: 'right' });
         doc.moveDown();
 
-        // Dados do Cliente
         doc.fontSize(12).font('Helvetica-Bold').text('Cliente:');
         doc.font('Helvetica').text(venda.cliente_nome || 'Não informado');
         doc.text(`Telefone: ${venda.cliente_telefone || 'Não informado'}`);
         doc.text(`Endereço: ${venda.cliente_endereco || 'Não informado'}`);
         doc.moveDown();
 
-        // Tabela de Produtos
         doc.font('Helvetica-Bold').text('Produtos');
         doc.moveDown(0.5);
 
@@ -447,7 +437,6 @@ const getVendaPDF = async (req, res) => {
         const priceX = 380;
         const totalX = 460;
 
-        // Cabeçalhos da tabela
         doc.fontSize(10).text('Item', itemX, tableTop);
         doc.text('Qtd/Peso', qtyX, tableTop, { width: 80, align: 'right' });
         doc.text('Preço Unit.', priceX, tableTop, { width: 80, align: 'right' });
@@ -458,7 +447,6 @@ const getVendaPDF = async (req, res) => {
         drawLine(doc.y);
         doc.moveDown(0.5);
 
-        // Linhas da tabela
         venda.produtos.forEach(item => {
             const y = doc.y;
             doc.fontSize(10).font('Helvetica').text(item.nome, itemX, y, { width: 240 });
@@ -471,12 +459,10 @@ const getVendaPDF = async (req, res) => {
         drawLine(doc.y);
         doc.moveDown();
 
-        // Total Geral
         doc.fontSize(14).font('Helvetica-Bold').text('Total Geral:', 380, doc.y, { align: 'right', width: 80 });
         doc.text(venda.valor_total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), 460, doc.y - 16, { align: 'right', width: 80 });
         doc.moveDown(2);
 
-        // Informações de Pagamento
         doc.fontSize(12).font('Helvetica-Bold').text('Pagamento:');
         doc.font('Helvetica').text(`Forma: ${venda.opcao_pagamento}`);
         if (venda.opcao_pagamento === 'A PRAZO') {
@@ -485,11 +471,9 @@ const getVendaPDF = async (req, res) => {
         doc.text(`Status: ${venda.data_pagamento ? `Pago em ${new Date(venda.data_pagamento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}` : 'Pendente'}`);
         doc.moveDown();
 
-        // Rodapé
         doc.fontSize(10).font('Helvetica-Oblique').text(`Vendedor: ${venda.usuario_nome}`, 50, 750, { align: 'left' });
         doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 50, 750, { align: 'right' });
 
-        // 4. Finalizar o documento
         doc.end();
 
     } catch (error) {

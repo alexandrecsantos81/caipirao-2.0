@@ -1,5 +1,3 @@
-// frontend/src/pages/DashboardPage.tsx
-
 import {
   Box, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText, StatArrow,
   useColorModeValue, Heading, Center, Text, HStack,
@@ -15,12 +13,18 @@ import { GraficoFluxoCaixa } from '../components/GraficoFluxoCaixa';
 import { GraficoRankingProdutos } from '../components/GraficoRankingProdutos';
 import { GraficoRankingClientes } from '../components/GraficoRankingClientes';
 import { CardContasAPagar } from '../components/CardContasAPagar';
-import { CardContasAReceber } from '../components/CardContasAReceber'; // ✅ IMPORTAR O NOVO COMPONENTE
+import { CardContasAReceber } from '../components/CardContasAReceber';
 
-const formatCurrency = (value: number | undefined) => {
-  if (value === undefined) return 'N/D';
+// ✅ INÍCIO DA CORREÇÃO
+// A função agora verifica se o valor é um número antes de formatá-lo.
+const formatCurrency = (value: number | undefined | null): string => {
+  // Se o valor for undefined, null ou não for um número, retorna um valor padrão.
+  if (typeof value !== 'number' || isNaN(value)) {
+    return 'R$ 0,00';
+  }
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
+// ✅ FIM DA CORREÇÃO
 
 const formatDateForAPI = (date: Date): string => format(date, 'yyyy-MM-dd');
 
@@ -66,6 +70,8 @@ const DashboardPage = () => {
     setActiveFilter('custom');
   };
 
+  // Enquanto os dados principais estiverem carregando, mostramos um spinner.
+  // Isso também previne a renderização dos componentes Stat com dados nulos.
   if (isLoadingKPIs) {
     return <Center p={8} minH="50vh"><Spinner size="xl" /></Center>;
   }
@@ -80,7 +86,6 @@ const DashboardPage = () => {
       
       {/* KPIs - Primeira Linha */}
       <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
-        {/* ... cards de KPIs da primeira linha ... */}
         <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm" transition="all 0.2s ease-in-out" _hover={cardHoverEffect} borderColor={borderColor}>
           <StatLabel>Receitas Pagas (Mês)</StatLabel>
           <StatNumber color="green.500">{formatCurrency(kpis?.totalVendasMes)}</StatNumber>
@@ -105,10 +110,9 @@ const DashboardPage = () => {
 
       {/* KPIs - Segunda Linha */}
       <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mt={6}>
-        {/* ... cards de KPIs da segunda linha ... */}
         <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm" transition="all 0.2s ease-in-out" _hover={cardHoverEffect} borderColor={borderColor}>
           <StatLabel>Novos Clientes (Mês)</StatLabel>
-          <StatNumber>{kpis?.novosClientesMes ?? 'N/D'}</StatNumber>
+          <StatNumber>{kpis?.novosClientesMes ?? '0'}</StatNumber>
           <StatHelpText>Clientes cadastrados no mês atual.</StatHelpText>
         </Stat>
         <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm" transition="all 0.2s ease-in-out" _hover={cardHoverEffect} borderColor={borderColor}>
@@ -126,7 +130,6 @@ const DashboardPage = () => {
         </Stat>
       </SimpleGrid>
       
-      {/* ✅ SEÇÃO DE GRÁFICOS E CARDS DE PENDÊNCIAS MODIFICADA */}
       <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6} mt={8}>
         <CardContasAReceber />
         <CardContasAPagar />

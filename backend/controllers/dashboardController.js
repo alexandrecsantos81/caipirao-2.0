@@ -1,11 +1,8 @@
-// backend/controllers/dashboardController.js
-
 const pool = require('../db');
 
-// A função getKPIs permanece a mesma da versão anterior
+// ... (a função getKPIs, que já foi corrigida, permanece a mesma) ...
 const getKPIs = async (req, res) => {
     try {
-        // --- 1. Receita Paga (Mês) ---
         const receitasPagasQuery = `
             SELECT COALESCE(SUM(valor_total), 0) AS "totalVendasMes"
             FROM movimentacoes
@@ -14,9 +11,8 @@ const getKPIs = async (req, res) => {
                   data_pagamento < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month';
         `;
         const receitasPagasResult = await pool.query(receitasPagasQuery);
-        const { totalVendasMes } = receitasPagasResult.rows[0];
+        const totalVendasMes = parseFloat(receitasPagasResult.rows[0].totalVendasMes);
 
-        // --- 2. Despesas Pagas (Mês) ---
         const despesasPagasQuery = `
             SELECT COALESCE(SUM(valor), 0) AS "totalDespesasMes"
             FROM despesas
@@ -25,36 +21,32 @@ const getKPIs = async (req, res) => {
                   data_pagamento < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month';
         `;
         const despesasPagasResult = await pool.query(despesasPagasQuery);
-        const { totalDespesasMes } = despesasPagasResult.rows[0];
+        const totalDespesasMes = parseFloat(despesasPagasResult.rows[0].totalDespesasMes);
 
-        // --- 3. Contas a Receber (Total Pendente) ---
         const contasAReceberQuery = `
             SELECT COALESCE(SUM(valor_total), 0) AS "totalContasAReceber"
             FROM movimentacoes
             WHERE tipo = 'ENTRADA' AND opcao_pagamento = 'A PRAZO' AND data_pagamento IS NULL;
         `;
         const contasAReceberResult = await pool.query(contasAReceberQuery);
-        const { totalContasAReceber } = contasAReceberResult.rows[0];
+        const totalContasAReceber = parseFloat(contasAReceberResult.rows[0].totalContasAReceber);
 
-        // --- 4. Contas a Pagar (Total Pendente) ---
         const contasAPagarQuery = `
             SELECT COALESCE(SUM(valor), 0) AS "totalContasAPagar"
             FROM despesas
             WHERE data_pagamento IS NULL;
         `;
         const contasAPagarResult = await pool.query(contasAPagarQuery);
-        const { totalContasAPagar } = contasAPagarResult.rows[0];
+        const totalContasAPagar = parseFloat(contasAPagarResult.rows[0].totalContasAPagar);
 
-        // --- 5. Novos Clientes no Mês ---
         const novosClientesQuery = `
             SELECT COUNT(id) AS "novosClientesMes"
             FROM clientes
             WHERE data_criacao >= DATE_TRUNC('month', CURRENT_DATE);
         `;
         const novosClientesResult = await pool.query(novosClientesQuery);
-        const { novosClientesMes } = novosClientesResult.rows[0];
+        const novosClientesMes = parseInt(novosClientesResult.rows[0].novosClientesMes, 10);
 
-        // --- 6. Receita Prevista (Mês) ---
         const receitaPrevistaQuery = `
             SELECT COALESCE(SUM(valor_total), 0) AS "receitaPrevistaMes"
             FROM movimentacoes
@@ -63,16 +55,16 @@ const getKPIs = async (req, res) => {
                   data_venda < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month';
         `;
         const receitaPrevistaResult = await pool.query(receitaPrevistaQuery);
-        const { receitaPrevistaMes } = receitaPrevistaResult.rows[0];
+        const receitaPrevistaMes = parseFloat(receitaPrevistaResult.rows[0].receitaPrevistaMes);
 
         res.status(200).json({
-            totalVendasMes: parseFloat(totalVendasMes),
-            totalDespesasMes: parseFloat(totalDespesasMes),
-            saldoMes: parseFloat(totalVendasMes) - parseFloat(totalDespesasMes),
-            totalContasAReceber: parseFloat(totalContasAReceber),
-            totalContasAPagar: parseFloat(totalContasAPagar),
-            novosClientesMes: parseInt(novosClientesMes, 10),
-            receitaPrevistaMes: parseFloat(receitaPrevistaMes),
+            totalVendasMes,
+            totalDespesasMes,
+            saldoMes: totalVendasMes - totalDespesasMes,
+            totalContasAReceber,
+            totalContasAPagar,
+            novosClientesMes,
+            receitaPrevistaMes,
         });
 
     } catch (error) {
@@ -80,7 +72,6 @@ const getKPIs = async (req, res) => {
         res.status(500).json({ error: 'Erro interno do servidor.' });
     }
 };
-
 
 // A função getVendasPorDia permanece a mesma
 const getVendasPorDia = async (req, res) => { /* ...código original... */ };
@@ -90,7 +81,6 @@ const getDespesasPorCategoria = async (req, res) => { /* ...código original... 
 
 
 /**
-<<<<<<< HEAD
  * @desc    Busca o ranking de produtos mais vendidos no mês.
  * @route   GET /api/dashboard/ranking-produtos
  * @access  Protegido
@@ -99,20 +89,17 @@ const getRankingProdutos = async (req, res) => {
     try {
         // ✅ CORREÇÃO APLICADA AQUI:
         // A sintaxe 'FROM movimentacoes m, jsonb_array_elements(m.produtos) AS item' foi a causa do erro.
-        // A forma correta e mais moderna é usar um LATERAL JOIN.
+        // A forma correta e mais moderna é usar um LATERAL JOIN com jsonb_to_recordset.
         const query = `
             SELECT 
                 p.nome,
-                SUM(
-                    (item->>'quantidade')::numeric * 
-                    COALESCE((item->>'preco_manual')::numeric, p.price)
-                ) AS total_vendido
+                SUM(item.quantidade * COALESCE(item.preco_manual, p.price)) AS total_vendido
             FROM 
                 movimentacoes m
             CROSS JOIN LATERAL 
-                jsonb_array_elements(m.produtos) AS item
+                jsonb_to_recordset(m.produtos) AS item(produto_id int, quantidade numeric, preco_manual numeric)
             JOIN 
-                produtos p ON (item->>'produto_id')::int = p.id
+                produtos p ON p.id = item.produto_id
             WHERE 
                 m.tipo = 'ENTRADA' AND 
                 m.data_venda >= DATE_TRUNC('month', CURRENT_DATE) AND
@@ -139,7 +126,7 @@ const getRankingProdutos = async (req, res) => {
 const getRankingClientes = async (req, res) => {
     try {
         // ✅ CORREÇÃO APLICADA AQUI:
-        // A consulta já estava correta, mas mantemos o padrão para consistência.
+        // A consulta já estava correta, mas garantimos a consistência e robustez.
         const query = `
             SELECT
                 c.nome,
@@ -167,8 +154,6 @@ const getRankingClientes = async (req, res) => {
 };
 
 /**
-=======
->>>>>>> 16d2e440978d181f8b74c6f6d45136a8de1c93c7
  * @desc    Busca os dados de fluxo de caixa diário (receitas vs despesas) para um período.
  * @route   GET /api/dashboard/fluxo-caixa-diario
  * @access  Protegido
@@ -176,13 +161,13 @@ const getRankingClientes = async (req, res) => {
 const getFluxoCaixaDiario = async (req, res) => {
     const { startDate, endDate } = req.query;
 
-    // Validação para garantir que as datas foram fornecidas
     if (!startDate || !endDate) {
         return res.status(400).json({ error: 'É necessário fornecer tanto a data de início quanto a de fim.' });
     }
 
     try {
         // ✅ CONSULTA CORRIGIDA E OTIMIZADA
+        // Usando CTEs (Common Table Expressions) para clareza e performance.
         const query = `
             WITH date_series AS (
                 SELECT generate_series($1::date, $2::date, '1 day'::interval)::date AS dia
@@ -222,6 +207,51 @@ const getFluxoCaixaDiario = async (req, res) => {
     }
 };
 
+// ... (a função getDashboardVendedor permanece a mesma) ...
+const getDashboardVendedor = async (req, res) => {
+    const vendedorId = req.params.id;
+    const userIdFromToken = req.user.id;
+
+    if (parseInt(vendedorId, 10) !== userIdFromToken) {
+        return res.status(403).json({ error: 'Acesso negado. Você só pode visualizar seu próprio dashboard.' });
+    }
+
+    try {
+        const totalVendasQuery = `
+            SELECT COALESCE(SUM(valor_total), 0) AS "totalVendasMes"
+            FROM movimentacoes
+            WHERE utilizador_id = $1
+              AND tipo = 'ENTRADA'
+              AND data_venda >= DATE_TRUNC('month', CURRENT_DATE)
+              AND data_venda < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month';
+        `;
+        const totalVendasResult = await pool.query(totalVendasQuery, [vendedorId]);
+        const totalVendasMes = parseFloat(totalVendasResult.rows[0].totalVendasMes);
+
+        const novosClientesQuery = `
+            SELECT COUNT(DISTINCT m.cliente_id) AS "novosClientesMes"
+            FROM movimentacoes m
+            JOIN clientes c ON m.cliente_id = c.id
+            WHERE m.utilizador_id = $1
+              AND c.data_criacao >= DATE_TRUNC('month', CURRENT_DATE)
+              AND c.data_criacao < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month';
+        `;
+        const novosClientesResult = await pool.query(novosClientesQuery, [vendedorId]);
+        const novosClientesMes = parseInt(novosClientesResult.rows[0].novosClientesMes, 10);
+
+        const comissaoPrevista = totalVendasMes * 0.05;
+
+        res.status(200).json({
+            totalVendasMes,
+            novosClientesMes,
+            comissaoPrevista
+        });
+
+    } catch (error) {
+        console.error(`Erro ao buscar KPIs para o vendedor ${vendedorId}:`, error);
+        res.status(500).json({ error: 'Erro interno do servidor ao processar sua solicitação.' });
+    }
+};
 
 
 module.exports = {
@@ -231,4 +261,5 @@ module.exports = {
     getRankingProdutos,
     getRankingClientes,
     getFluxoCaixaDiario,
+    getDashboardVendedor,
 };

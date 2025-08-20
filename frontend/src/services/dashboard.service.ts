@@ -1,10 +1,8 @@
-// frontend/src/services/dashboard.service.ts
-
 import axios from 'axios';
 
 // Configuração do cliente Axios
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-const apiClient = axios.create({ baseURL: `${API_URL}/dashboard` }  );
+const apiClient = axios.create({ baseURL: `${API_URL}/dashboard` } );
 
 // Interceptor para adicionar o token de autenticação em todas as chamadas
 apiClient.interceptors.request.use(
@@ -27,7 +25,13 @@ export interface IKPIs {
   totalContasAReceber: number;
   totalContasAPagar: number;
   novosClientesMes: number;
-  receitaPrevistaMes: number; // <-- NOVO CAMPO ADICIONADO
+  receitaPrevistaMes: number;
+}
+
+export interface IVendedorKPIs {
+  totalVendasMes: number;
+  novosClientesMes: number;
+  comissaoPrevista: number;
 }
 
 export interface IVendasPorDia {
@@ -83,6 +87,7 @@ export const getRankingProdutos = async (): Promise<IRankingProduto[]> => {
   return response.data;
 };
 
+// ✅ FUNÇÃO QUE ESTAVA FALTANDO E CAUSOU O ERRO
 export const getRankingClientes = async (): Promise<IRankingCliente[]> => {
   const response = await apiClient.get('/ranking-clientes');
   return response.data;
@@ -92,5 +97,10 @@ export const getFluxoCaixaDiario = async (filters: IDateFilter): Promise<IFluxoC
   const response = await apiClient.get('/fluxo-caixa-diario', {
     params: filters,
   });
+  return response.data;
+};
+
+export const getVendedorKPIs = async (userId: number): Promise<IVendedorKPIs> => {
+  const response = await apiClient.get(`/vendedor/${userId}`);
   return response.data;
 };

@@ -15,10 +15,8 @@ import { useAuth } from '../hooks/useAuth';
 import { useDebounce } from '../hooks/useDebounce';
 import { IDespesa, deleteDespesa } from '../services/despesa.service';
 import { IVenda, deleteVenda } from '../services/venda.service';
-// NOVA IMPORTAÇÃO DO SERVIÇO DE RELATÓRIO
 import { gerarComprovanteVendaPDF } from '../services/report.service';
 
-// Importando os componentes de UI
 import { FormularioNovaVenda } from '../components/FormularioNovaVenda';
 import { FormularioNovaDespesa } from '../components/FormularioNovaDespesa';
 import { TabelaVendas } from '../components/TabelaVendas';
@@ -44,10 +42,8 @@ const MovimentacoesPage = () => {
   const [termoBuscaDespesas, setTermoBuscaDespesas] = useState('');
   const buscaDespesasDebounced = useDebounce(termoBuscaDespesas, 500);
 
-  // --- MUTATIONS ATUALIZADAS ---
-
   const pdfMutation = useMutation({
-    mutationFn: gerarComprovanteVendaPDF, // Usa a nova função do serviço
+    mutationFn: gerarComprovanteVendaPDF,
     onSuccess: (blob, vendaId) => {
       const pdfUrl = URL.createObjectURL(blob);
       window.open(pdfUrl, '_blank');
@@ -95,8 +91,6 @@ const MovimentacoesPage = () => {
     }
   });
   
-  // --- HANDLERS ---
-
   const handleEditVenda = (venda: IVenda) => { setVendaParaEditar(venda); onVendaDrawerOpen(); };
   const handleEditDespesa = (despesa: IDespesa) => { setDespesaParaEditar(despesa); onDespesaDrawerOpen(); };
   const handleAddNewVenda = () => { setVendaParaEditar(null); onVendaDrawerOpen(); };
@@ -142,10 +136,10 @@ const MovimentacoesPage = () => {
               </InputGroup>
             </Box>
             <TabelaVendas 
+              buscaDebounced={buscaVendasDebounced}
               onEdit={handleEditVenda} 
               onDelete={(id) => handleDeleteClick(id, 'venda')} 
               onGeneratePdf={handleGeneratePdf}
-              buscaDebounced={buscaVendasDebounced} 
             />
           </TabPanel>
           
@@ -161,18 +155,18 @@ const MovimentacoesPage = () => {
                   <Input placeholder="Buscar por discriminação ou fornecedor..." value={termoBuscaDespesas} onChange={(e) => setTermoBuscaDespesas(e.target.value)} />
                 </InputGroup>
               </Box>
-              <TabelaDespesas onEdit={handleEditDespesa} onDelete={(id) => handleDeleteClick(id, 'despesa')} buscaDebounced={buscaDespesasDebounced} />
+              <TabelaDespesas 
+                buscaDebounced={buscaDespesasDebounced}
+                onEdit={handleEditDespesa} 
+                onDelete={(id) => handleDeleteClick(id, 'despesa')} 
+              />
             </TabPanel>
           )}
         </TabPanels>
       </Tabs>
       
       <FormularioNovaVenda isOpen={isVendaDrawerOpen} onClose={onVendaDrawerClose} vendaParaEditar={vendaParaEditar} />
-      
-      {isAdmin && (
-        <FormularioNovaDespesa isOpen={isDespesaDrawerOpen} onClose={onDespesaDrawerClose} despesaParaEditar={despesaParaEditar} />
-      )}
-
+      {isAdmin && <FormularioNovaDespesa isOpen={isDespesaDrawerOpen} onClose={onDespesaDrawerClose} despesaParaEditar={despesaParaEditar} />}
       <AlertDialog isOpen={isConfirmOpen} leastDestructiveRef={cancelRef} onClose={onConfirmClose}>
          <AlertDialogOverlay><AlertDialogContent>
           <AlertDialogHeader fontSize="lg" fontWeight="bold">Confirmar Exclusão</AlertDialogHeader>

@@ -1,5 +1,3 @@
-// frontend/src/pages/DashboardVendedorPage.tsx
-
 import {
   Box, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText,
   useColorModeValue, Heading, Center, Text, Spinner, VStack,
@@ -7,31 +5,8 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { FiDollarSign, FiShoppingCart, FiUsers } from 'react-icons/fi';
 import { useAuth } from '@/hooks/useAuth';
-
-// Simulação de uma interface e função de serviço para buscar os dados do vendedor
-// Em um projeto real, isso viria de um arquivo de serviço (ex: dashboard.service.ts)
-interface IVendedorKPIs {
-  totalVendasMes: number;
-  novosClientesMes: number;
-  comissaoPrevista: number;
-}
-
-// Função de mock para simular a busca de dados
-const getVendedorKPIs = async (userId: number): Promise<IVendedorKPIs> => {
-  console.log(`Buscando dados para o vendedor com ID: ${userId}`);
-  // Em um cenário real, a chamada seria:
-  // const response = await apiClient.get(`/dashboard/vendedor/${userId}`);
-  // return response.data;
-
-  // Retornando dados de exemplo para demonstração
-  return new Promise(resolve => setTimeout(() => {
-    resolve({
-      totalVendasMes: 15340.75,
-      novosClientesMes: 8,
-      comissaoPrevista: 15340.75 * 0.05, // Exemplo de comissão de 5%
-    });
-  }, 1000));
-};
+// 1. Importar a função de serviço real e a interface
+import { getVendedorKPIs, IVendedorKPIs } from '@/services/dashboard.service';
 
 const formatCurrency = (value: number | undefined) => {
   if (value === undefined) return 'N/D';
@@ -43,10 +18,14 @@ const DashboardVendedorPage = () => {
   const cardBg = useColorModeValue('white', 'gray.700');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
 
+  // 2. Substituir a função de mock pela chamada real da API usando react-query
   const { data: kpis, isLoading, isError } = useQuery<IVendedorKPIs, Error>({
+    // A chave da query inclui o ID do usuário para garantir que os dados sejam buscados novamente se o usuário mudar
     queryKey: ['dashboardVendedor', user?.id],
+    // A função de query agora chama o nosso serviço real
     queryFn: () => getVendedorKPIs(user!.id),
-    enabled: !!user, // A query só roda se o usuário estiver definido
+    // A query só será executada se houver um usuário logado (user.id existe)
+    enabled: !!user,
   });
 
   if (isLoading) {
@@ -54,7 +33,7 @@ const DashboardVendedorPage = () => {
   }
 
   if (isError) {
-    return <Center p={8}><Text color="red.500" fontSize="lg">Erro ao carregar seus dados.</Text></Center>;
+    return <Center p={8}><Text color="red.500" fontSize="lg">Erro ao carregar seus dados de desempenho.</Text></Center>;
   }
 
   return (
@@ -72,7 +51,7 @@ const DashboardVendedorPage = () => {
         </Stat>
 
         <Stat p={5} borderWidth={1} borderRadius={8} boxShadow="sm" bg={cardBg} borderColor={borderColor}>
-          <StatLabel>Comissão Prevista</StatLabel>
+          <StatLabel>Comissão Prevista (5%)</StatLabel>
           <StatNumber color="blue.500">{formatCurrency(kpis?.comissaoPrevista)}</StatNumber>
           <StatHelpText><FiDollarSign /> Valor estimado de comissão</StatHelpText>
         </Stat>
@@ -83,8 +62,6 @@ const DashboardVendedorPage = () => {
           <StatHelpText><FiUsers /> Clientes cadastrados por você</StatHelpText>
         </Stat>
       </SimpleGrid>
-
-      {/* Aqui poderíamos adicionar mais componentes, como um ranking pessoal ou metas */}
     </Box>
   );
 };
