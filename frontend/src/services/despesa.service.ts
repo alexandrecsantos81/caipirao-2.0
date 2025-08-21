@@ -1,11 +1,9 @@
 import axios from 'axios';
-import { IPaginatedResponse } from '@/types/common.types'; // Importação centralizada
+import { IPaginatedResponse } from '@/types/common.types';
 
-// Configuração do cliente Axios
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-const apiClient = axios.create({ baseURL: `${API_URL}/despesas` }  );
+const apiClient = axios.create({ baseURL: `${API_URL}/despesas` } );
 
-// Interceptor para adicionar o token de autenticação
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -17,12 +15,10 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// --- INTERFACES ---
-
 export const tiposDeSaida = [
     "Insumos de Produção", "Mão de Obra", "Materiais e Embalagens",
     "Despesas Operacionais", "Encargos e Tributos", "Despesas Administrativas",
-    "Financeiras", "Remuneração de Sócios", "Outros"
+    "Financeiras", "Remuneração de Sócios", "Outros", "ABATE"
 ] as const;
 
 type TipoSaida = typeof tiposDeSaida[number];
@@ -38,15 +34,30 @@ export interface IDespesa {
   fornecedor_id?: number | null;
   responsavel_pagamento_id?: number | null;
   nome_fornecedor?: string;
+  funcionario_id?: number | null;
+  lote_id?: string | null;
 }
 
 export interface IDespesaForm {
-  tipo_saida: TipoSaida | '';
+  tipo_saida: Exclude<TipoSaida, 'ABATE'> | '';
   valor: number | string;
   discriminacao: string;
   data_compra: string;
   data_vencimento: string;
   fornecedor_id?: number | null;
+}
+
+// ✅ CORREÇÃO: Interface para os dados que o backend espera para o tipo ABATE
+export interface IDespesaFormAbatePayload {
+  tipo_saida: 'ABATE';
+  data_compra: string;
+  pagamentos: {
+    funcionario_id: number;
+    valor: number;
+    discriminacao: string;
+  }[];
+  pagamento_futuro?: boolean;
+  data_vencimento?: string;
 }
 
 export interface IContasAPagar {
@@ -59,38 +70,22 @@ export interface IContasAPagar {
 export interface IQuitacaoData {
     data_pagamento: string;
     responsavel_pagamento_id?: number;
+    valor_pago: number;
 }
 
-export interface IQuitacaoData {
-    data_pagamento: string;
-    responsavel_pagamento_id?: number;
-    valor_pago: number; // Campo adicionado
-}
-
-// --- FUNÇÕES DO SERVIÇO ---
-
-/**
- * @description Busca a lista completa de despesas com paginação e filtro.
- * @param pagina - O número da página a ser buscada.
- * @param limite - O número de itens por página.
- * @param termoBusca - (Opcional) O termo para filtrar os resultados.
- */
 export const getDespesas = async (
   pagina = 1,
   limite = 10,
-  termoBusca?: string // <-- NOVO PARÂMETRO ADICIONADO
+  termoBusca?: string
 ): Promise<IPaginatedResponse<IDespesa>> => {
     const response = await apiClient.get('/', {
-        params: {
-          pagina,
-          limite,
-          termoBusca, // <-- PARÂMETRO ENVIADO PARA A API
-        },
+        params: { pagina, limite, termoBusca },
     });
     return response.data;
 };
 
-export const registrarDespesa = async (data: IDespesaForm): Promise<IDespesa> => {
+// ✅ CORREÇÃO: A função de registro agora aceita a união dos tipos de payload
+export const registrarDespesa = async (data: IDespesaForm | IDespesaFormAbatePayload): Promise<IDespesa | IDespesa[]> => {
   const response = await apiClient.post('/', data);
   return response.data;
 };
@@ -113,4 +108,3 @@ export const quitarDespesa = async ({ id, quitacaoData }: { id: number, quitacao
     const response = await apiClient.put(`/${id}/quitar`, quitacaoData);
     return response.data;
 };
-

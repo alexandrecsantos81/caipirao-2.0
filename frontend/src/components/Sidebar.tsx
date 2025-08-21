@@ -26,7 +26,8 @@ import {
   FiBriefcase,
   FiLogOut,
   FiClipboard,
-  FiTrendingUp, // 1. Ícone para o novo dashboard
+  FiTrendingUp,
+  FiTool, // Ícone para "Funcionários"
 } from 'react-icons/fi';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -94,7 +95,7 @@ export const Sidebar = ({ isCollapsed }: { isCollapsed: boolean }) => {
         </Flex>
         <Divider mb={4} />
 
-        {/* 2. Lógica de links condicional */}
+        {/* Lógica de links condicional */}
         {isAdmin ? (
           // Links para ADMIN
           <Stack spacing={2}>
@@ -121,6 +122,7 @@ export const Sidebar = ({ isCollapsed }: { isCollapsed: boolean }) => {
               </Heading>
               <NavItem icon={FiBarChart2} to="/relatorios">Relatórios</NavItem>
               <NavItem icon={FiTruck} to="/fornecedores">Fornecedores</NavItem>
+              <NavItem icon={FiTool} to="/funcionarios">Funcionários</NavItem> {/* <-- LINK ADICIONADO AQUI */}
               <NavItem icon={FiUserCheck} to="/utilizadores">Utilizadores</NavItem>
               <NavItem icon={FiBriefcase} to="/empresa">Minha Empresa</NavItem>
             </Stack>

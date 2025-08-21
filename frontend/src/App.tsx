@@ -1,5 +1,6 @@
 // frontend/src/App.tsx
 
+// ... (importações existentes)
 import { Box, useBreakpointValue, Flex } from '@chakra-ui/react';
 import { useState } from 'react';
 import { Routes, Route, Outlet } from 'react-router-dom';
@@ -21,10 +22,11 @@ import SolicitarAcessoPage from '@/pages/SolicitarAcessoPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 import FinancasPage from '@/pages/FinancasPage';
 import EmpresaPage from '@/pages/EmpresaPage';
-// 1. Importar a nova página de dashboard do vendedor
 import DashboardVendedorPage from '@/pages/DashboardVendedorPage';
+import FuncionariosPage from '@/pages/FuncionariosPage'; // <-- 1. IMPORTAR A NOVA PÁGINA
 
 const MainLayout = () => {
+  // ... (código do MainLayout permanece o mesmo)
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const isMobile = useBreakpointValue({ base: true, md: false });
   const sidebarWidth = isMobile ? 0 : (isSidebarOpen ? '240px' : '72px');
@@ -76,7 +78,6 @@ function App() {
           <Route path="/movimentacoes" element={<MovimentacoesPage />} />
           <Route path="/clientes" element={<ClientesPage />} />
           <Route path="/produtos" element={<ProdutosPage />} />
-          {/* 2. Adicionar a nova rota para o dashboard do vendedor */}
           <Route path="/meu-dashboard" element={<DashboardVendedorPage />} />
           
           {/* Rotas acessíveis apenas para ADMINs */}
@@ -88,12 +89,12 @@ function App() {
             <Route path="/utilizadores" element={<UtilizadoresPage />} />
             <Route path="/financas" element={<FinancasPage />} />
             <Route path="/empresa" element={<EmpresaPage />} />
+            <Route path="/funcionarios" element={<FuncionariosPage />} /> {/* <-- 2. ADICIONAR A NOVA ROTA */}
           </Route>
 
         </Route>
       </Route>
 
-      {/* Rota para páginas não encontradas */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

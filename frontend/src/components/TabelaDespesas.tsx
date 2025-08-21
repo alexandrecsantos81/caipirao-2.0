@@ -1,18 +1,18 @@
 import {
   Box,
   Center,
-  Flex,
-  Heading,
-  IconButton,
   Spinner,
   Text,
   useBreakpointValue,
-  Divider,
   HStack,
   VStack,
   Badge,
   Tooltip,
-  useColorModeValue,
+  IconButton,
+  Flex,
+  Heading,
+  Divider,
+  useColorModeValue, // Importação já existe
 } from '@chakra-ui/react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useEffect, useState, useRef } from 'react';
@@ -30,18 +30,19 @@ interface TabelaDespesasProps {
   buscaDebounced: string;
 }
 
-const getDespesaRowStyle = (despesa: IDespesa) => {
+// ✅ CORREÇÃO: A função agora recebe as cores como parâmetros
+const getDespesaRowStyle = (despesa: IDespesa, urgentBg: string, overdueBg: string) => {
   if (despesa.data_pagamento) {
     return {};
   }
   const hoje = startOfDay(new Date());
   const dataVencimento = parseISO(despesa.data_vencimento);
   if (isBefore(dataVencimento, hoje)) {
-    return { bg: useColorModeValue('red.100', 'red.800') };
+    return { bg: overdueBg }; // Usa a cor para vencidas
   }
   const dataLimite = addDays(hoje, 5);
   if (isBefore(dataVencimento, dataLimite)) {
-    return { bg: useColorModeValue('yellow.100', 'yellow.800') };
+    return { bg: urgentBg }; // Usa a cor para urgentes
   }
   return {};
 };
@@ -52,6 +53,13 @@ export const TabelaDespesas = ({ onEdit, onDelete, buscaDebounced }: TabelaDespe
   const isAdmin = user?.perfil === 'ADMIN';
   const isMobile = useBreakpointValue({ base: true, md: false });
   const listRef = useRef<FixedSizeList>(null);
+
+  // ✅ CORREÇÃO: Chamando os hooks no nível superior do componente
+  const overdueBgColor = useColorModeValue('red.100', 'red.800');
+  const urgentBgColor = useColorModeValue('yellow.100', 'yellow.800');
+  const rowHoverBg = useColorModeValue('gray.100', 'gray.700');
+  const borderColor = useColorModeValue('gray.200', 'gray.600');
+  const headerBg = useColorModeValue('gray.100', 'gray.700');
 
   useEffect(() => {
     if (buscaDebounced) {
@@ -71,16 +79,14 @@ export const TabelaDespesas = ({ onEdit, onDelete, buscaDebounced }: TabelaDespe
     }
   }, [data]);
 
-  const rowHoverBg = useColorModeValue('gray.100', 'gray.700');
-  const borderColor = useColorModeValue('gray.200', 'gray.600');
-
   if (isLoading && !data) return <Center p={10} minH="600px"><Spinner size="xl" /></Center>;
   if (isError) return <Center p={10} minH="600px"><Text color="red.500">Não foi possível carregar as despesas.</Text></Center>;
   if (!data || data.dados.length === 0) return <Center p={10} minH="600px"><Text>Nenhuma despesa encontrada.</Text></Center>;
 
   const RowMobile = ({ index, style }: ListChildComponentProps) => {
     const despesa = data!.dados[index];
-    const rowStyle = getDespesaRowStyle(despesa);
+    // Passa as cores como argumento
+    const rowStyle = getDespesaRowStyle(despesa, urgentBgColor, overdueBgColor);
 
     return (
       <Box style={style} px={2} py={2}>
@@ -109,7 +115,8 @@ export const TabelaDespesas = ({ onEdit, onDelete, buscaDebounced }: TabelaDespe
 
   const RowDesktop = ({ index, style }: ListChildComponentProps) => {
     const despesa = data!.dados[index];
-    const rowStyle = getDespesaRowStyle(despesa);
+    // Passa as cores como argumento
+    const rowStyle = getDespesaRowStyle(despesa, urgentBgColor, overdueBgColor);
 
     return (
       <Flex style={style} align="center" _hover={{ bg: rowHoverBg }} borderBottomWidth="1px" borderColor={borderColor} {...rowStyle}>
@@ -141,8 +148,7 @@ export const TabelaDespesas = ({ onEdit, onDelete, buscaDebounced }: TabelaDespe
         </FixedSizeList>
       ) : (
         <Box borderWidth="1px" borderRadius="lg" overflow="hidden">
-          {/* MODIFICAÇÃO APLICADA AQUI */}
-          <Flex bg={useColorModeValue('gray.100', 'gray.700')} borderBottomWidth="1px" fontWeight="bold" role="row" pr="15px">
+          <Flex bg={headerBg} borderBottomWidth="1px" fontWeight="bold" role="row" pr="15px">
             <Text width="12%" p={4}>Data da Compra</Text>
             <Text width="12%" p={4}>Vencimento</Text>
             <Text width="31%" p={4}>Discriminação</Text>

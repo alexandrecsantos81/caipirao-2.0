@@ -30,11 +30,10 @@ import { FiPlus, FiSearch, FiClock } from 'react-icons/fi';
 import { useAuth } from '../hooks/useAuth';
 import { useDebounce } from '../hooks/useDebounce';
 import { IVenda, deleteVenda, reprogramarVencimentoVenda } from '../services/venda.service';
-import { IDespesa, IDespesaForm } from '../services/despesa.service';
+import { IDespesa } from '../services/despesa.service'; // IDespesaForm não é mais necessário aqui
 import { gerarComprovanteVendaPDF } from '../services/report.service';
 
-// 1. Importar os novos hooks de despesa
-import { useSaveDespesa, useDeleteDespesa } from '../hooks/useDespesas';
+import { useDeleteDespesa } from '../hooks/useDespesas'; // useSaveDespesa não é mais necessário aqui
 
 import { FormularioNovaVenda } from '../components/FormularioNovaVenda';
 import { FormularioNovaDespesa } from '../components/FormularioNovaDespesa';
@@ -57,7 +56,6 @@ const StatCard = ({ title, value, helpText, colorScheme }: { title: string; valu
     <StatHelpText>{helpText}</StatHelpText>
   </Stat>
 );
-
 
 const MovimentacoesPage = () => {
   const { user } = useAuth();
@@ -87,8 +85,6 @@ const MovimentacoesPage = () => {
   const { kpisQuery } = useDashboardData();
   const { data: kpis } = kpisQuery;
 
-  // 2. Instanciar os hooks de despesa
-  const saveDespesaMutation = useSaveDespesa();
   const deleteDespesaMutation = useDeleteDespesa();
 
   const pdfMutation = useMutation({
@@ -159,14 +155,6 @@ const MovimentacoesPage = () => {
   const handleConfirmReprogramar = () => {
     if (itemParaReprogramar && novaData) {
       reprogramarMutation.mutate({ id: itemParaReprogramar.id, novaDataVencimento: novaData });
-    }
-  };
-
-  // 3. Criar a função de callback para salvar despesa
-  const handleSaveDespesa = (despesaData: IDespesaForm, id?: number) => {
-    saveDespesaMutation.mutate({ despesaData, id });
-    if (!id) { // Se for criação, fecha o drawer
-        onDespesaDrawerClose();
     }
   };
 
@@ -257,14 +245,12 @@ const MovimentacoesPage = () => {
       
       <FormularioNovaVenda isOpen={isVendaDrawerOpen} onClose={onVendaDrawerClose} vendaParaEditar={vendaParaEditar} />
       
-      {/* 4. Passar as props corretas para o formulário */}
+      {/* ✅ CORREÇÃO: A prop 'onSave' foi removida, pois não é mais necessária */}
       {isAdmin && 
         <FormularioNovaDespesa 
           isOpen={isDespesaDrawerOpen} 
           onClose={onDespesaDrawerClose} 
           despesaParaEditar={despesaParaEditar}
-          onSave={handleSaveDespesa}
-          isLoading={saveDespesaMutation.isPending}
         />
       }
       
