@@ -5,7 +5,6 @@ import {
   useDisclosure, useToast, VStack, HStack,
   Drawer, DrawerBody, DrawerCloseButton, DrawerContent, DrawerFooter, DrawerHeader, DrawerOverlay,
   FormControl, FormLabel, Input, FormErrorMessage,
-  Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay,
   useBreakpointValue,
   Divider,
   Center,
@@ -117,13 +116,43 @@ const FormularioFuncionario = ({ isOpen, onClose, funcionario, onSave, isLoading
   );
 };
 
+// Componente de confirmação de exclusão como Drawer
+const ConfirmDeleteDrawer = ({ isOpen, onClose, funcionario, onConfirm, isLoading }: {
+  isOpen: boolean;
+  onClose: () => void;
+  funcionario: IFuncionario | null;
+  onConfirm: () => void;
+  isLoading: boolean;
+}) => {
+  const drawerSize = useBreakpointValue({ base: 'full', md: 'md' });
+
+  return (
+    <Drawer isOpen={isOpen} placement="right" onClose={onClose} size={drawerSize}>
+      <DrawerOverlay />
+      <DrawerContent>
+        <DrawerHeader borderBottomWidth="1px">Confirmar Exclusão</DrawerHeader>
+        <DrawerCloseButton />
+        <DrawerBody>
+          <VStack spacing={4} align="start">
+            <Text>Tem certeza que deseja excluir o funcionário <strong>{funcionario?.nome}</strong>?</Text>
+          </VStack>
+        </DrawerBody>
+        <DrawerFooter borderTopWidth="1px">
+          <Button variant="outline" mr={3} onClick={onClose}>Cancelar</Button>
+          <Button colorScheme="red" onClick={onConfirm} isLoading={isLoading}>Sim, Excluir</Button>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
+  );
+};
+
 // --- COMPONENTE PRINCIPAL DA PÁGINA ---
 
 const FuncionariosPage = () => {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { isOpen: isDrawerOpen, onOpen: onDrawerOpen, onClose: onDrawerClose } = useDisclosure();
-  const { isOpen: isConfirmModalOpen, onOpen: onConfirmModalOpen, onClose: onConfirmModalClose } = useDisclosure();
+  const { isOpen: isConfirmDrawerOpen, onOpen: onConfirmDrawerOpen, onClose: onConfirmDrawerClose } = useDisclosure();
   
   const [selectedFuncionario, setSelectedFuncionario] = useState<IFuncionario | null>(null);
   const [pagina, setPagina] = useState(1);
@@ -161,7 +190,7 @@ const FuncionariosPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['funcionarios'] });
       toast({ title: 'Funcionário excluído com sucesso!', status: 'success' });
-      onConfirmModalClose();
+      onConfirmDrawerClose();
     },
     onError: (error: any) => {
       toast({ title: 'Erro ao excluir', description: error.response?.data?.error || error.message, status: 'error' });
@@ -170,7 +199,7 @@ const FuncionariosPage = () => {
 
   const handleAddClick = () => { setSelectedFuncionario(null); onDrawerOpen(); };
   const handleEditClick = (func: IFuncionario) => { setSelectedFuncionario(func); onDrawerOpen(); };
-  const handleDeleteClick = (func: IFuncionario) => { setSelectedFuncionario(func); onConfirmModalOpen(); };
+  const handleDeleteClick = (func: IFuncionario) => { setSelectedFuncionario(func); onConfirmDrawerOpen(); };
   const handleConfirmDelete = () => { if (selectedFuncionario) deleteMutation.mutate(selectedFuncionario.id); };
   const handleSave = (formData: IFuncionarioForm, id?: number) => { saveMutation.mutate({ data: formData, id }); };
 
@@ -254,20 +283,13 @@ const FuncionariosPage = () => {
         </>
       )}
 
-      <Modal isOpen={isConfirmModalOpen} onClose={onConfirmModalClose} isCentered>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Confirmar Exclusão</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Text>Tem certeza que deseja excluir o funcionário <strong>{selectedFuncionario?.nome}</strong>?</Text>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onConfirmModalClose}>Cancelar</Button>
-            <Button colorScheme="red" onClick={handleConfirmDelete} isLoading={deleteMutation.isPending}>Sim, Excluir</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <ConfirmDeleteDrawer 
+        isOpen={isConfirmDrawerOpen} 
+        onClose={onConfirmDrawerClose} 
+        funcionario={selectedFuncionario}
+        onConfirm={handleConfirmDelete}
+        isLoading={deleteMutation.isPending}
+      />
 
       {isDrawerOpen && (<FormularioFuncionario isOpen={isDrawerOpen} onClose={onDrawerClose} funcionario={selectedFuncionario} onSave={handleSave} isLoading={saveMutation.isPending} />)}
     </Box>
@@ -275,3 +297,4 @@ const FuncionariosPage = () => {
 };
 
 export default FuncionariosPage;
+

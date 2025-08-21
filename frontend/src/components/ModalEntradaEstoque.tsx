@@ -2,13 +2,13 @@
 
 import {
   // ✅ REVERSÃO: Importando os componentes de Modal individualmente
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
+  Drawer,
+  DrawerOverlay,
+  DrawerContent,
+  DrawerHeader,
+  DrawerFooter,
+  DrawerBody,
+  DrawerCloseButton,
   Button,
   // ✅ REVERSÃO: Importando os componentes de Formulário individualmente
   FormControl,
@@ -20,6 +20,7 @@ import {
   Textarea,
   Text,
   Input,
+  useBreakpointValue,
 } from '@chakra-ui/react';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { IEntradaEstoqueForm, IProduto } from '../services/produto.service';
@@ -38,6 +39,7 @@ interface IEntradaEstoqueFormComData extends IEntradaEstoqueForm {
 }
 
 export const ModalEntradaEstoque = ({ isOpen, onClose, onSubmit, produto, isLoading }: ModalEntradaEstoqueProps) => {
+  const drawerSize = useBreakpointValue({ base: 'full', md: 'xl' });
   const {
     register,
     handleSubmit,
@@ -66,13 +68,13 @@ export const ModalEntradaEstoque = ({ isOpen, onClose, onSubmit, produto, isLoad
 
   return (
     // ✅ REVERSÃO: Estrutura do Modal da v2
-    <Modal isOpen={isOpen} onClose={onClose} isCentered>
-      <ModalOverlay />
-      <ModalContent>
+    <Drawer isOpen={isOpen} onClose={onClose} placement="right" size={drawerSize}>
+      <DrawerOverlay />
+      <DrawerContent>
         <form onSubmit={handleSubmit(handleFormSubmit)}>
-          <ModalHeader>Registrar Entrada de Estoque</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
+          <DrawerHeader>Registrar Entrada de Estoque</DrawerHeader>
+          <DrawerCloseButton />
+          <DrawerBody>
             <VStack spacing={4}>
               <Text alignSelf="flex-start">
                 Você está adicionando estoque para o produto: <strong>{produto?.nome}</strong>
@@ -120,16 +122,18 @@ export const ModalEntradaEstoque = ({ isOpen, onClose, onSubmit, produto, isLoad
                 <Textarea placeholder="Ex: Nota fiscal 123, Fornecedor Sítio do Picapau" {...register('observacao')} />
               </FormControl>
             </VStack>
-          </ModalBody>
-          <ModalFooter>
+          </DrawerBody>
+          <DrawerFooter>
             <Button variant="ghost" mr={3} onClick={onClose}>Cancelar</Button>
             {/* ✅ REVERSÃO: 'loading' para 'isLoading' */}
             <Button colorScheme="blue" type="submit" isLoading={isLoading}>
               Adicionar ao Estoque
             </Button>
-          </ModalFooter>
+          </DrawerFooter>
         </form>
-      </ModalContent>
-    </Modal>
+      </DrawerContent>
+    </Drawer>
   );
 };
+
+

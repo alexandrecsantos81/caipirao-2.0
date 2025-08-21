@@ -17,12 +17,7 @@ import {
   AlertDialogOverlay,
   InputGroup,
   InputLeftElement,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalCloseButton,
-  ModalBody,
+  DrawerCloseButton,
   Badge,
   Tooltip,
   List,
@@ -59,6 +54,7 @@ const openWhatsApp = (phone: string) => {
 };
 
 const ModalHistoricoVendas = ({ isOpen, onClose, cliente }: { isOpen: boolean; onClose: () => void; cliente: ICliente | null }) => {
+  const drawerSize = useBreakpointValue({ base: 'full', md: '4xl' });
   const { data: historico, isLoading, isError } = useQuery({
     queryKey: ['historicoCliente', cliente?.id],
     queryFn: () => getHistoricoVendas(cliente!.id),
@@ -74,12 +70,12 @@ const ModalHistoricoVendas = ({ isOpen, onClose, cliente }: { isOpen: boolean; o
   );
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="4xl" scrollBehavior="inside">
-      <ModalOverlay />
-      <ModalContent>
-        <ModalHeader>Histórico de Vendas de {cliente?.nome}</ModalHeader>
-        <ModalCloseButton />
-        <ModalBody>
+    <Drawer isOpen={isOpen} onClose={onClose} placement="right" size={drawerSize}>
+      <DrawerOverlay />
+      <DrawerContent>
+        <DrawerHeader>Histórico de Vendas de {cliente?.nome}</DrawerHeader>
+        <DrawerCloseButton />
+        <DrawerBody>
           {isLoading && <Center p={10}><Spinner size="xl" /></Center>}
           {isError && <Center p={10}><Text color="red.500">Erro ao carregar o histórico.</Text></Center>}
           {!isLoading && !isError && (
@@ -103,9 +99,9 @@ const ModalHistoricoVendas = ({ isOpen, onClose, cliente }: { isOpen: boolean; o
               </Table>
             </TableContainer>
           )}
-        </ModalBody>
-      </ModalContent>
-    </Modal>
+        </DrawerBody>
+      </DrawerContent>
+    </Drawer>
   );
 };
 
@@ -309,7 +305,7 @@ const ClientesPage = () => {
         <AlertDialogOverlay><AlertDialogContent>
           <AlertDialogHeader fontSize="lg" fontWeight="bold">Confirmar Exclusão</AlertDialogHeader>
           <AlertDialogBody>Tem certeza que deseja excluir o cliente <strong>{clienteParaDeletar?.nome}</strong>? Esta ação não pode ser desfeita.</AlertDialogBody>
-          <AlertDialogFooter><Button ref={cancelRef} onClick={onAlertClose}>Cancelar</Button><Button colorScheme="red" onClick={handleConfirmDelete} ml={3} isLoading={deleteMutation.isPending}>Sim, Excluir</Button></AlertDialogFooter>
+          <AlertDialogFooter><Button ref={cancelRef} onClick={onAlertClose}>Cancelar</Button><Button colorScheme="red" onClick={handleConfirmDelete} ml={3} isLoading={deleteMutation.isPending}>Excluir</Button></AlertDialogFooter>
         </AlertDialogContent></AlertDialogOverlay>
       </AlertDialog>
     </Box>
@@ -317,3 +313,4 @@ const ClientesPage = () => {
 };
 
 export default ClientesPage;
+

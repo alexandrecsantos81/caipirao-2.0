@@ -3,7 +3,6 @@ import {
   useDisclosure, useToast, VStack, HStack,
   Drawer, DrawerBody, DrawerCloseButton, DrawerContent, DrawerFooter, DrawerHeader, DrawerOverlay,
   FormControl, FormLabel, Input, FormErrorMessage,
-  Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay,
   useBreakpointValue,
   Divider,
   Center,
@@ -151,6 +150,37 @@ export const FormularioFornecedor = ({ isOpen, onClose, fornecedor, onSave, isLo
   );
 };
 
+// Componente de confirmação de exclusão como Drawer
+const ConfirmDeleteDrawer = ({ isOpen, onClose, fornecedor, onConfirm, isLoading }: {
+  isOpen: boolean;
+  onClose: () => void;
+  fornecedor: IFornecedor | null;
+  onConfirm: () => void;
+  isLoading: boolean;
+}) => {
+  const drawerSize = useBreakpointValue({ base: 'full', md: 'md' });
+
+  return (
+    <Drawer isOpen={isOpen} placement="right" onClose={onClose} size={drawerSize}>
+      <DrawerOverlay />
+      <DrawerContent>
+        <DrawerHeader borderBottomWidth="1px">Confirmar Exclusão</DrawerHeader>
+        <DrawerCloseButton />
+        <DrawerBody>
+          <VStack spacing={4} align="start">
+            <Text>Tem certeza que deseja excluir o fornecedor <strong>{fornecedor?.nome}</strong>?</Text>
+            <Text fontSize="sm" color="red.500">Atenção: Esta ação não pode ser desfeita.</Text>
+          </VStack>
+        </DrawerBody>
+        <DrawerFooter borderTopWidth="1px">
+          <Button variant="outline" mr={3} onClick={onClose}>Cancelar</Button>
+          <Button colorScheme="red" onClick={onConfirm} isLoading={isLoading}>Sim, Excluir</Button>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
+  );
+};
+
 // --- COMPONENTE PRINCIPAL DA PÁGINA ---
 
 const FornecedoresPage = () => {
@@ -158,7 +188,7 @@ const FornecedoresPage = () => {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { isOpen: isDrawerOpen, onOpen: onDrawerOpen, onClose: onDrawerClose } = useDisclosure();
-  const { isOpen: isConfirmModalOpen, onOpen: onConfirmModalOpen, onClose: onConfirmModalClose } = useDisclosure();
+  const { isOpen: isConfirmDrawerOpen, onOpen: onConfirmDrawerOpen, onClose: onConfirmDrawerClose } = useDisclosure();
   
   const [selectedFornecedor, setSelectedFornecedor] = useState<IFornecedor | null>(null);
   const [pagina, setPagina] = useState(1);
@@ -166,7 +196,6 @@ const FornecedoresPage = () => {
   const buscaDebounced = useDebounce(termoBusca, 500);
 
   const isMobile = useBreakpointValue({ base: true, md: false });
-  const cancelRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<FixedSizeList>(null); // 2. Ref para a lista virtualizada
   const isAdmin = user?.perfil === 'ADMIN';
 
@@ -207,7 +236,7 @@ const FornecedoresPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fornecedores'] });
       toast({ title: 'Fornecedor excluído com sucesso!', status: 'success' });
-      onConfirmModalClose();
+      onConfirmDrawerClose();
     },
     onError: (error: any) => {
       toast({ title: 'Erro ao excluir fornecedor', description: error.response?.data?.error || error.message, status: 'error' });
@@ -216,7 +245,7 @@ const FornecedoresPage = () => {
 
   const handleAddClick = () => { setSelectedFornecedor(null); onDrawerOpen(); };
   const handleEditClick = (fornecedor: IFornecedor) => { setSelectedFornecedor(fornecedor); onDrawerOpen(); };
-  const handleDeleteClick = (fornecedor: IFornecedor) => { setSelectedFornecedor(fornecedor); onConfirmModalOpen(); };
+  const handleDeleteClick = (fornecedor: IFornecedor) => { setSelectedFornecedor(fornecedor); onConfirmDrawerOpen(); };
   const handleConfirmDelete = () => { if (selectedFornecedor) { deleteMutation.mutate(selectedFornecedor.id); } };
   const handleSave = (formData: IFornecedorForm, id?: number) => { saveMutation.mutate({ data: formData, id }); };
 
@@ -309,21 +338,13 @@ const FornecedoresPage = () => {
         </>
       )}
 
-      <Modal isOpen={isConfirmModalOpen} onClose={onConfirmModalClose} isCentered>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Confirmar Exclusão</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Text>Tem certeza que deseja excluir o fornecedor <strong>{selectedFornecedor?.nome}</strong>?</Text>
-            <Text fontSize="sm" color="red.500" mt={2}>Atenção: Esta ação não pode ser desfeita.</Text>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onConfirmModalClose} ref={cancelRef}>Cancelar</Button>
-            <Button colorScheme="red" onClick={handleConfirmDelete} isLoading={deleteMutation.isPending}>Sim, Excluir</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <ConfirmDeleteDrawer 
+        isOpen={isConfirmDrawerOpen} 
+        onClose={onConfirmDrawerClose} 
+        fornecedor={selectedFornecedor}
+        onConfirm={handleConfirmDelete}
+        isLoading={deleteMutation.isPending}
+      />
 
       {isDrawerOpen && (
         <FormularioFornecedor 
@@ -339,3 +360,4 @@ const FornecedoresPage = () => {
 };
 
 export default FornecedoresPage;
+
