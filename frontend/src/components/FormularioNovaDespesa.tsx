@@ -147,10 +147,8 @@ export const FormularioNovaDespesa = ({ isOpen, onClose, despesaParaEditar }: Fo
             )}
             {watchTipoSaida && watchTipoSaida !== 'ABATE' && (
               <FormularioNormal 
-                control={control} 
                 register={register} 
                 errors={errors} 
-                watch={watch}
               />
             )}
           
@@ -264,13 +262,11 @@ const FormularioAbate = ({ control, register, errors, watch }: FormularioAbatePr
 
 // --- Sub-componente para o Formulário Normal ---
 interface FormularioNormalProps {
-  control: UseFormReturn<FormValues>['control'];
   register: UseFormReturn<FormValues>['register'];
   errors: FieldErrors<FormValues>;
-  watch: UseFormReturn<FormValues>['watch'];
 }
 
-const FormularioNormal = ({ control, register, errors, watch }: FormularioNormalProps) => {
+const FormularioNormal = ({ register, errors }: FormularioNormalProps) => {
   const { data: fornecedoresData } = useQuery<IPaginatedResponse<IFornecedor>>({
     queryKey: ['todosFornecedores'],
     queryFn: () => getFornecedores(1, 1000),
