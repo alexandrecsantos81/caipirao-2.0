@@ -1,19 +1,14 @@
-// backend/controllers/reportController.js
-
 const pool = require('../db');
 const PDFDocument = require('pdfkit');
 
 // =====================================================================
-// FUNÇÕES DE BUSCA DE DADOS (JSON) - COM CORREÇÕES
+// FUNÇÕES DE BUSCA DE DADOS (JSON)
 // =====================================================================
 
 const getSalesSummary = async (req, res) => {
     const { startDate, endDate } = req.query;
     if (!startDate || !endDate) return res.status(400).json({ error: 'As datas de início e fim são obrigatórias.' });
     try {
-        // ✅ CORREÇÃO FINAL APLICADA AQUI:
-        // Simplificamos a subconsulta 'evolucao_diaria' para agrupar diretamente
-        // pelo campo 'data_venda', que já é do tipo DATE. Isso é mais robusto.
         const query = `
             WITH vendas_no_periodo AS (
                 SELECT 
@@ -53,9 +48,6 @@ const getProductRanking = async (req, res) => {
     if (!startDate || !endDate) return res.status(400).json({ error: 'As datas de início e fim são obrigatórias.' });
     if (orderBy !== 'valor' && orderBy !== 'quantidade') return res.status(400).json({ error: "Parâmetro 'orderBy' inválido." });
     try {
-        // ✅ CORREÇÃO APLICADA AQUI:
-        // A sintaxe 'FROM movimentacoes m, jsonb_array_elements(m.produtos) AS item' foi a causa do erro.
-        // A forma correta e mais moderna é usar um LATERAL JOIN.
         const query = `
             SELECT 
                 p.id AS "produtoId",
@@ -86,9 +78,6 @@ const getProductRanking = async (req, res) => {
         res.status(500).json({ error: 'Erro interno do servidor.' });
     }
 };
-
-
-// --- O RESTANTE DO ARQUIVO PERMANECE IGUAL ---
 
 const getClientRanking = async (req, res) => {
     const { startDate, endDate } = req.query;
@@ -161,32 +150,57 @@ const getStockEntriesReport = async (req, res) => {
     }
 };
 
-// ... (O restante do arquivo, com as funções de PDF, permanece o mesmo) ...
-// (Vou omitir o resto para ser breve, mas você deve manter o seu código existente para as funções de PDF)
+// =====================================================================
+// NOVA FUNÇÃO PARA PRODUTIVIDADE DE FUNCIONÁRIOS (ABATE)
+// =====================================================================
+const getEmployeeProductivity = async (req, res) => {
+    const { startDate, endDate } = req.query;
+    if (!startDate || !endDate) {
+        return res.status(400).json({ error: 'As datas de início e fim são obrigatórias.' });
+    }
+
+    try {
+        const query = `
+            SELECT 
+                d.id,
+                d.data_compra,
+                d.discriminacao,
+                d.valor,
+                f.nome as funcionario_nome
+            FROM despesas d
+            JOIN funcionarios f ON d.funcionario_id = f.id
+            WHERE 
+                d.tipo_saida = 'ABATE' AND
+                d.data_compra BETWEEN $1 AND $2
+            ORDER BY 
+                f.nome ASC, d.data_compra DESC;
+        `;
+        const result = await pool.query(query, [startDate, endDate]);
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error('Erro ao gerar relatório de produtividade de funcionários:', error);
+        res.status(500).json({ error: 'Erro interno do servidor.' });
+    }
+};
+
 
 // =====================================================================
-// FUNÇÕES DE GERAÇÃO DE PDF (ATUALIZADAS)
+// FUNÇÕES DE GERAÇÃO DE PDF
 // =====================================================================
 
-// Função de ajuda para buscar os dados da empresa
 const getPdfHeaderData = async () => {
     const empresaResult = await pool.query('SELECT * FROM empresa_dados WHERE id = 1');
     return empresaResult.rows.length > 0 ? empresaResult.rows[0] : {};
 };
 
-// Função de ajuda para configurar o cabeçalho do PDF
 const setupPdf = (res, doc, dadosEmpresa, title, subtitle) => {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename=relatorio.pdf`);
     doc.pipe(res);
-
-    // Cabeçalho da Empresa
     doc.fontSize(16).font('Helvetica-Bold').text(dadosEmpresa.nome_fantasia || 'Nome da Empresa', { align: 'center' });
     if (dadosEmpresa.cnpj) doc.fontSize(9).font('Helvetica').text(`CNPJ: ${dadosEmpresa.cnpj}`, { align: 'center' });
     if (dadosEmpresa.endereco_completo) doc.text(dadosEmpresa.endereco_completo, { align: 'center' });
     doc.moveDown(1);
-
-    // Título do Relatório
     doc.fontSize(14).font('Helvetica-Bold').text(title, { align: 'center' });
     if (subtitle) {
         doc.fontSize(11).font('Helvetica').text(subtitle, { align: 'center' });
@@ -206,17 +220,13 @@ function generateTableRow(doc, y, items, isHeader = false) {
     const rowHeight = 20;
     const startX = 40;
     const endX = 555;
-
     if (!isHeader && items[0] % 2 === 0) {
         doc.rect(startX, y, endX - startX, rowHeight).fill('#f0f0f0');
     }
-    
     doc.fillColor('black').font(isHeader ? 'Helvetica-Bold' : 'Helvetica').fontSize(9);
-
     items.slice(1).forEach((item, i) => {
         doc.text(item.text, item.x, y + 6, { width: item.width, align: item.align || 'left' });
     });
-
     doc.moveTo(startX, y + rowHeight).lineTo(endX, y + rowHeight).strokeColor('#cccccc').stroke();
 }
 
@@ -294,7 +304,6 @@ const getProductRankingPDF = async (req, res) => {
     const { startDate, endDate, orderBy = 'valor' } = req.query;
     if (!startDate || !endDate) return res.status(400).json({ error: 'Datas são obrigatórias.' });
     try {
-        // ✅ CORREÇÃO APLICADA AQUI TAMBÉM
         const query = `
             SELECT 
                 p.nome, p.unidade_medida, SUM(item.quantidade) AS "quantidadeTotal", 
@@ -436,6 +445,7 @@ module.exports = {
     getClientAnalysis,
     getSellerProductivity,
     getStockEntriesReport,
+    getEmployeeProductivity, // <-- EXPORTANDO A NOVA FUNÇÃO
     gerarComprovanteVenda,
     getProductRankingPDF,
     getClientRankingPDF,

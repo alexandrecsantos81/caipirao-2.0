@@ -1,10 +1,7 @@
-// backend/routes/reports.js
-
 const express = require('express');
 const router = express.Router();
 const { verifyToken, checkAdmin } = require('../middleware/authMiddleware');
 
-// Importar todas as funções, incluindo a nova
 const { 
     getSalesSummary, 
     getProductRanking,
@@ -12,15 +9,14 @@ const {
     getClientAnalysis,
     getSellerProductivity,
     getStockEntriesReport,
-    gerarComprovanteVenda, // <-- Nova função importada
+    getEmployeeProductivity, // <-- Importando a nova função
+    gerarComprovanteVenda,
     getProductRankingPDF,
     getClientRankingPDF,
     getSellerProductivityPDF,
     getStockEntriesPDF
 } = require('../controllers/reportController');
 
-// Aplica o middleware para todas as rotas deste arquivo.
-// O checkAdmin garante que apenas administradores acessem os relatórios.
 router.use(verifyToken, checkAdmin);
 
 // --- ROTAS DE DADOS (JSON) ---
@@ -30,13 +26,10 @@ router.get('/client-ranking', getClientRanking);
 router.get('/client-analysis', getClientAnalysis);
 router.get('/seller-productivity', getSellerProductivity);
 router.get('/stock-entries', getStockEntriesReport);
+router.get('/employee-productivity', getEmployeeProductivity); // <-- NOVA ROTA ADICIONADA
 
 // --- ROTAS DE RELATÓRIOS (PDF) ---
-
-// NOVA ROTA: Gerar PDF de um comprovante de venda específico
 router.get('/venda/:id/pdf', gerarComprovanteVenda);
-
-// Rotas de PDF de Rankings
 router.get('/product-ranking/pdf', getProductRankingPDF);
 router.get('/client-ranking/pdf', getClientRankingPDF);
 router.get('/seller-productivity/pdf', getSellerProductivityPDF);

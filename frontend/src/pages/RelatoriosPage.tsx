@@ -1,5 +1,3 @@
-// frontend/src/pages/RelatoriosPage.tsx
-
 import {
   Box, Button, Flex, Heading, Input, Text, Tabs, TabList, TabPanels, Tab, TabPanel, Select,
   SimpleGrid,
@@ -19,6 +17,7 @@ import {
   getClientRankingPdf,
   getSellerProductivityPdf,
   getStockEntriesPdf,
+  getEmployeeProductivityPdf, // <-- Importar PDF
   IProductRankingFilter,
   IReportDateFilter,
 } from '@/services/report.service'; 
@@ -30,6 +29,7 @@ import {
   useClientAnalysis,
   useSellerProductivity,
   useStockEntriesReport,
+  useEmployeeProductivity, // <-- Importar hook
 } from '@/hooks/useReports';
 
 import { ReportKPIs } from '@/components/ReportKPIs';
@@ -40,6 +40,7 @@ import { ClientAnalysis } from '@/components/ClientAnalysis';
 import { SellerProductivityTable } from '@/components/SellerProductivityTable';
 import SellerProductivityChart from '@/components/SellerProductivityChart';
 import { StockEntriesTable } from '@/components/StockEntriesTable';
+import { EmployeeProductivityTable } from '@/components/EmployeeProductivityTable'; // <-- Importar tabela
 
 const formatDateForAPI = (date: Date): string => format(date, 'yyyy-MM-dd');
 
@@ -65,6 +66,7 @@ const RelatoriosPage = () => {
   const { data: clientAnalysisData, isLoading: isLoadingClientAnalysis, isError: isErrorClientAnalysis } = useClientAnalysis(activeTab === 3);
   const { data: sellerProductivityData, isLoading: isLoadingSellerProductivity, isError: isErrorSellerProductivity } = useSellerProductivity(filters, activeTab === 4);
   const { data: stockEntriesData, isLoading: isLoadingStockEntries, isError: isErrorStockEntries } = useStockEntriesReport(filters, activeTab === 5);
+  const { data: employeeProductivityData, isLoading: isLoadingEmployeeProductivity, isError: isErrorEmployeeProductivity } = useEmployeeProductivity(filters, activeTab === 6);
 
   const onPdfSuccess = (blob: Blob) => {
     const pdfUrl = URL.createObjectURL(blob);
@@ -79,6 +81,7 @@ const RelatoriosPage = () => {
   const clientPdfMutation = useMutation<Blob, Error, IReportDateFilter>({ mutationFn: getClientRankingPdf, onSuccess: onPdfSuccess, onError: onPdfError });
   const sellerPdfMutation = useMutation<Blob, Error, IReportDateFilter>({ mutationFn: getSellerProductivityPdf, onSuccess: onPdfSuccess, onError: onPdfError });
   const stockPdfMutation = useMutation<Blob, Error, IReportDateFilter>({ mutationFn: getStockEntriesPdf, onSuccess: onPdfSuccess, onError: onPdfError });
+  const employeePdfMutation = useMutation<Blob, Error, IReportDateFilter>({ mutationFn: getEmployeeProductivityPdf, onSuccess: onPdfSuccess, onError: onPdfError });
 
   const handleGeneratePDF = () => {
     toast({ title: 'Gerando relatório...', status: 'info', duration: 1500 });
@@ -87,12 +90,13 @@ const RelatoriosPage = () => {
       case 2: clientPdfMutation.mutate(filters); break;
       case 4: sellerPdfMutation.mutate(filters); break;
       case 5: stockPdfMutation.mutate(filters); break;
+      case 6: employeePdfMutation.mutate(filters); break;
       default: toast({ title: 'Aviso', description: 'Este relatório não possui uma exportação para PDF.', status: 'warning' });
     }
   };
   
-  const isPdfLoading = productPdfMutation.isPending || clientPdfMutation.isPending || sellerPdfMutation.isPending || stockPdfMutation.isPending;
-  const isPdfSupported = [1, 2, 4, 5].includes(activeTab);
+  const isPdfLoading = productPdfMutation.isPending || clientPdfMutation.isPending || sellerPdfMutation.isPending || stockPdfMutation.isPending || employeePdfMutation.isPending;
+  const isPdfSupported = [1, 2, 4, 5, 6].includes(activeTab);
 
   return (
     <Box p={{ base: 4, md: 8 }}>
@@ -136,6 +140,7 @@ const RelatoriosPage = () => {
           <Tab>Análise</Tab>
           <Tab>Produtividade</Tab>
           <Tab>Estoque</Tab>
+          <Tab>Produtividade (Abate)</Tab>
         </TabList>
         <TabPanels>
           <TabPanel>
@@ -160,14 +165,19 @@ const RelatoriosPage = () => {
           <TabPanel>
             <ClientAnalysis data={clientAnalysisData} isLoading={isLoadingClientAnalysis} isError={isErrorClientAnalysis} />
           </TabPanel>
-          
           <TabPanel>
             <SellerProductivityTable data={sellerProductivityData} isLoading={isLoadingSellerProductivity} isError={isErrorSellerProductivity} />
             <SellerProductivityChart data={sellerProductivityData} isLoading={isLoadingSellerProductivity} />
           </TabPanel>
-
           <TabPanel>
             <StockEntriesTable data={stockEntriesData} isLoading={isLoadingStockEntries} isError={isErrorStockEntries} />
+          </TabPanel>
+          <TabPanel>
+            <EmployeeProductivityTable 
+              data={employeeProductivityData} 
+              isLoading={isLoadingEmployeeProductivity} 
+              isError={isErrorEmployeeProductivity} 
+            />
           </TabPanel>
         </TabPanels>
       </Tabs>

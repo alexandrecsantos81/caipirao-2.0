@@ -1,8 +1,6 @@
-// frontend/src/services/report.service.ts
+import { api } from '@/services/api';
 
-import { api } from '@/services/api'; // Usando o alias que configuramos
-
-// --- INTERFACES (sem alterações) ---
+// --- INTERFACES ---
 
 export interface IReportDateFilter {
   startDate: string;
@@ -74,8 +72,17 @@ export interface IStockEntryReportItem {
   observacao: string | null;
 }
 
+// NOVA INTERFACE PARA O RELATÓRIO DE PRODUTIVIDADE DE FUNCIONÁRIOS
+export interface IEmployeeProductivityItem {
+  id: number;
+  data_compra: string;
+  discriminacao: string;
+  valor: number;
+  funcionario_nome: string;
+}
 
-// --- FUNÇÕES DE SERVIÇO (DADOS JSON) (sem alterações) ---
+
+// --- FUNÇÕES DE SERVIÇO (DADOS JSON) ---
 
 export const getSalesSummary = async (filter: IReportDateFilter): Promise<ISalesSummaryResponse> => {
   const response = await api.get('/reports/sales-summary', { params: filter });
@@ -107,6 +114,13 @@ export const getStockEntriesReport = async (filter: IReportDateFilter): Promise<
   return response.data;
 };
 
+// NOVA FUNÇÃO PARA BUSCAR OS DADOS DE PRODUTIVIDADE DOS FUNCIONÁRIOS
+export const getEmployeeProductivityReport = async (filter: IReportDateFilter): Promise<IEmployeeProductivityItem[]> => {
+  const response = await api.get('/reports/employee-productivity', { params: filter });
+  return response.data;
+};
+
+
 // --- FUNÇÕES DE SERVIÇO (PDF) ---
 
 const getPdf = async (url: string, params: any): Promise<Blob> => {
@@ -133,16 +147,12 @@ export const getStockEntriesPdf = async (filter: IReportDateFilter): Promise<Blo
   return getPdf('/reports/stock-entries/pdf', filter);
 };
 
-// =====================================================================
-// NOVA FUNÇÃO PARA GERAR O COMPROVANTE DE VENDA
-// =====================================================================
-/**
- * @description Solicita a geração do PDF de um comprovante de venda.
- * @param vendaId O ID da venda para a qual o comprovante será gerado.
- * @returns Um Blob contendo o PDF.
- */
+// NOVA FUNÇÃO PARA GERAR O PDF DE PRODUTIVIDADE DOS FUNCIONÁRIOS
+export const getEmployeeProductivityPdf = async (filter: IReportDateFilter): Promise<Blob> => {
+  return getPdf('/reports/employee-productivity/pdf', filter);
+};
+
 export const gerarComprovanteVendaPDF = async (vendaId: number): Promise<Blob> => {
-  // A rota foi definida como '/venda/:id/pdf' no backend
   const response = await api.get(`/reports/venda/${vendaId}/pdf`, {
     responseType: 'blob',
   });
