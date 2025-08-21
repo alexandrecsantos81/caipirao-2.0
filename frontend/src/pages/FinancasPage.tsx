@@ -1,3 +1,5 @@
+// frontend/src/pages/FinancasPage.tsx
+
 import {
   Box, Button, Flex, Heading, Input, Text,
   Tabs, TabList, TabPanels, Tab, SimpleGrid, useColorModeValue,
@@ -29,6 +31,18 @@ const FinancasPage = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [termoBusca, setTermoBusca] = useState('');
   const buscaDebounced = useDebounce(termoBusca, 500);
+
+  // ==================================================================
+  // Paleta de cores em HEX (compatível com Recharts)
+  // ==================================================================
+  const receitaColor = useColorModeValue('#48BB78', '#68D391'); // green
+  const despesaColor = useColorModeValue('#F56565', '#FC8181'); // red
+  const topDespesaColor = useColorModeValue('#ED8936', '#F6AD55'); // orange
+  const categoriaColors = [
+    '#3182CE', '#DD6B20', '#38A169', '#D53F8C', '#805AD5',
+    '#E53E3E', '#D69E2E', '#319795', '#5A67D8', '#B7791F'
+  ];
+  // ==================================================================
 
   const handleSetPeriod = (start: Date, end: Date) => {
     setStartDate(format(start, 'yyyy-MM-dd'));
@@ -79,6 +93,7 @@ const FinancasPage = () => {
       <Heading as="h1" mb={2}>Centro Financeiro</Heading>
       <Text color="gray.500" mb={6}>Analise os dados consolidados do negócio e das suas finanças pessoais.</Text>
 
+      {/* ========================== FILTRO GLOBAL ========================== */}
       <Box p={4} borderWidth={1} borderRadius="md" my={6} bg={useColorModeValue('gray.50', 'gray.700')}>
         <Heading size="md" mb={4}>Filtrar Período Global</Heading>
         <SimpleGrid columns={{ base: 1, sm: 2, md: 4 }} spacing={2} mb={4}>
@@ -101,9 +116,9 @@ const FinancasPage = () => {
         </Flex>
       </Box>
 
+      {/* ========================== TABS ========================== */}
       <Tabs variant="unstyled" align="center" onChange={(index) => setActiveTab(index)}>
         <TabList gap={3}>
-          {/* ✅ INÍCIO DA MODIFICAÇÃO: Adicionando a cor do texto no hover */}
           <Tab 
             {...baseTabStyles} 
             _selected={{ color: 'white', bg: 'teal.400', boxShadow: 'md' }} 
@@ -125,36 +140,41 @@ const FinancasPage = () => {
           >
             Despesas Pessoais
           </Tab>
-          {/* ✅ FIM DA MODIFICAÇÃO */}
         </TabList>
 
         <TabPanels mt={5}>
+          {/* ========================== DASHBOARD ========================== */}
           <TabPanel>
             <DashboardFinanceiro filters={{ startDate, endDate }} />
             
-            <Box mt={8}>
+            <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6} mt={8}>
               <CardDespesasPessoaisPendentes />
-            </Box>
-
-            <SimpleGrid columns={{ base: 1, lg: 3 }} spacing={6} mt={8}>
               <GraficoDespesasCategoria 
                 data={analiseData?.despesasPorCategoria}
                 isLoading={isAnaliseLoading}
                 isError={isAnaliseError}
+                colors={categoriaColors} // <<< cores dinâmicas
               />
+            </SimpleGrid>
+
+            <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6} mt={8}>
               <GraficoTopDespesas
                 data={analiseData?.top5Despesas}
                 isLoading={isAnaliseLoading}
                 isError={isAnaliseError}
+                barColor={topDespesaColor}
               />
               <GraficoBalancoMensal 
                 data={analiseData?.balancoMensal}
                 isLoading={isAnaliseLoading}
                 isError={isAnaliseError}
+                receitaColor={receitaColor}
+                despesaColor={despesaColor}
               />
             </SimpleGrid>
-
           </TabPanel>
+
+          {/* ========================== RECEITAS ========================== */}
           <TabPanel>
             <Box mb={6}>
               <InputGroup>
@@ -164,6 +184,8 @@ const FinancasPage = () => {
             </Box>
             <TabelaReceitasExternas />
           </TabPanel>
+
+          {/* ========================== DESPESAS ========================== */}
           <TabPanel>
             <Box mb={6}>
               <InputGroup>

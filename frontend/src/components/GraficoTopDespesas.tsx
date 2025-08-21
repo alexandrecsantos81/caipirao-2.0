@@ -1,3 +1,5 @@
+// frontend/src/components/GraficoTopDespesas.tsx
+
 import {
   Box,
   Center,
@@ -16,23 +18,20 @@ import {
   ResponsiveContainer,
   LabelList,
 } from 'recharts';
-// ✅ CORREÇÃO: O nome da interface importada está correto
 import { ITopDespesa } from '../services/financas.service';
 
 interface GraficoTopDespesasProps {
-  // ✅ CORREÇÃO: O nome da interface usada aqui agora está correto
   data: ITopDespesa[] | undefined;
   isLoading: boolean;
   isError: boolean;
+  barColor: string; // <-- Propriedade de cor adicionada
 }
 
-// Função para truncar textos longos e adicionar "..."
 const truncateText = (text: string, maxLength: number) => {
   if (text.length <= maxLength) return text;
   return `${text.substring(0, maxLength)}...`;
 };
 
-// Função para formatar valores para o eixo X e LabelList
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -41,7 +40,6 @@ const formatCurrency = (value: number) =>
     maximumFractionDigits: 1,
   }).format(value);
 
-// Função para formatar valores no tooltip de forma completa
 const formatCurrencyTooltip = (value: number) =>
   new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -52,8 +50,8 @@ export const GraficoTopDespesas = ({
   data,
   isLoading,
   isError,
+  barColor, // <-- Cor recebida via props
 }: GraficoTopDespesasProps) => {
-  const barColor = useColorModeValue('orange.400', 'orange.300');
   const textColor = useColorModeValue('gray.600', 'gray.400');
   const labelColor = useColorModeValue('gray.700', 'gray.200');
   const gridColor = useColorModeValue('gray.200', 'gray.700');
@@ -81,7 +79,6 @@ export const GraficoTopDespesas = ({
     );
   }
 
-  // Revertemos os dados para que a maior barra fique no topo
   const reversedData = [...data].reverse();
 
   return (
@@ -90,7 +87,7 @@ export const GraficoTopDespesas = ({
         <ResponsiveContainer width="100%" height="90%">
             <BarChart
                 data={reversedData}
-                layout="vertical" // Define o gráfico como horizontal
+                layout="vertical"
                 margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
             >
                 <CartesianGrid stroke={gridColor} strokeDasharray="3 3" horizontal={false} />
@@ -101,7 +98,7 @@ export const GraficoTopDespesas = ({
                     stroke={textColor}
                     fontSize={12}
                     tick={{ fill: textColor }}
-                    tickFormatter={(value) => truncateText(value, 25)} // Trunca o texto do eixo Y
+                    tickFormatter={(value) => truncateText(value, 25)}
                     width={150}
                 />
                 <Tooltip

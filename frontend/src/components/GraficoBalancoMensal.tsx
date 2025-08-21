@@ -1,3 +1,5 @@
+// frontend/src/components/GraficoBalancoMensal.tsx
+
 import {
   Box,
   Center,
@@ -22,9 +24,10 @@ interface GraficoBalancoMensalProps {
   data: IBalancoMensal[] | undefined;
   isLoading: boolean;
   isError: boolean;
+  receitaColor: string; // <-- Propriedade de cor adicionada
+  despesaColor: string; // <-- Propriedade de cor adicionada
 }
 
-// Função para formatar valores para o eixo Y de forma compacta (ex: R$ 1,5k)
 const formatCurrencyAxis = (value: number) => {
   if (typeof value !== 'number' || isNaN(value)) return 'R$ 0';
   return new Intl.NumberFormat('pt-BR', {
@@ -35,7 +38,6 @@ const formatCurrencyAxis = (value: number) => {
   }).format(value);
 };
 
-// Função para formatar valores no tooltip de forma completa
 const formatCurrencyTooltip = (value: number) =>
   new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -46,9 +48,9 @@ export const GraficoBalancoMensal = ({
   data,
   isLoading,
   isError,
+  receitaColor, // <-- Cor recebida via props
+  despesaColor, // <-- Cor recebida via props
 }: GraficoBalancoMensalProps) => {
-  const receitaColor = useColorModeValue('green.500', 'green.300');
-  const despesaColor = useColorModeValue('red.500', 'red.300');
   const textColor = useColorModeValue('gray.600', 'gray.400');
   const gridColor = useColorModeValue('gray.200', 'gray.700');
   const tooltipBg = useColorModeValue('white', 'gray.800');
