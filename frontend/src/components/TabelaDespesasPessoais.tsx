@@ -1,5 +1,3 @@
-// frontend/src/components/TabelaDespesasPessoais.tsx
-
 import {
   Box, Button, Flex, Heading, IconButton, Spinner, Table, TableContainer, Tbody, Td, Text,
   Th, Thead, Tr, useDisclosure, useToast, HStack,
@@ -161,22 +159,15 @@ export const TabelaDespesasPessoais = ({ filters, termoBusca }: TabelaDespesasPe
       (d.categoria && d.categoria.toLowerCase().includes(termo))
     );
 
-    // ✅ ================== INÍCIO DA CORREÇÃO LÓGICA ================== ✅
-    // A lógica de filtragem por data foi ajustada.
-    // Agora, despesas pendentes (pago = false) são sempre consideradas,
-    // mas despesas pagas só aparecem se a data de pagamento estiver no período.
     const despesasVisiveis = dadosFiltradosPorTexto.filter(d => {
       if (d.pago) {
-        if (!d.data_pagamento) return false; // Segurança
+        if (!d.data_pagamento) return false;
         const dataPagamento = parseISO(d.data_pagamento);
         if (!isValid(dataPagamento)) return false;
-        // Só mostra despesas pagas se a data do pagamento estiver no filtro
         return dataPagamento >= parseISO(filters.startDate) && dataPagamento <= parseISO(filters.endDate);
       }
-      // Se a despesa não está paga (pago = false), ela SEMPRE será exibida.
       return true;
     });
-    // ✅ =================== FIM DA CORREÇÃO LÓGICA =================== ✅
 
     const despesasUnicas = despesasVisiveis.filter(d => !d.parcela_id && !d.recorrente);
     const assinaturas = despesasVisiveis.filter(d => d.recorrente && !d.parcela_id);
@@ -197,7 +188,14 @@ export const TabelaDespesasPessoais = ({ filters, termoBusca }: TabelaDespesasPe
 
       if (!proximaParcela) return;
 
-      const saldoRestante = parcelasDoGrupo.reduce((acc, p) => !p.pago ? acc + p.valor : acc, 0);
+      // ==================================================================
+      // ALTERAÇÃO SUGERIDA APLICADA AQUI
+      // ==================================================================
+      // Calcula o número de parcelas restantes, incluindo a atual.
+      const parcelasRestantes = (proximaParcela.total_parcelas || 0) - (proximaParcela.numero_parcela || 0) + 1;
+      // Multiplica o número de parcelas restantes pelo valor da parcela.
+      const saldoRestante = parcelasRestantes * proximaParcela.valor;
+      // ==================================================================
 
       financiamentos.push({
         parcela_id: proximaParcela.parcela_id!,
